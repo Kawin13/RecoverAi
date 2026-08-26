@@ -21,6 +21,7 @@ class RecoveryCase(Base):
     scheduled_at = Column(DateTime, nullable=True)
     executed_at = Column(DateTime, nullable=True)
     execution_payload = Column(String(2048), nullable=True)
+    checkout_session_id = Column(String(64), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     recovered_at = Column(DateTime, nullable=True)

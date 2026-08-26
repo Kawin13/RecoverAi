@@ -12,7 +12,8 @@ from app.api.v1.endpoints import (
     webhooks,
     events,
     recovery_executor,
-    guardrails
+    guardrails,
+    checkout
 )
 
 api_router = APIRouter()
@@ -28,4 +29,5 @@ api_router.include_router(ml.router, prefix="/ml", tags=["ML & Propensity Engine
 api_router.include_router(recovery_decision.router, prefix="/recovery", tags=["Decision Intelligence & ERV"])
 api_router.include_router(recovery_executor.router, prefix="/recovery", tags=["Recovery Executor & Workflows"])
 api_router.include_router(guardrails.router, prefix="/guardrails", tags=["Fintech Guardrails & Governance"])
+api_router.include_router(checkout.router, prefix="/checkout", tags=["Pre-Payment Cart & Checkout Abandonment"])
 api_router.include_router(ai.router, prefix="/ai", tags=["Gemini GenAI & Multi-Lingual Communications"])

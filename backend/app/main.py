@@ -35,6 +35,17 @@ async def lifespan(app: FastAPI):
                 conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP;"))
                 conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS executed_at TIMESTAMP;"))
                 conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS execution_payload TEXT;"))
+                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS checkout_session_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS cart_amount FLOAT DEFAULT 0.0;"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'STARTED';"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS selected_method VARCHAR(32);"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS payment_attempted BOOLEAN DEFAULT FALSE;"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMP;"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS abandoned_at TIMESTAMP;"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS is_demo_simulation BOOLEAN DEFAULT TRUE;"))
+                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS recovery_case_id VARCHAR(64);"))
                 conn.commit()
             elif dialect == "sqlite":
                 res = conn.execute(text("PRAGMA table_info(transactions);")).fetchall()
@@ -63,6 +74,31 @@ async def lifespan(app: FastAPI):
                     conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN executed_at TIMESTAMP;"))
                 if "execution_payload" not in cols_rc:
                     conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN execution_payload TEXT;"))
+                if "checkout_session_id" not in cols_rc:
+                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN checkout_session_id VARCHAR(64);"))
+                
+                res_cs = conn.execute(text("PRAGMA table_info(checkout_sessions);")).fetchall()
+                cols_cs = [r[1] for r in res_cs]
+                if "cart_amount" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN cart_amount FLOAT DEFAULT 0.0;"))
+                if "status" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN status VARCHAR(32) DEFAULT 'STARTED';"))
+                if "selected_method" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN selected_method VARCHAR(32);"))
+                if "payment_attempted" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN payment_attempted BOOLEAN DEFAULT 0;"))
+                if "started_at" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN started_at TIMESTAMP;"))
+                if "last_activity_at" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN last_activity_at TIMESTAMP;"))
+                if "completed_at" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN completed_at TIMESTAMP;"))
+                if "abandoned_at" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN abandoned_at TIMESTAMP;"))
+                if "is_demo_simulation" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN is_demo_simulation BOOLEAN DEFAULT 1;"))
+                if "recovery_case_id" not in cols_cs:
+                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN recovery_case_id VARCHAR(64);"))
                 conn.commit()
     except Exception as exc:
         logger.warning(f"Schema auto-migration notice: {exc}")

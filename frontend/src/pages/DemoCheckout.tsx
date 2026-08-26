@@ -113,6 +113,21 @@ export const DemoCheckout: React.FC = () => {
 
   const [showHelper, setShowHelper] = useState(true)
   const [sdkReady, setSdkReady] = useState(false)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+
+  // Track session on product selection
+  useEffect(() => {
+    api.createCheckoutSession({
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      cart_amount: selectedProduct.price,
+      selected_method: 'UPI',
+      is_demo_simulation: true
+    }).then(sess => {
+      setActiveSessionId(sess.id)
+    }).catch(err => console.warn('Could not init checkout session:', err))
+  }, [selectedProduct.id])
 
   // 1. Fetch payment configuration & load Razorpay checkout.js SDK
   useEffect(() => {
@@ -172,6 +187,12 @@ export const DemoCheckout: React.FC = () => {
 
       const orderData: CreateOrderResponse = await api.createPaymentOrder(orderPayload)
 
+      // Track session transition to PAYMENT_METHOD_VIEWED and PAYMENT_INITIATED
+      if (activeSessionId) {
+        api.transitionCheckoutSession(activeSessionId, { new_status: 'PAYMENT_METHOD_VIEWED' }).catch(() => {})
+        api.transitionCheckoutSession(activeSessionId, { new_status: 'PAYMENT_INITIATED', payment_attempted: true }).catch(() => {})
+      }
+
       // Step B: Configure Razorpay Checkout.js
       if (window.Razorpay) {
         const options = {
@@ -192,6 +213,9 @@ export const DemoCheckout: React.FC = () => {
                 transaction_id: orderData.transaction_id
               })
               setCheckoutResult(verifyRes)
+              if (activeSessionId) {
+                api.transitionCheckoutSession(activeSessionId, { new_status: 'COMPLETED' }).catch(() => {})
+              }
             } catch (vErr: any) {
               setErrorMsg(`Verification Failed: ${vErr.message || 'Signature mismatch'}`)
             } finally {
@@ -210,6 +234,9 @@ export const DemoCheckout: React.FC = () => {
             ondismiss: async () => {
               // User closed the modal without completing payment
               try {
+                if (activeSessionId) {
+                  api.transitionCheckoutSession(activeSessionId, { new_status: 'ABANDONED' }).catch(() => {})
+                }
                 await api.recordPaymentFailure({
                   transaction_id: orderData.transaction_id,
                   order_id: orderData.order_id,

@@ -12,7 +12,8 @@ import {
   Settings,
   Shield,
   CreditCard,
-  ShoppingBag
+  ShoppingBag,
+  ShoppingCart
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -24,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
   const navItems = [
     { label: 'Overview', path: '/', icon: LayoutDashboard },
     { label: 'Demo Store', path: '/demo-checkout', icon: ShoppingBag, badge: 'Sandbox' },
+    { label: 'Cart Recovery', path: '/abandonment', icon: ShoppingCart, badge: 'Pre-Pay' },
     { label: 'At-Risk Revenue', path: '/at-risk', icon: AlertOctagon, badge: '8' },
     { label: 'Transactions', path: '/transactions', icon: Receipt },
     { label: 'Recovery Agent', path: '/agent', icon: Bot, badge: 'Live' },
