@@ -10,7 +10,8 @@ from app.api.v1.endpoints import (
     ai,
     payments,
     webhooks,
-    events
+    events,
+    recovery_executor
 )
 
 api_router = APIRouter()
@@ -24,4 +25,5 @@ api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Razorpay W
 api_router.include_router(events.router, prefix="/events", tags=["Real-Time Events & SSE"])
 api_router.include_router(ml.router, prefix="/ml", tags=["ML & Propensity Engine"])
 api_router.include_router(recovery_decision.router, prefix="/recovery", tags=["Decision Intelligence & ERV"])
+api_router.include_router(recovery_executor.router, prefix="/recovery", tags=["Recovery Executor & Workflows"])
 api_router.include_router(ai.router, prefix="/ai", tags=["Gemini GenAI & Multi-Lingual Communications"])

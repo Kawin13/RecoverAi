@@ -29,6 +29,12 @@ async def lifespan(app: FastAPI):
                 conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(64);"))
                 conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_signature VARCHAR(255);"))
                 conn.execute(text("ALTER TABLE payment_attempts ADD COLUMN IF NOT EXISTS gateway_payment_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS current_step VARCHAR(64) DEFAULT 'DETECTED';"))
+                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 3;"))
+                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS channel VARCHAR(32) DEFAULT 'IN_APP';"))
+                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP;"))
+                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS executed_at TIMESTAMP;"))
+                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS execution_payload TEXT;"))
                 conn.commit()
             elif dialect == "sqlite":
                 res = conn.execute(text("PRAGMA table_info(transactions);")).fetchall()
@@ -43,6 +49,20 @@ async def lifespan(app: FastAPI):
                 cols_pa = [r[1] for r in res_pa]
                 if "gateway_payment_id" not in cols_pa:
                     conn.execute(text("ALTER TABLE payment_attempts ADD COLUMN gateway_payment_id VARCHAR(64);"))
+                res_rc = conn.execute(text("PRAGMA table_info(recovery_cases);")).fetchall()
+                cols_rc = [r[1] for r in res_rc]
+                if "current_step" not in cols_rc:
+                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN current_step VARCHAR(64) DEFAULT 'DETECTED';"))
+                if "max_attempts" not in cols_rc:
+                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN max_attempts INTEGER DEFAULT 3;"))
+                if "channel" not in cols_rc:
+                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN channel VARCHAR(32) DEFAULT 'IN_APP';"))
+                if "scheduled_at" not in cols_rc:
+                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN scheduled_at TIMESTAMP;"))
+                if "executed_at" not in cols_rc:
+                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN executed_at TIMESTAMP;"))
+                if "execution_payload" not in cols_rc:
+                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN execution_payload TEXT;"))
                 conn.commit()
     except Exception as exc:
         logger.warning(f"Schema auto-migration notice: {exc}")

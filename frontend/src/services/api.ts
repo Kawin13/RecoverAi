@@ -573,6 +573,88 @@ export const api = {
       throw new Error(err.detail || err.message || 'Failed to record payment failure')
     }
     return await res.json()
+  },
+
+  // ============================================================================
+  // Phase 9: Recovery Executor & State Machine Workflows
+  // ============================================================================
+  async getWorkflows(limit: number = 50): Promise<WorkflowListResponse> {
+    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows?limit=${limit}`)
+    if (!res.ok) {
+      throw new Error('Failed to fetch recovery workflows')
+    }
+    return await res.json()
+  },
+
+  async getWorkflow(caseId: string): Promise<WorkflowCase> {
+    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}`)
+    if (!res.ok) {
+      throw new Error(`Failed to fetch workflow ${caseId}`)
+    }
+    return await res.json()
+  },
+
+  async advanceWorkflowStep(caseId: string, isLiveDemo: boolean = true): Promise<{ status: string; case: WorkflowCase; step_result: any }> {
+    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/step`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_live_demo: isLiveDemo })
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to advance workflow step')
+    }
+    return await res.json()
+  },
+
+  async executeWorkflow(caseId: string, isLiveDemo: boolean = true): Promise<{ status: string; case: WorkflowCase; steps_taken: any[] }> {
+    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_live_demo: isLiveDemo })
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to execute workflow pipeline')
+    }
+    return await res.json()
+  },
+
+  async generatePaymentLink(caseId: string, isLiveDemo: boolean = true): Promise<PaymentLinkItem> {
+    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/payment-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_live_demo: isLiveDemo })
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to generate test payment link')
+    }
+    return await res.json()
+  },
+
+  async simulateWorkflowOutcome(caseId: string, outcome: 'RECOVERED' | 'FAILED'): Promise<{ status: string; case: WorkflowCase }> {
+    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/simulate-outcome`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outcome })
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to simulate workflow outcome')
+    }
+    return await res.json()
+  },
+
+  async getNotifications(caseId?: string, limit: number = 20): Promise<NotificationReceiptItem[]> {
+    const url = caseId 
+      ? `${API_BASE_URL}/api/recovery/notifications?case_id=${caseId}&limit=${limit}`
+      : `${API_BASE_URL}/api/recovery/notifications?limit=${limit}`
+    const res = await fetch(url)
+    if (!res.ok) {
+      return []
+    }
+    return await res.json()
   }
 }
 
@@ -636,4 +718,62 @@ export interface PaymentFailureRequest {
   error_description?: string
   error_category?: string
 }
+
+export interface PaymentLinkItem {
+  id: string
+  payment_link_id: string
+  short_url: string
+  amount: number
+  status: string
+  is_live_demo: boolean
+  created_at: string
+}
+
+export interface WorkflowCase {
+  id: string
+  transaction_id: string
+  order_id?: string
+  customer_name?: string
+  customer_tier?: string
+  customer_phone?: string
+  risk_amount: number
+  failure_category: string
+  selected_strategy: string
+  current_step: string
+  status: string
+  attempt_count: number
+  max_attempts: number
+  channel: string
+  expected_recovery_value: number
+  recovery_probability: number
+  scheduled_at?: string
+  executed_at?: string
+  execution_payload?: string
+  payment_links: PaymentLinkItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkflowListResponse {
+  total_cases: number
+  active_cases: number
+  workflows: WorkflowCase[]
+}
+
+export interface NotificationReceiptItem {
+  notification_id: string
+  channel: string
+  recipient: string
+  delivery_label: string
+  is_simulated: boolean
+  status: string
+  title: string
+  body: string
+  action_url?: string
+  language: string
+  recovery_case_id?: string
+  latency_ms: number
+  dispatched_at: string
+}
+
 
