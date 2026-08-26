@@ -229,3 +229,147 @@ def test_webhook_payment_failed_escalation(client, db_session):
     assert case is not None
     assert case.status == "PENDING_APPROVAL"
     assert case.risk_amount == 4999.0
+
+def test_webhook_payment_authorized_transitional(client, db_session):
+    order_res = client.post("/api/payments/order", json={
+        "product_id": "subscription_pro",
+        "product_name": "Pro Monthly Plan",
+        "amount": 2999.0,
+        "currency": "INR",
+        "customer_name": "Auth Tester",
+        "customer_email": "auth.test@example.com"
+    })
+    order_id = order_res.json()["order_id"]
+    tx_id = order_res.json()["transaction_id"]
+
+    auth_payload = {
+        "id": "evt_auth_3003",
+        "event": "payment.authorized",
+        "payload": {
+            "payment": {
+                "entity": {
+                    "id": "pay_auth_3003",
+                    "order_id": order_id,
+                    "amount": 299900,
+                    "status": "authorized",
+                    "method": "card"
+                }
+            }
+        }
+    }
+    raw_body = json.dumps(auth_payload).encode("utf-8")
+    res = client.post("/webhooks/razorpay", content=raw_body, headers={"X-Razorpay-Signature": compute_webhook_signature(raw_body)})
+    assert res.status_code == 200
+
+    tx = db_session.query(Transaction).filter(Transaction.id == tx_id).first()
+    assert tx.status == "AUTHORIZED"
+    # Must NOT mark as final SUCCESS until captured
+    assert tx.status != "SUCCESS"
+
+    attempt = db_session.query(PaymentAttempt).filter(PaymentAttempt.transaction_id == tx_id).first()
+    assert attempt is not None
+    assert attempt.status == "AUTHORIZED"
+
+def test_webhook_order_paid_consistency(client, db_session):
+    order_res = client.post("/api/payments/order", json={
+        "product_id": "merch_hoodie",
+        "product_name": "RecoverAI Tech Hoodie",
+        "amount": 3499.0,
+        "currency": "INR",
+        "customer_name": "Order Paid Tester",
+        "customer_email": "orderpaid@example.com"
+    })
+    order_id = order_res.json()["order_id"]
+    tx_id = order_res.json()["transaction_id"]
+
+    order_paid_payload = {
+        "id": "evt_order_paid_4004",
+        "event": "order.paid",
+        "payload": {
+            "order": {
+                "entity": {
+                    "id": order_id,
+                    "amount": 349900,
+                    "status": "paid"
+                }
+            },
+            "payment": {
+                "entity": {
+                    "id": "pay_order_paid_4004",
+                    "order_id": order_id,
+                    "amount": 349900,
+                    "status": "captured",
+                    "method": "upi"
+                }
+            }
+        }
+    }
+    raw_body = json.dumps(order_paid_payload).encode("utf-8")
+    res = client.post("/webhooks/razorpay", content=raw_body, headers={"X-Razorpay-Signature": compute_webhook_signature(raw_body)})
+    assert res.status_code == 200
+
+    tx = db_session.query(Transaction).filter(Transaction.id == tx_id).first()
+    assert tx.status == "SUCCESS"
+    assert tx.method == "UPI"
+
+def test_webhook_unknown_event_handled_safely(client):
+    unknown_payload = {
+        "id": "evt_unknown_5005",
+        "event": "settlement.processed",
+        "payload": {
+            "settlement": {
+                "entity": {
+                    "id": "setl_test_5005",
+                    "amount": 1000000
+                }
+            }
+        }
+    }
+    raw_body = json.dumps(unknown_payload).encode("utf-8")
+    res = client.post("/webhooks/razorpay", content=raw_body, headers={"X-Razorpay-Signature": compute_webhook_signature(raw_body)})
+    assert res.status_code == 200
+    assert res.json()["status"] == "processed"
+    assert res.json()["event_type"] == "settlement.processed"
+
+def test_webhook_duplicate_recovery_prevention(client, db_session):
+    order_res = client.post("/api/payments/order", json={
+        "product_id": "saas_basic",
+        "product_name": "Basic SaaS Subscription",
+        "amount": 999.0,
+        "currency": "INR",
+        "customer_name": "No Duplicate Case Tester",
+        "customer_email": "nodup@example.com"
+    })
+    order_id = order_res.json()["order_id"]
+    tx_id = order_res.json()["transaction_id"]
+
+    fail_payload = {
+        "id": "evt_fail_nodup_6006",
+        "event": "payment.failed",
+        "payload": {
+            "payment": {
+                "entity": {
+                    "id": "pay_fail_nodup_6006",
+                    "order_id": order_id,
+                    "error_code": "BAD_REQUEST_ERROR",
+                    "error_description": "First failure"
+                }
+            }
+        }
+    }
+    raw_body = json.dumps(fail_payload).encode("utf-8")
+    sig = compute_webhook_signature(raw_body)
+
+    # First send
+    res1 = client.post("/webhooks/razorpay", content=raw_body, headers={"X-Razorpay-Signature": sig})
+    assert res1.status_code == 200
+
+    # Second send (Duplicate)
+    res2 = client.post("/webhooks/razorpay", content=raw_body, headers={"X-Razorpay-Signature": sig})
+    assert res2.status_code == 200
+    assert res2.json()["status"] == "duplicate_ignored"
+
+    # Verify strictly ONLY ONE recovery case was created
+    cases = db_session.query(RecoveryCase).filter(RecoveryCase.transaction_id == tx_id).all()
+    assert len(cases) == 1
+

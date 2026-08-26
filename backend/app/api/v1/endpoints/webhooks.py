@@ -270,6 +270,51 @@ async def razorpay_webhook_receiver(
                 "transaction_id": tx.id
             })
 
+    elif event_type == "payment.authorized":
+        if tx and tx.status not in ("SUCCESS", "RECOVERED"):
+            # Record transitional state correctly without marking final success
+            tx.status = "AUTHORIZED"
+            if payment_id:
+                tx.razorpay_payment_id = payment_id
+            tx.method = normalized_method
+            tx.updated_at = datetime.utcnow()
+
+            attempt = PaymentAttempt(
+                id=f"pa_{uuid.uuid4().hex[:10]}",
+                transaction_id=tx.id,
+                attempt_number=len(tx.payment_attempts) + 1,
+                gateway="Razorpay",
+                gateway_payment_id=payment_id,
+                status="AUTHORIZED",
+                latency_ms=250,
+                created_at=datetime.utcnow()
+            )
+            db.add(attempt)
+
+            db.add(
+                AuditLog(
+                    id=f"aud_{uuid.uuid4().hex[:10]}",
+                    transaction_id=tx.id,
+                    recovery_case_id=tx.recovery_case.id if tx.recovery_case else None,
+                    actor="RAZORPAY_WEBHOOK",
+                    action_type="PAYMENT_AUTHORIZED",
+                    target_resource=tx.id,
+                    details=f"Webhook recorded transitional payment.authorized for ₹{tx.amount:,.2f} via {normalized_method} (Payment {payment_id})",
+                    created_at=datetime.utcnow()
+                )
+            )
+
+            event_broadcaster.broadcast_sync("TRANSACTION_UPDATED", {
+                "transaction_id": tx.id,
+                "order_id": tx.order_id,
+                "status": "AUTHORIZED",
+                "amount": tx.amount,
+                "method": tx.method,
+                "event_type": event_type
+            })
+    else:
+        logger.info(f"Webhook event '{event_type}' acknowledged safely without business transition.")
+
     # 7. Record processed webhook event for idempotency
     webhook_record = WebhookEvent(
         id=event_id,
