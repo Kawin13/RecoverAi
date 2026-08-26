@@ -1,0 +1,66 @@
+{
+  "model_version": "1.0.0-production",
+  "trained_at": "2026-08-25T16:01:49.987045",
+  "algorithm": "XGBoost Gradient Boosted Decision Trees",
+  "framework": "xgboost 3.2.0 + scikit-learn",
+  "random_seed": 42,
+  "features": {
+    "categorical": [
+      "payment_method",
+      "bank",
+      "failure_reason",
+      "failure_category",
+      "preferred_payment_method",
+      "customer_value_segment",
+      "merchant_category",
+      "device_type"
+    ],
+    "numerical": [
+      "amount",
+      "attempt_count",
+      "previous_success_count",
+      "previous_failure_count",
+      "customer_tenure_days",
+      "hour_of_day",
+      "day_of_week",
+      "checkout_abandoned",
+      "checkout_duration_seconds",
+      "historical_avg_order_value"
+    ],
+    "total_count": 18
+  },
+  "candidate_actions": [
+    "RETRY_NOW",
+    "RETRY_LATER",
+    "UPI_SWITCH",
+    "PAYMENT_LINK",
+    "PERSONALIZED_REMINDER",
+    "HUMAN_ESCALATION",
+    "NO_ACTION"
+  ],
+  "metrics": {
+    "overall_recovery_model": {
+      "accuracy": 0.767,
+      "precision": 0.7805,
+      "recall": 0.9679,
+      "f1": 0.8642,
+      "roc_auc": 0.6956,
+      "brier_score": 0.1639,
+      "confusion_matrix": [
+        [
+          137,
+          1094
+        ],
+        [
+          129,
+          3890
+        ]
+      ]
+    },
+    "intervention_success_model": {
+      "accuracy": 0.7733,
+      "roc_auc": 0.7166,
+      "f1": 0.8671
+    }
+  }
+}

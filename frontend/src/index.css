@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #F4F1EA;
+    --color-surface: #FFFDF8;
+    --color-dark-surface: #24231F;
+    --color-graphite: #1E1D1A;
+    --color-burnt-orange: #D95D39;
+    --color-moss-green: #3F725B;
+    --color-muted-amber: #C08A3E;
+    --color-brick-red: #A6423A;
+    --color-warm-gray: #77736B;
+    --color-border: #DDD8CE;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-graphite);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #DDD8CE;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #B5AFA4;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .fintech-glass {
+    background-color: rgba(255, 253, 248, 0.94);
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* Accessible focus ring styling */
+*:focus-visible {
+  outline: 2px solid #D95D39;
+  outline-offset: 2px;
+}

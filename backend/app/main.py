@@ -1,0 +1,86 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from app.core.config import settings
+from app.core.logging import setup_logging, logger
+from app.database.session import engine, SessionLocal
+from app.database.base import Base
+from app.database.seed import seed_database
+from app.api.v1.endpoints.health import router as health_router
+from app.api.v1.router import api_router
+
+# Initialize structured logging
+setup_logging()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Ensure tables exist and seed database
+    logger.info("Initializing RecoverAI database schema and tables...")
+    Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    try:
+        seed_database(db)
+    except Exception as e:
+        logger.error(f"Error while running database seed: {e}")
+    finally:
+        db.close()
+        
+    logger.info(f"{settings.PROJECT_NAME} v{settings.VERSION} ready on {settings.ENVIRONMENT} mode.")
+    yield
+    # Shutdown
+    logger.info(f"Shutting down {settings.PROJECT_NAME}...")
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    description="Autonomous AI Revenue Recovery Agent for Digital Payments",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS or ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Exception Handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(f"Validation error on {request.method} {request.url.path}: {exc.errors()}")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": "Validation Error",
+            "details": exc.errors(),
+            "path": request.url.path
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "Internal Server Error",
+            "message": "An unexpected error occurred while processing your request.",
+            "path": request.url.path
+        }
+    )
+
+# Include Routers
+app.include_router(health_router)
+app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(api_router, prefix="/api/v1")  # Alias for /api/v1
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
