@@ -1,0 +1,183 @@
+"""
+RecoverAI - Fintech Guardrails & Human Approval API Endpoints
+Provides central policy inspection, human-in-the-loop approval actions, and 'Why Was This Stopped?' forensics.
+"""
+
+from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Dict, Any, Optional
+
+from app.database.session import get_db
+from app.models import RecoveryCase, Transaction, GuardrailEvent, AuditLog
+from app.core.guardrail_policy import guardrail_policy
+from app.services.guardrails_service import guardrails_service
+from app.schemas.guardrails import (
+    GuardrailPoliciesResponse,
+    HumanApprovalQueueItem,
+    HumanApprovalActionRequest,
+    WhyStoppedForensicResponse
+)
+
+router = APIRouter()
+
+@router.get("/policies", response_model=GuardrailPoliciesResponse, summary="Get Central Guardrail Policies")
+def get_policies():
+    """Returns the central fintech guardrail policy rules, threshold values, descriptions, and statuses."""
+    rules = guardrail_policy.get_rules()
+    summary = guardrail_policy.get_summary()
+    return {
+        "policy_version": guardrail_policy.POLICY_VERSION,
+        "summary": summary,
+        "rules": [r.model_dump() for r in rules]
+    }
+
+@router.get("/approval-queue", response_model=List[HumanApprovalQueueItem], summary="Get Human Approval Queue")
+def get_approval_queue(
+    db: Session = Depends(get_db)
+):
+    """
+    Returns high-value or gated cases requiring human supervisor sign-off before intervention dispatch.
+    Monetary amounts are strictly immutable and derived directly from the transaction.
+    """
+    cases = (
+        db.query(RecoveryCase)
+        .options(
+            joinedload(RecoveryCase.transaction).joinedload(Transaction.customer)
+        )
+        .filter(RecoveryCase.status == "PENDING_APPROVAL")
+        .order_by(RecoveryCase.created_at.desc())
+        .all()
+    )
+
+    items = []
+    for c in cases:
+        tx = c.transaction
+        cust = tx.customer if tx else None
+        decision = guardrails_service.evaluate(c, db)
+        items.append({
+            "case_id": c.id,
+            "transaction_id": c.transaction_id,
+            "order_id": tx.order_id if tx else None,
+            "customer_name": cust.name if cust else "Valued Customer",
+            "customer_tier": cust.tier if cust else "GROWTH",
+            "customer_phone": cust.phone if cust else "+919876543210",
+            "amount": c.risk_amount,
+            "currency": "INR",
+            "failure_category": c.failure_category,
+            "selected_strategy": c.selected_strategy or "PAYMENT_LINK",
+            "channel": c.channel or "IN_APP",
+            "expected_recovery_value": c.expected_recovery_value,
+            "recovery_probability": c.recovery_probability,
+            "reason_code": decision.reason_code,
+            "human_readable_reason": decision.human_readable_reason,
+            "created_at": c.created_at,
+            "updated_at": c.updated_at
+        })
+    return items
+
+@router.post("/approval-queue/{case_id}/decision", summary="Submit Human Supervisor Decision")
+def submit_approval_decision(
+    case_id: str,
+    payload: HumanApprovalActionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Processes human operator action (APPROVE, REJECT, NO_ACTION).
+    Monetary amounts cannot be altered. Logs operator identity and audit details.
+    """
+    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Recovery case not found")
+
+    try:
+        res = guardrails_service.process_human_approval(
+            case=case,
+            decision=payload.decision,
+            operator_name=payload.operator_name,
+            operator_notes=payload.operator_notes,
+            db=db
+        )
+        return {"status": "success", "approval_record": res}
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
+@router.get("/forensics/{case_id}", response_model=WhyStoppedForensicResponse, summary="'Why Was This Stopped?' Forensic Inspection")
+def get_why_stopped_forensics(
+    case_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Forensic deep-dive explaining why an autonomous recovery case was halted, blocked, or suppressed.
+    Synthesizes guardrail rule breaches, fraud markers, opt-out status, and audit history.
+    """
+    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Recovery case not found")
+
+    decision = guardrails_service.evaluate(case, db)
+    cust = case.transaction.customer if case.transaction else None
+
+    # Check opt-out and fraud
+    cust_notes = getattr(cust, "notes", "") or ""
+    tier = getattr(cust, "tier", "") or ""
+    is_opted_out = "OPT_OUT" in cust_notes.upper() or "DND" in cust_notes.upper() or "OPTED_OUT" in tier.upper() or "OPT_OUT" in case.failure_category.upper()
+    is_fraud = case.failure_category in guardrail_policy.RISK_TAXONOMIES or "FRAUD" in case.failure_category.upper()
+
+    # Load audit records
+    audits = (
+        db.query(AuditLog)
+        .filter(AuditLog.recovery_case_id == case.id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    audit_list = [
+        {
+            "id": a.id,
+            "actor": a.actor,
+            "action_type": a.action_type,
+            "details": a.details,
+            "timestamp": a.created_at.isoformat()
+        }
+        for a in audits
+    ]
+
+    return {
+        "case_id": case.id,
+        "transaction_id": case.transaction_id,
+        "status": case.status,
+        "current_step": case.current_step or case.status,
+        "reason_code": decision.reason_code,
+        "human_readable_reason": decision.human_readable_reason,
+        "policy_version": guardrail_policy.POLICY_VERSION,
+        "attempt_count": case.attempt_count,
+        "max_attempts": case.max_attempts,
+        "customer_opted_out": is_opted_out,
+        "fraud_flag_detected": is_fraud,
+        "failure_category": case.failure_category,
+        "risk_amount": case.risk_amount,
+        "rule_breached": decision.reason_code,
+        "suggested_action": decision.suggested_action or "STOP",
+        "evaluated_at": decision.evaluated_at,
+        "audit_events": audit_list
+    }
+
+@router.get("/events", summary="Get Recent Guardrail Events")
+def get_guardrail_events(
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Returns recent guardrail breach events logged during decision evaluation."""
+    events = db.query(GuardrailEvent).order_by(GuardrailEvent.triggered_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": e.id,
+            "recovery_case_id": e.recovery_case_id,
+            "rule_name": e.rule_name,
+            "threshold_breached": e.threshold_breached,
+            "action_taken": e.action_taken,
+            "details": e.details,
+            "triggered_at": e.triggered_at.isoformat()
+        }
+        for e in events
+    ]

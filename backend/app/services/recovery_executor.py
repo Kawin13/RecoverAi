@@ -26,6 +26,7 @@ class RecoveryStep(str, Enum):
     ANALYZED = "ANALYZED"
     STRATEGY_SELECTED = "STRATEGY_SELECTED"
     GUARDRAIL_CHECKED = "GUARDRAIL_CHECKED"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
     ACTION_SCHEDULED = "ACTION_SCHEDULED"
     ACTION_EXECUTED = "ACTION_EXECUTED"
     WAITING_FOR_CUSTOMER = "WAITING_FOR_CUSTOMER"
@@ -323,16 +324,31 @@ class RecoveryStateMachine:
             step_result["decision"] = decision
 
         elif current == RecoveryStep.STRATEGY_SELECTED.value:
-            # Step 3 -> GUARDRAIL_CHECKED
-            # Check bounded limits and customer fatigue
-            if case.attempt_count > case.max_attempts:
-                details = f"Guardrail blocked action: attempt count {case.attempt_count} exceeds limit {case.max_attempts}."
-                case = self.transition(case, RecoveryStep.STOPPED.value, details, db)
-                step_result["next_step"] = RecoveryStep.STOPPED.value
+            # Step 3 -> Evaluate Central Fintech Guardrails BEFORE scheduling or executing
+            from app.services.guardrails_service import guardrails_service
+            guardrail_res = guardrails_service.evaluate(case, db)
+
+            if guardrail_res.requires_approval:
+                details = guardrail_res.human_readable_reason
+                case = self.transition(case, RecoveryStep.PENDING_APPROVAL.value, details, db)
+                step_result["next_step"] = RecoveryStep.PENDING_APPROVAL.value
+                step_result["guardrail_decision"] = guardrail_res.model_dump()
+            elif not guardrail_res.allowed:
+                details = guardrail_res.human_readable_reason
+                target = RecoveryStep.STOPPED.value
+                case = self.transition(case, target, details, db)
+                step_result["next_step"] = target
+                step_result["guardrail_decision"] = guardrail_res.model_dump()
             else:
-                details = f"Guardrails verified: Attempt {case.attempt_count}/{case.max_attempts} permitted. Cooldown and risk ceilings cleared."
+                details = guardrail_res.human_readable_reason
                 case = self.transition(case, RecoveryStep.GUARDRAIL_CHECKED.value, details, db)
                 step_result["next_step"] = RecoveryStep.GUARDRAIL_CHECKED.value
+                step_result["guardrail_decision"] = guardrail_res.model_dump()
+
+        elif current == RecoveryStep.PENDING_APPROVAL.value:
+            details = "Workflow is awaiting human supervisor approval in the Human Approval Queue."
+            step_result["message"] = details
+            step_result["next_step"] = current
 
         elif current == RecoveryStep.GUARDRAIL_CHECKED.value:
             # Step 4 -> ACTION_SCHEDULED
