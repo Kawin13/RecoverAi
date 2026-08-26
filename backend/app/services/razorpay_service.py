@@ -146,4 +146,35 @@ class RazorpayService:
             "currency": "INR"
         }
 
+    def verify_webhook_signature(
+        self,
+        raw_body: bytes,
+        signature: str,
+        secret: Optional[str] = None
+    ) -> bool:
+        """
+        Cryptographically verifies Razorpay webhook signature over the exact raw body bytes.
+        Formula: HMAC-SHA256(raw_body_bytes, webhook_secret) == signature
+        Never logs secrets.
+        """
+        webhook_secret = secret or settings.RAZORPAY_WEBHOOK_SECRET
+        if not webhook_secret:
+            logger.error("Webhook signature verification failed: RAZORPAY_WEBHOOK_SECRET is not configured.")
+            return False
+
+        secret_bytes = webhook_secret.encode("utf-8")
+        generated_signature = hmac.new(
+            secret_bytes,
+            raw_body,
+            hashlib.sha256
+        ).hexdigest()
+
+        is_valid = hmac.compare_digest(generated_signature, signature)
+        if not is_valid:
+            logger.warning("Webhook HMAC signature mismatch. Request untrusted.")
+        else:
+            logger.info("Webhook HMAC signature successfully verified.")
+
+        return is_valid
+
 razorpay_service = RazorpayService()

@@ -11,12 +11,14 @@ import { AuditTrail } from './pages/AuditTrail'
 import { Guardrails } from './pages/Guardrails'
 import { Settings } from './pages/Settings'
 import { DemoCheckout } from './pages/DemoCheckout'
+import { RealtimeProvider } from './lib/useRealtime'
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
+      <RealtimeProvider>
+        <Routes>
+          <Route element={<AppShell />}>
           <Route path="/" element={<Overview />} />
           <Route path="/overview" element={<Navigate to="/" replace />} />
           <Route path="/demo-checkout" element={<DemoCheckout />} />
@@ -32,7 +34,8 @@ export const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </RealtimeProvider>
+  </BrowserRouter>
   )
 }
 

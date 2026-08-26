@@ -27,6 +27,7 @@ import {
   CartesianGrid
 } from 'recharts'
 import { Link } from 'react-router-dom'
+import { useRealtime } from '../lib/useRealtime'
 
 export const Overview: React.FC = () => {
   const [timeRange, setTimeRange] = useState('7d')
@@ -34,10 +35,13 @@ export const Overview: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { subscribe } = useRealtime()
 
-  const loadData = async () => {
-    setLoading(true)
-    setError(null)
+  const loadData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const [dash, txRes] = await Promise.all([
         api.getDashboard(),
@@ -46,15 +50,20 @@ export const Overview: React.FC = () => {
       setData(dash)
       setTransactions(txRes.items)
     } catch (e: any) {
-      setError(e.message || 'Failed to connect to RecoverAI API')
+      if (!silent) setError(e.message || 'Failed to connect to RecoverAI API')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     loadData()
-  }, [])
+    // Live update when payment or recovery webhook event is broadcast
+    const unsubscribe = subscribe('*', () => {
+      loadData(true)
+    })
+    return unsubscribe
+  }, [subscribe])
 
   // Warm Fintech Tooltip Formatter
   const CustomTooltip = ({ active, payload, label }: any) => {

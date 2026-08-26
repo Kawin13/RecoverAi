@@ -19,6 +19,33 @@ async def lifespan(app: FastAPI):
     # Startup: Ensure tables exist and seed database
     logger.info("Initializing RecoverAI database schema and tables...")
     Base.metadata.create_all(bind=engine)
+
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            dialect = engine.dialect.name
+            if dialect == "postgresql":
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_signature VARCHAR(255);"))
+                conn.execute(text("ALTER TABLE payment_attempts ADD COLUMN IF NOT EXISTS gateway_payment_id VARCHAR(64);"))
+                conn.commit()
+            elif dialect == "sqlite":
+                res = conn.execute(text("PRAGMA table_info(transactions);")).fetchall()
+                cols = [r[1] for r in res]
+                if "razorpay_order_id" not in cols:
+                    conn.execute(text("ALTER TABLE transactions ADD COLUMN razorpay_order_id VARCHAR(64);"))
+                if "razorpay_payment_id" not in cols:
+                    conn.execute(text("ALTER TABLE transactions ADD COLUMN razorpay_payment_id VARCHAR(64);"))
+                if "razorpay_signature" not in cols:
+                    conn.execute(text("ALTER TABLE transactions ADD COLUMN razorpay_signature VARCHAR(255);"))
+                res_pa = conn.execute(text("PRAGMA table_info(payment_attempts);")).fetchall()
+                cols_pa = [r[1] for r in res_pa]
+                if "gateway_payment_id" not in cols_pa:
+                    conn.execute(text("ALTER TABLE payment_attempts ADD COLUMN gateway_payment_id VARCHAR(64);"))
+                conn.commit()
+    except Exception as exc:
+        logger.warning(f"Schema auto-migration notice: {exc}")
     
     db = SessionLocal()
     try:
@@ -80,6 +107,13 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(health_router)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(api_router, prefix="/api/v1")  # Alias for /api/v1
+
+# Direct Root Mounts for Webhooks & SSE Streaming
+from app.api.v1.endpoints.webhooks import router as webhooks_root_router
+from app.api.v1.endpoints.events import router as events_root_router
+
+app.include_router(webhooks_root_router, prefix="/webhooks", tags=["Razorpay Webhook"])
+app.include_router(events_root_router, prefix="/events", tags=["Real-Time Events & SSE"])
 
 if __name__ == "__main__":
     import uvicorn

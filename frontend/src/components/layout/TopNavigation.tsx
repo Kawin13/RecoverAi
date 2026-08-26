@@ -5,12 +5,15 @@ import {
   Building
 } from 'lucide-react'
 
+import { useRealtime } from '../../lib/useRealtime'
+
 interface TopNavigationProps {
   onToggleSidebar: () => void
 }
 
 export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar }) => {
   const [showNotifications, setShowNotifications] = useState(false)
+  const { status } = useRealtime()
   const activeMerchant = 'Zenith Commerce India'
 
   return (
@@ -36,8 +39,33 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
         </div>
       </div>
 
-      {/* Right: Agent Status, Search, Notifications, Profile */}
+      {/* Right: Realtime Status, Agent Status, Search, Notifications, Profile */}
       <div className="flex items-center gap-3">
+        {/* Real-time SSE Connection Status Indicator */}
+        <div
+          title={`Gateway & AI Event Stream: ${status}`}
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-warm-gray-50 border border-border text-[11px] font-mono select-none"
+        >
+          {status === 'LIVE' && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-moss-green animate-pulse" />
+              <span className="text-moss-green-dark font-medium">Live</span>
+            </>
+          )}
+          {status === 'RECONNECTING' && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+              <span className="text-amber-700 font-medium">Reconnecting</span>
+            </>
+          )}
+          {status === 'OFFLINE' && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-warm-gray-400" />
+              <span className="text-warm-gray-500 font-medium">Offline</span>
+            </>
+          )}
+        </div>
+
         {/* Agent Operational Status Pill */}
         <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-sm bg-moss-green-subtle border border-moss-green/30 text-xs">
           <span className="w-2 h-2 rounded-full bg-moss-green animate-pulse" />

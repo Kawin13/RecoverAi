@@ -6,28 +6,36 @@ import { TransactionTable } from '../components/common/TransactionTable'
 import { SkeletonLoader } from '../components/common/SkeletonLoader'
 import { ErrorState } from '../components/common/ErrorState'
 import { Download, RefreshCw } from 'lucide-react'
+import { useRealtime } from '../lib/useRealtime'
 
 export const Transactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { subscribe } = useRealtime()
 
-  const fetchTransactions = async () => {
-    setLoading(true)
-    setError(null)
+  const fetchTransactions = async (silent = false) => {
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const res = await api.getTransactions({ limit: 50 })
       setTransactions(res.items)
     } catch (e: any) {
-      setError(e.message || 'Failed to fetch transactions from backend')
+      if (!silent) setError(e.message || 'Failed to fetch transactions from backend')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchTransactions()
-  }, [])
+    const unsubscribe = subscribe('*', () => {
+      fetchTransactions(true)
+    })
+    return unsubscribe
+  }, [subscribe])
 
   const handleExportCSV = () => {
     const headers = ['ID', 'OrderID', 'Customer', 'Amount', 'Method', 'FailureReason', 'RecoveryProbability', 'Status', 'CreatedAt']
@@ -61,7 +69,7 @@ export const Transactions: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={fetchTransactions}
+              onClick={() => fetchTransactions(false)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border text-graphite rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
             >
               <RefreshCw className="w-3.5 h-3.5" />

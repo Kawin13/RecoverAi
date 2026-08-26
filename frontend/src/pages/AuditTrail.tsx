@@ -6,29 +6,37 @@ import { SkeletonLoader } from '../components/common/SkeletonLoader'
 import { ErrorState } from '../components/common/ErrorState'
 import { formatTimeAgo } from '../../src/lib/utils'
 import { Shield, User, Bot, Webhook, Filter, RefreshCw } from 'lucide-react'
+import { useRealtime } from '../lib/useRealtime'
 
 export const AuditTrail: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [filterActor, setFilterActor] = useState<string>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { subscribe } = useRealtime()
 
-  const fetchAuditLogs = async () => {
-    setLoading(true)
-    setError(null)
+  const fetchAuditLogs = async (silent = false) => {
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const data = await api.getAuditTrail()
       setLogs(data)
     } catch (e: any) {
-      setError(e.message || 'Failed to load audit logs')
+      if (!silent) setError(e.message || 'Failed to load audit logs')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchAuditLogs()
-  }, [])
+    const unsubscribe = subscribe('*', () => {
+      fetchAuditLogs(true)
+    })
+    return unsubscribe
+  }, [subscribe])
 
   const getActorBadge = (actor: string) => {
     switch (actor) {
@@ -74,7 +82,7 @@ export const AuditTrail: React.FC = () => {
           <div className="flex items-center gap-2 text-xs">
             <button
               type="button"
-              onClick={fetchAuditLogs}
+              onClick={() => fetchAuditLogs(false)}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border text-graphite rounded-sm"
             >
               <RefreshCw className="w-3.5 h-3.5" />

@@ -1,25 +1,51 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { api } from '../services/api'
+import { Transaction } from '../types'
 import { mockTransactions, mockMetrics } from '../data/mockData'
 import { MetricCard } from '../components/common/MetricCard'
 import { MoneyValue } from '../components/common/MoneyValue'
 import { SectionHeader } from '../components/common/SectionHeader'
 import { TransactionTable } from '../components/common/TransactionTable'
 import { AlertOctagon, Zap, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react'
+import { useRealtime } from '../lib/useRealtime'
 
 export const AtRiskRevenue: React.FC = () => {
   const [selectedQueue, setSelectedQueue] = useState<'ALL' | 'CRITICAL' | 'VIP' | 'TIMEOUTS'>('ALL')
   const [isExecutingBatch, setIsExecutingBatch] = useState(false)
+  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions)
+  const { subscribe } = useRealtime()
 
-  const criticalTxs = mockTransactions.filter(t => t.riskLevel === 'HIGH' || t.amount > 50000)
-  const vipTxs = mockTransactions.filter(t => t.customer.tier === 'VIP' || t.customer.tier === 'ENTERPRISE')
-  const timeoutTxs = mockTransactions.filter(t => t.failureCategory === 'BANK_TIMEOUT' || t.failureCategory === 'AUTHENTICATION_FAILED')
+  const loadTxs = async () => {
+    try {
+      const res = await api.getTransactions({ limit: 100 })
+      if (res.items && res.items.length > 0) {
+        // Filter transactions needing attention (not yet RECOVERED)
+        const atRisk = res.items.filter(t => t.status !== 'RECOVERED')
+        setTransactions(atRisk.length > 0 ? atRisk : res.items)
+      }
+    } catch {
+      // Fallback gracefully
+    }
+  }
+
+  useEffect(() => {
+    loadTxs()
+    const unsubscribe = subscribe('*', () => {
+      loadTxs()
+    })
+    return unsubscribe
+  }, [subscribe])
+
+  const criticalTxs = transactions.filter(t => t.riskLevel === 'HIGH' || t.amount > 50000)
+  const vipTxs = transactions.filter(t => t.customer.tier === 'VIP' || t.customer.tier === 'ENTERPRISE')
+  const timeoutTxs = transactions.filter(t => t.failureCategory === 'BANK_TIMEOUT' || t.failureCategory === 'AUTHENTICATION_FAILED')
 
   const getActiveList = () => {
     switch (selectedQueue) {
       case 'CRITICAL': return criticalTxs
       case 'VIP': return vipTxs
       case 'TIMEOUTS': return timeoutTxs
-      default: return mockTransactions
+      default: return transactions
     }
   }
 

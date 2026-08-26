@@ -8,6 +8,7 @@ from app.models.agent_decisions import AgentDecision
 from app.models.audit_logs import AuditLog
 from app.models.guardrail_events import GuardrailEvent
 from app.models.recovery_outcomes import RecoveryOutcome
+from app.models.webhook_events import WebhookEvent
 
 __all__ = [
     "Customer",
@@ -20,4 +21,5 @@ __all__ = [
     "AuditLog",
     "GuardrailEvent",
     "RecoveryOutcome",
+    "WebhookEvent",
 ]
