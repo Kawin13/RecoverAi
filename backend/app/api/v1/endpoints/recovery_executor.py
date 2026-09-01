@@ -1,9 +1,12 @@
 import uuid
+import time
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Dict, Any, Optional
 
 from app.database.session import get_db
+from app.core.logging import logger
+from app.core.events import event_broadcaster
 from app.models import RecoveryCase, Transaction, PaymentLink
 from app.services.recovery_executor import recovery_state_machine, RecoveryStep
 from app.services.notification_service import notification_service
@@ -155,7 +158,7 @@ def generate_payment_link(
 ):
     """
     Creates a real Razorpay Test Payment Link (POST /v1/payment_links) for demo checkout.
-    Persists to database with short_url and emits real-time event.
+    Persists to database with exact short_url and emits real-time event.
     """
     case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
     if not case:
@@ -164,16 +167,31 @@ def generate_payment_link(
     tx = case.transaction
     cust = tx.customer if tx else None
 
-    amount_paise = int(case.risk_amount * 100)
-    link_res = razorpay_service.create_payment_link(
-        amount_paise=amount_paise,
-        customer_name=cust.name if cust else "Valued Customer",
-        customer_email=cust.email if cust else "customer@example.com",
-        customer_contact=cust.phone if cust else "+919876543210",
-        description=f"RecoverAI 1-Click Recovery for Order #{tx.order_id if tx else case.id}",
-        notes={"recovery_case_id": case.id},
-        is_live_demo=payload.is_live_demo
-    )
+    amount_paise = int(round(case.risk_amount * 100))
+    unique_ref = f"rcov_{case.id}_{int(time.time())}_{uuid.uuid4().hex[:4]}"
+    notes = {
+        "recovery_case_id": case.id,
+        "transaction_id": tx.id if tx else "",
+        "environment": "test"
+    }
+
+    try:
+        link_res = razorpay_service.create_payment_link(
+            amount_paise=amount_paise,
+            customer_name=cust.name if cust else "Valued Customer",
+            customer_email=cust.email if cust else "customer@example.com",
+            customer_contact=cust.phone if cust else "+919876543210",
+            description=f"RecoverAI payment recovery for #{tx.order_id if tx else case.id}",
+            notes=notes,
+            reference_id=unique_ref,
+            is_live_demo=payload.is_live_demo
+        )
+    except Exception as exc:
+        logger.error(f"Failed to create Razorpay Payment Link for case {case_id}: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Payment Link creation failed: {str(exc)}"
+        )
 
     plink_record = PaymentLink(
         id=f"pl_{uuid.uuid4().hex[:10]}",
@@ -188,6 +206,13 @@ def generate_payment_link(
     db.add(plink_record)
     db.commit()
     db.refresh(plink_record)
+
+    event_broadcaster.broadcast_sync("RECOVERY_QUEUE_UPDATED", {
+        "case_id": case.id,
+        "payment_link_id": plink_record.payment_link_id,
+        "short_url": plink_record.short_url,
+        "status": plink_record.status
+    })
 
     return plink_record
 

@@ -21,6 +21,7 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -43,14 +44,14 @@ export const Overview: React.FC = () => {
       setError(null)
     }
     try {
-      const [dash, txRes] = await Promise.all([
+      const [dashRes, txRes] = await Promise.all([
         api.getDashboard(),
-        api.getTransactions({ limit: 10 })
+        api.getTransactions({ limit: 5 })
       ])
-      setData(dash)
+      setData(dashRes)
       setTransactions(txRes.items)
     } catch (e: any) {
-      if (!silent) setError(e.message || 'Failed to connect to RecoverAI API')
+      if (!silent) setError(e.message || 'Failed to load dashboard data')
     } finally {
       if (!silent) setLoading(false)
     }
@@ -58,12 +59,11 @@ export const Overview: React.FC = () => {
 
   useEffect(() => {
     loadData()
-    // Live update when payment or recovery webhook event is broadcast
     const unsubscribe = subscribe('*', () => {
       loadData(true)
     })
     return unsubscribe
-  }, [subscribe])
+  }, [timeRange, subscribe])
 
   // Warm Fintech Tooltip Formatter
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -90,13 +90,8 @@ export const Overview: React.FC = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <SkeletonLoader variant="card" count={4} />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <SkeletonLoader variant="chart" count={1} className="lg:col-span-2" />
-          <SkeletonLoader variant="card" count={1} />
-        </div>
+        <SkeletonLoader variant="card" count={4} />
+        <SkeletonLoader variant="chart" count={1} />
         <SkeletonLoader variant="row" count={5} />
       </div>
     )
@@ -117,7 +112,7 @@ export const Overview: React.FC = () => {
             Autonomous Revenue Recovery
           </h1>
           <p className="text-xs text-warm-gray-600 mt-1">
-            Real-time failed payment diagnosis, propensity scoring, and ERV-optimized intervention workflows.
+            Real-time failed payment diagnosis, recovery likelihood scoring, and ERV-optimized intervention workflows.
           </p>
         </div>
 
@@ -159,7 +154,7 @@ export const Overview: React.FC = () => {
             label: 'vs last period',
             isInverse: true
           }}
-          subtitle="Across active failed events"
+          subtitle="Past 24 Hours"
           icon={AlertOctagon}
           highlightColor="burnt-orange"
         />
@@ -171,7 +166,7 @@ export const Overview: React.FC = () => {
             value: data.metrics.recoveredDeltaPercent,
             label: 'vs last period'
           }}
-          subtitle="Net attributable recovered"
+          subtitle="Net Attributed"
           icon={CheckCircle2}
           highlightColor="moss-green"
         />
@@ -181,9 +176,9 @@ export const Overview: React.FC = () => {
           value={`${data.metrics.recoveryRate}%`}
           delta={{
             value: data.metrics.recoveryRateDeltaPercent,
-            label: 'conversion lift'
+            label: 'percentage points'
           }}
-          subtitle="Industry benchmark: 18.2%"
+          subtitle="Target 50%+"
           icon={Percent}
           highlightColor="moss-green"
         />
@@ -193,98 +188,130 @@ export const Overview: React.FC = () => {
           value={data.metrics.activeRecoveries.toString()}
           delta={{
             value: data.metrics.activeDeltaCount,
-            label: 'active loops'
+            label: 'in progress'
           }}
-          subtitle="Real-time agent pipelines"
+          subtitle="Live Cases"
           icon={Zap}
           highlightColor="muted-amber"
         />
       </div>
 
-      {/* Charts Row: Recovery Trend & Strategy Performance */}
+      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Trend Area Chart (2 cols) */}
-        <div className="lg:col-span-2 bg-surface rounded-md border border-border p-5 shadow-fintech-card flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
+        {/* Recovery Velocity Chart (2 cols) */}
+        <div className="lg:col-span-2 bg-surface rounded-md border border-border p-5 shadow-fintech-card">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
             <div>
               <h3 className="text-sm font-bold text-graphite font-display">
-                Revenue Recovery Velocity & Trajectory
+                Revenue Recovery Velocity
               </h3>
               <p className="text-xs text-warm-gray-500">
-                At-risk volume vs. agent-recovered revenue over time
+                At-risk revenue vs successfully recovered revenue over time
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-medium">
+            <div className="flex items-center gap-4 text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-xs bg-burnt-orange" />
-                <span className="text-warm-gray-600">At Risk</span>
+                <span className="w-2.5 h-2.5 rounded-xs bg-brick-red" />
+                <span className="text-warm-gray-600 font-medium">At-Risk</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-xs bg-moss-green" />
-                <span className="text-warm-gray-600">Recovered</span>
+                <span className="text-warm-gray-600 font-medium">Recovered</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-0.5 border-t-2 border-dashed border-warm-gray-400" />
+                <span className="text-warm-gray-600">Benchmark</span>
               </div>
             </div>
           </div>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.trendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+              <AreaChart data={data.trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorAtRisk" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#D95D39" stopOpacity={0.25}/>
-                    <stop offset="95%" stopColor="#D95D39" stopOpacity={0.0}/>
+                  <linearGradient id="recoveredGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3F725B" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#3F725B" stopOpacity={0.0} />
                   </linearGradient>
-                  <linearGradient id="colorRecovered" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3F725B" stopOpacity={0.35}/>
-                    <stop offset="95%" stopColor="#3F725B" stopOpacity={0.0}/>
+                  <linearGradient id="atRiskGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#A6423A" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#A6423A" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#DDD8CE" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#77736B' }} tickLine={false} axisLine={{ stroke: '#DDD8CE' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#77736B' }} tickLine={false} axisLine={{ stroke: '#DDD8CE' }} tickFormatter={(val) => `₹${val / 1000}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#DDD8CE" vertical={false} />
+                <XAxis dataKey="date" stroke="#77736B" fontSize={11} tickLine={false} />
+                <YAxis
+                  stroke="#77736B"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
+                />
                 <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="atRisk" stroke="#D95D39" strokeWidth={2} fillOpacity={1} fill="url(#colorAtRisk)" />
-                <Area type="monotone" dataKey="recovered" stroke="#3F725B" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRecovered)" />
+                <Area
+                  type="monotone"
+                  dataKey="atRisk"
+                  stroke="#A6423A"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#atRiskGradient)"
+                  name="At Risk"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="recovered"
+                  stroke="#3F725B"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#recoveredGradient)"
+                  name="Recovered"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="target"
+                  stroke="#77736B"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  dot={false}
+                  name="Benchmark"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Strategy Performance Breakdown (1 col) */}
+        {/* Strategy Performance Summary (1 col) */}
         <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card flex flex-col justify-between">
-          <div className="mb-3">
-            <h3 className="text-sm font-bold text-graphite font-display">
-              Recovery Strategy Performance
-            </h3>
-            <p className="text-xs text-warm-gray-500">
-              Conversion rate by autonomous action
-            </p>
-          </div>
+          <div>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+              <h3 className="text-sm font-bold text-graphite font-display">
+                Strategy Performance
+              </h3>
+              <span className="text-[11px] font-mono text-warm-gray-500">ERV Ranked</span>
+            </div>
 
-          <div className="space-y-3.5">
-            {data.strategyPerformance.map((strat) => (
-              <div key={strat.strategyKey} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-graphite truncate max-w-[160px]">
-                    {strat.strategy}
-                  </span>
-                  <div className="flex items-center gap-2 font-mono">
-                    <span className="text-moss-green font-bold tabular-nums">
-                      {strat.recoveryRate.toFixed(1)}%
+            <div className="space-y-3.5">
+              {data.strategyPerformance.map((strat) => (
+                <div key={strat.strategyKey} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-medium text-graphite truncate max-w-[170px]" title={strat.strategy}>
+                      {strat.strategy}
                     </span>
-                    <span className="text-warm-gray-400 text-[11px]">
-                      (<MoneyValue amount={strat.recoveredAmount} compact />)
-                    </span>
+                    <span className="font-bold text-moss-green-dark">{strat.recoveryRate.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-warm-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-moss-green rounded-full transition-all duration-500"
+                      style={{ width: `${strat.recoveryRate}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-warm-gray-500">
+                    <span>{strat.successCount} of {strat.attempts} recovered</span>
+                    <span>₹{(strat.recoveredAmount / 1000).toFixed(0)}k volume</span>
                   </div>
                 </div>
-                <div className="w-full h-2 bg-warm-gray-200 rounded-xs overflow-hidden">
-                  <div
-                    className="h-full bg-moss-green transition-all duration-300"
-                    style={{ width: `${strat.recoveryRate}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           <div className="pt-3 border-t border-border mt-3 text-center">
@@ -292,7 +319,7 @@ export const Overview: React.FC = () => {
               to="/agent"
               className="text-xs font-semibold text-burnt-orange hover:text-burnt-orange-dark inline-flex items-center gap-1"
             >
-              <span>Inspect Agent Policy Weights</span>
+              <span>View Recovery Strategies</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -303,7 +330,7 @@ export const Overview: React.FC = () => {
       <div className="space-y-3">
         <SectionHeader
           title="At-Risk Transactions & Interventions"
-          subtitle="Real-time live queue of payment drop-offs scored by recovery propensity"
+          subtitle="Real-time queue of payment drop-offs scored by recovery likelihood"
           actions={
             <Link
               to="/transactions"
@@ -327,11 +354,11 @@ export const Overview: React.FC = () => {
                 Recent Agent Activity & Decisions
               </h3>
               <p className="text-xs text-warm-gray-500">
-                Autonomous diagnostics, ERV score calculations, and dispatched actions
+                Autonomous diagnostics, expected recovery calculations, and dispatched actions
               </p>
             </div>
             <span className="px-2 py-0.5 bg-moss-green-light text-moss-green-dark text-[11px] font-medium rounded-sm border border-moss-green/30">
-              Live Stream
+              Live Updates
             </span>
           </div>
 

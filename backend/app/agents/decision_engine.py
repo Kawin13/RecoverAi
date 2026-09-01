@@ -7,6 +7,7 @@ to select the optimal permitted intervention and produce deterministic factual e
 from typing import Dict, Any, List
 from app.agents.diagnosis import diagnosis_engine
 from app.agents.evaluator import strategy_evaluator
+from app.schemas.canonical import get_canonical_action
 from app.ml.inference import inference_engine
 
 class DecisionEngine:
@@ -27,7 +28,7 @@ class DecisionEngine:
         7. Deterministic factual evidence object synthesis
         """
         # Step 1: Diagnosis
-        failure_reason = str(transaction_data.get("failure_reason", "UPI_TIMEOUT")).upper()
+        failure_reason = str(transaction_data.get("failure_reason") or transaction_data.get("failure_reason_code") or "UNKNOWN")
         payment_method = str(transaction_data.get("payment_method", "UPI")).upper()
         attempt_count = int(transaction_data.get("attempt_count", 1))
         diagnosis = self.diagnosis_engine.diagnose(failure_reason, payment_method, attempt_count)
@@ -49,6 +50,8 @@ class DecisionEngine:
                 if no_action_eval:
                     selected_eval = no_action_eval
 
+        canonical_act = get_canonical_action(selected_eval["action"])
+
         # Step 7: Deterministic Factual Evidence Generation
         evidence = self._generate_factual_evidence(
             transaction_data=transaction_data,
@@ -58,7 +61,16 @@ class DecisionEngine:
         )
 
         return {
-            "selected_action": selected_eval["action"],
+            "selected_action": canonical_act.action_code,
+            "action_code": canonical_act.action_code,
+            "display_name": canonical_act.display_name,
+            "customer_cta": canonical_act.customer_cta,
+            "canonical_action": {
+                "action_code": canonical_act.action_code,
+                "display_name": canonical_act.display_name,
+                "customer_cta": canonical_act.customer_cta,
+                "execution_handler": canonical_act.execution_handler
+            },
             "recovery_probability": selected_eval["probability"],
             "expected_recovery_value": selected_eval["expected_recovery_value"],
             "erv_paise": selected_eval["erv_paise"],
@@ -86,20 +98,27 @@ class DecisionEngine:
         """
         evidence_points = []
         method = str(transaction_data.get("payment_method", "UPI")).upper()
-        reason = str(diagnosis.get("failure_reason", "UNKNOWN"))
+        reason_code = str(diagnosis.get("failure_reason_code", "UNKNOWN"))
+        human_reason = str(diagnosis.get("human_readable_reason", "Unspecified payment processing issue"))
         attempts = int(transaction_data.get("attempt_count", 1))
         prev_success = int(transaction_data.get("previous_successes", transaction_data.get("previous_success_count", 0)))
         prev_fail = int(transaction_data.get("previous_failures", transaction_data.get("previous_failure_count", 0)))
         pref_method = str(transaction_data.get("preferred_method", transaction_data.get("preferred_payment_method", method))).upper()
-        amount = float(transaction_data.get("amount", 0.0))
         selected_action = selected_eval["action"]
+        canonical_act = get_canonical_action(selected_action)
         selected_erv = selected_eval["expected_recovery_value"]
 
         # Point 1: Observed Failure & Attempt Telemetry
-        if attempts > 1:
-            evidence_points.append(f"{method} attempt #{attempts} failed due to {reason.replace('_', ' ')}.")
+        if reason_code == "UNKNOWN":
+            if attempts > 1:
+                evidence_points.append(f"{method} attempt #{attempts} could not be completed.")
+            else:
+                evidence_points.append(f"Initial payment attempt dropped on {method} rail.")
         else:
-            evidence_points.append(f"Initial payment attempt dropped: {reason.replace('_', ' ')} diagnosed on {method}.")
+            if attempts > 1:
+                evidence_points.append(f"{method} attempt #{attempts} failed due to {human_reason.lower()}.")
+            else:
+                evidence_points.append(f"Initial payment attempt dropped: {human_reason} diagnosed on {method}.")
 
         # Point 2: Historical Customer Affinity
         total_prev = prev_success + prev_fail
@@ -110,11 +129,11 @@ class DecisionEngine:
         # Point 3: Action Comparative Advantage & Same-Instrument Comparison
         retry_eval = next((e for e in all_evaluations if e["action"] == "RETRY_NOW"), None)
         if retry_eval and selected_action != "RETRY_NOW":
-            evidence_points.append(f"Immediate retry probability is only {retry_eval['probability'] * 100:.1f}% due to switch downtime / card decline physics.")
+            evidence_points.append(f"Immediate retry probability is only {retry_eval['probability'] * 100:.1f}% due to switch downtime / instrument decline physics.")
 
         # Point 4: ERV Optimization
         if selected_action != "NO_ACTION":
-            evidence_points.append(f"{selected_action.replace('_', ' ')} yields highest Expected Recovery Value of ₹{selected_erv:,.2f} with {selected_eval['probability'] * 100:.1f}% recovery probability.")
+            evidence_points.append(f"{canonical_act.display_name} yields highest Expected Recovery Value of ₹{selected_erv:,.2f} with {selected_eval['probability'] * 100:.1f}% recovery probability.")
         else:
             evidence_points.append("NO_ACTION selected as recovery interventions are suppressed by safety guardrails or produce negative ERV.")
 

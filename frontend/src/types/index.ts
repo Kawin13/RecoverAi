@@ -8,6 +8,13 @@ export type FailureCategory =
   | 'LIMIT_EXCEEDED' 
   | 'CHECKOUT_ABANDONED'
   | 'GATEWAY_ERROR'
+  | 'TEMPORARY'
+  | 'PAYMENT_METHOD_SPECIFIC'
+  | 'CUSTOMER_ACTION_REQUIRED'
+  | 'PERMANENT'
+  | 'ABANDONMENT'
+  | 'RISK_BLOCKED'
+  | 'UNKNOWN'
 
 export type RecoveryStatus = 
   | 'RECOVERED' 
@@ -16,13 +23,26 @@ export type RecoveryStatus =
   | 'ATTEMPTING' 
   | 'FAILED' 
   | 'COOLING_DOWN'
+  | 'ACTION_SCHEDULED'
+  | 'ACTION_EXECUTED'
+  | 'DETECTED'
+  | 'ANALYZED'
+  | 'STRATEGY_SELECTED'
+  | 'WAITING_FOR_CUSTOMER'
 
 export type RecoveryStrategy = 
   | 'SMART_PAYLINK_1CLICK'
+  | 'PAYMENT_LINK'
   | 'UPI_INTENT_FALLBACK'
+  | 'UPI_SWITCH'
   | 'TIMED_SMART_RETRY'
+  | 'RETRY_LATER'
+  | 'RETRY_NOW'
   | 'INCENTIVIZED_DUNNING'
+  | 'PERSONALIZED_REMINDER'
   | 'WHATSAPP_CONCIERGE'
+  | 'HUMAN_ESCALATION'
+  | 'NO_ACTION'
   | 'CARD_UPDATE_PROMPT'
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
@@ -36,6 +56,38 @@ export interface Customer {
   ltv: number
 }
 
+export interface FailureDiagnosis {
+  failure_reason_code: string
+  failure_reason?: string
+  failure_category: string
+  taxonomy?: string
+  failure_source?: string
+  human_readable_reason: string
+  confidence?: number
+  raw_gateway_code?: string | null
+  is_transient?: boolean
+  is_retryable_same_instrument?: boolean
+  requires_customer_switch?: boolean
+  is_risk_blocked?: boolean
+  attempt_number?: number
+  description: string
+}
+
+export interface SelectedAction {
+  action_code: string
+  display_name: string
+  customer_cta: string
+  execution_handler: string
+}
+
+export interface QueueCounts {
+  all_at_risk: number
+  high_value_urgent: number
+  vip_enterprise: number
+  gateway_bank_outages: number
+  batch_dispatch_eligible: number
+}
+
 export interface Transaction {
   id: string
   orderId: string
@@ -45,8 +97,10 @@ export interface Transaction {
   method: PaymentMethod
   failureCategory: FailureCategory
   failureReason: string
-  recoveryProbability: number // 0.0 to 1.0
+  failureDiagnosis?: FailureDiagnosis
+  recoveryProbability: number // 0.0 to 1.0 (Overall Recoverability)
   recommendedAction: RecoveryStrategy
+  selectedAction?: SelectedAction
   status: RecoveryStatus
   riskLevel: RiskLevel
   createdAt: string

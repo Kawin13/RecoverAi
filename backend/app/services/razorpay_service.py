@@ -183,30 +183,48 @@ class RazorpayService:
         customer_contact: Optional[str] = None,
         description: Optional[str] = None,
         notes: Optional[Dict[str, str]] = None,
+        reference_id: Optional[str] = None,
         is_live_demo: bool = True
     ) -> Dict[str, Any]:
         """
         Creates a genuine Razorpay Test Payment Link via POST /v1/payment_links.
-        Falls back to realistic sandbox simulation for batch simulations or if gateway is unreachable.
+        Strictly requires valid Razorpay response (id starting with plink_, short_url starting with https://rzp.io/).
+        Never constructs a fake rzp.io short URL locally.
         """
-        desc = description or "RecoverAI 1-Click Payment Recovery"
-        payload = {
-            "amount": amount_paise,
+        desc = description or "RecoverAI payment recovery"
+        ref_id = reference_id or f"rcov_{uuid.uuid4().hex[:10]}_{int(time.time())}"
+
+        # Clean customer details
+        cust_payload: Dict[str, Any] = {
+            "name": (customer_name or "Valued Customer").strip()
+        }
+        if customer_email and "@" in customer_email:
+            cust_payload["email"] = customer_email.strip()
+        if customer_contact:
+            # Keep digits and + sign
+            clean_phone = "".join(c for c in customer_contact if c.isdigit() or c == "+")
+            if len(clean_phone) >= 10:
+                cust_payload["contact"] = clean_phone
+
+        merged_notes = dict(notes or {})
+        merged_notes.setdefault("environment", "test")
+
+        payload: Dict[str, Any] = {
+            "amount": int(amount_paise),
             "currency": "INR",
             "accept_partial": False,
-            "description": desc,
-            "customer": {
-                "name": customer_name,
-                "email": customer_email,
-                "contact": customer_contact or "+919876543210"
-            },
+            "reference_id": ref_id,
+            "description": desc[:255],
+            "customer": cust_payload,
             "notify": {
                 "sms": False,
                 "email": False
             },
             "reminder_enable": False,
-            "notes": notes or {}
+            "notes": merged_notes
         }
+
+        last_error = None
 
         if self.is_configured and is_live_demo:
             try:
@@ -218,34 +236,85 @@ class RazorpayService:
                     )
                     if resp.status_code in (200, 201):
                         data = resp.json()
-                        logger.info(f"Genuine Razorpay Test Payment Link created: {data.get('id')} ({data.get('short_url')})")
-                        created_ts = data.get("created_at", int(time.time()))
-                        return {
-                            "payment_link_id": data.get("id"),
-                            "short_url": data.get("short_url"),
-                            "amount": float(data.get("amount", amount_paise)) / 100.0,
-                            "status": data.get("status", "created"),
-                            "created_at": datetime.utcfromtimestamp(created_ts),
-                            "is_live_demo": True,
-                            "raw_response": data
-                        }
-                    else:
-                        logger.warning(f"Razorpay Payment Link API error {resp.status_code}: {resp.text}")
-            except Exception as e:
-                logger.error(f"Failed to call Razorpay Payment Link API: {e}")
+                        plink_id = data.get("id") or ""
+                        short_url = data.get("short_url") or ""
+                        status = data.get("status") or ""
 
-        # Realistic sandbox demo fallback
-        fallback_id = f"plink_{uuid.uuid4().hex[:14]}"
-        fallback_url = f"https://rzp.io/i/{uuid.uuid4().hex[:8]}"
-        logger.info(f"Generated sandbox Payment Link for demo: {fallback_id} -> {fallback_url}")
+                        # Strict validation of Razorpay response fields
+                        if (
+                            plink_id.startswith("plink_")
+                            and short_url.startswith("https://rzp.io/")
+                            and status == "created"
+                        ):
+                            logger.info(f"Genuine Razorpay Test Payment Link created: {plink_id} -> {short_url}")
+                            created_ts = data.get("created_at", int(time.time()))
+                            return {
+                                "success": True,
+                                "payment_link_id": plink_id,
+                                "short_url": short_url,
+                                "amount": float(data.get("amount", amount_paise)) / 100.0,
+                                "status": status,
+                                "reference_id": data.get("reference_id", ref_id),
+                                "created_at": datetime.utcfromtimestamp(created_ts),
+                                "is_live_demo": True,
+                                "raw_response": data
+                            }
+                        else:
+                            last_error = f"Invalid response from Razorpay: id={plink_id}, short_url={short_url}, status={status}"
+                            logger.error(last_error)
+                    else:
+                        try:
+                            err_body = resp.json().get("error", {})
+                            safe_desc = err_body.get("description") or err_body.get("reason") or f"HTTP {resp.status_code}"
+                        except Exception:
+                            safe_desc = f"HTTP {resp.status_code}"
+                        last_error = f"Razorpay Payment Link API error ({resp.status_code}): {safe_desc}"
+                        logger.warning(last_error)
+            except Exception as exc:
+                last_error = f"Failed to reach Razorpay Payment Link API: {exc}"
+                logger.error(last_error)
+
+        if is_live_demo:
+            # If live demo was requested but failed, raise exception so caller handles safely without fake URL
+            raise RuntimeError(last_error or "Razorpay Gateway credentials unconfigured or unreachable")
+
+        # Explicit local simulation fallback (only when is_live_demo is False)
+        fallback_id = f"demo_plink_{uuid.uuid4().hex[:10]}"
+        fallback_url = f"http://localhost:3000/demo-checkout?payment_link_id={fallback_id}&amount={round(amount_paise / 100.0, 2)}"
+        logger.info(f"Generated local demo Payment Link: {fallback_id} -> {fallback_url}")
         return {
+            "success": True,
             "payment_link_id": fallback_id,
             "short_url": fallback_url,
             "amount": round(amount_paise / 100.0, 2),
             "status": "created",
+            "reference_id": ref_id,
             "created_at": datetime.utcnow(),
             "is_live_demo": False,
             "raw_response": {"id": fallback_id, "short_url": fallback_url}
+        }
+
+    def fetch_payment_link(self, payment_link_id: str) -> Dict[str, Any]:
+        """
+        Fetches payment link status and details directly from Razorpay.
+        """
+        if self.is_configured and payment_link_id.startswith("plink_"):
+            try:
+                with httpx.Client(timeout=8.0) as client:
+                    resp = client.get(
+                        f"{RAZORPAY_API_BASE}/payment_links/{payment_link_id}",
+                        auth=(self.key_id, self.key_secret)
+                    )
+                    if resp.status_code == 200:
+                        return resp.json()
+                    logger.warning(f"Fetch payment link {payment_link_id} returned {resp.status_code}: {resp.text}")
+            except Exception as e:
+                logger.error(f"Error fetching payment link from Razorpay: {e}")
+
+        return {
+            "id": payment_link_id,
+            "status": "created",
+            "amount": 0
         }
 
 razorpay_service = RazorpayService()

@@ -1,0 +1,21 @@
+{
+  "vercelJsonLocationVerified": true,
+  "spaRewriteConfigured": true,
+  "viteBuildSucceeded": true,
+  "distIndexHtmlGenerated": true,
+  "staticAssetsLoaded": true,
+  "homeRefresh": true,
+  "loginRefresh": true,
+  "accountRefresh": true,
+  "transactionsRefresh": true,
+  "recoveryAgentRefresh": true,
+  "simulationRefresh": true,
+  "analyticsRefresh": true,
+  "auditTrailRefresh": true,
+  "guardrailsRefresh": true,
+  "authCallbackRefresh": true,
+  "protectedRouteSessionRestore": true,
+  "loggedOutProtectedRouteRedirectsToLogin": true,
+  "unknownRouteReactNotFound": true,
+  "noVercelRaw404": true
+}

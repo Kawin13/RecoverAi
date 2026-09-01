@@ -34,6 +34,10 @@ class CheckoutSession(Base):
     def __init__(self, **kwargs):
         if "cart_value" in kwargs and "cart_amount" not in kwargs:
             kwargs["cart_amount"] = kwargs["cart_value"]
+        elif "cart_amount" in kwargs and "cart_value" not in kwargs:
+            kwargs["cart_value"] = kwargs["cart_amount"]
         if "created_at" in kwargs and "started_at" not in kwargs:
             kwargs["started_at"] = kwargs["created_at"]
+        elif "started_at" in kwargs and "created_at" not in kwargs:
+            kwargs["created_at"] = kwargs["started_at"]
         super().__init__(**kwargs)

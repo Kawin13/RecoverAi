@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # AI
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     model_config = SettingsConfigDict(
         env_file=[backend_env, root_env, ".env"],

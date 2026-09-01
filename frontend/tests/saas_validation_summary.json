@@ -1,0 +1,15 @@
+{
+  "overviewPageClean": true,
+  "demoStoreClean": true,
+  "cartRecoveryClean": true,
+  "atRiskRevenueClean": true,
+  "transactionsClean": true,
+  "recoveryAgentClean": true,
+  "simulationPageClean": true,
+  "methodologyModalClean": true,
+  "analyticsPageClean": true,
+  "auditTrailClean": true,
+  "guardrailsPageClean": true,
+  "accountPageClean": true,
+  "zeroForbiddenWords": true
+}

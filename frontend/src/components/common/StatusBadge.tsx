@@ -1,6 +1,6 @@
 import React from 'react'
 import { RecoveryStatus } from '../../types'
-import { CheckCircle2, Clock, AlertCircle, RefreshCw, XCircle, PauseCircle } from 'lucide-react'
+import { CheckCircle2, Clock, AlertCircle, RefreshCw, XCircle, PauseCircle, Sparkles } from 'lucide-react'
 
 interface StatusBadgeProps {
   status: RecoveryStatus
@@ -13,7 +13,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   size = 'sm',
   showIcon = true
 }) => {
-  const configMap: Record<RecoveryStatus, { label: string; bg: string; text: string; border: string; icon: React.ComponentType<{ className?: string }> }> = {
+  const configMap: Partial<Record<RecoveryStatus, { label: string; bg: string; text: string; border: string; icon: React.ComponentType<{ className?: string }> }>> = {
     RECOVERED: {
       label: 'Recovered',
       bg: 'bg-moss-green-light',
@@ -55,10 +55,60 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       text: 'text-brick-red-dark',
       border: 'border-brick-red/30',
       icon: XCircle
+    },
+    ACTION_SCHEDULED: {
+      label: 'Scheduled',
+      bg: 'bg-muted-amber-subtle',
+      text: 'text-muted-amber-dark',
+      border: 'border-muted-amber/30',
+      icon: Clock
+    },
+    ACTION_EXECUTED: {
+      label: 'Dispatched',
+      bg: 'bg-burnt-orange-light',
+      text: 'text-burnt-orange-dark',
+      border: 'border-burnt-orange/30',
+      icon: RefreshCw
+    },
+    DETECTED: {
+      label: 'Detected',
+      bg: 'bg-warm-gray-100',
+      text: 'text-warm-gray-700',
+      border: 'border-warm-gray-300',
+      icon: Clock
+    },
+    ANALYZED: {
+      label: 'Analyzed',
+      bg: 'bg-warm-gray-100',
+      text: 'text-warm-gray-700',
+      border: 'border-warm-gray-300',
+      icon: Sparkles
+    },
+    STRATEGY_SELECTED: {
+      label: 'Strategy Selected',
+      bg: 'bg-moss-green-subtle',
+      text: 'text-moss-green-dark',
+      border: 'border-moss-green/30',
+      icon: Sparkles
+    },
+    WAITING_FOR_CUSTOMER: {
+      label: 'Awaiting Customer',
+      bg: 'bg-muted-amber-light',
+      text: 'text-muted-amber-dark',
+      border: 'border-muted-amber/30',
+      icon: Clock
     }
   }
 
-  const config = configMap[status] || configMap.IN_PROGRESS
+  const fallback = {
+    label: String(status || 'Active').replace(/_/g, ' '),
+    bg: 'bg-warm-gray-100',
+    text: 'text-warm-gray-700',
+    border: 'border-warm-gray-300',
+    icon: RefreshCw
+  }
+
+  const config = configMap[status] || fallback
   const Icon = config.icon
 
   const sizeClasses = size === 'sm' 

@@ -9,7 +9,7 @@ import {
   BarChart3,
   ScrollText,
   ShieldCheck,
-  Settings,
+  User,
   Shield,
   CreditCard,
   ShoppingBag,
@@ -23,7 +23,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
   const navItems = [
-    { label: 'Overview', path: '/', icon: LayoutDashboard },
+    { label: 'Overview', path: '/overview', icon: LayoutDashboard },
     { label: 'Demo Store', path: '/demo-checkout', icon: ShoppingBag, badge: 'Sandbox' },
     { label: 'Cart Recovery', path: '/abandonment', icon: ShoppingCart, badge: 'Pre-Pay' },
     { label: 'At-Risk Revenue', path: '/at-risk', icon: AlertOctagon, badge: '8' },
@@ -33,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { label: 'Analytics', path: '/analytics', icon: BarChart3 },
     { label: 'Audit Trail', path: '/audit', icon: ScrollText },
     { label: 'Guardrails', path: '/guardrails', icon: ShieldCheck },
-    { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Account', path: '/account', icon: User },
   ]
 
   return (

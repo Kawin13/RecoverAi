@@ -163,6 +163,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(health_router)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(api_router, prefix="/api/v1")  # Alias for /api/v1
+app.include_router(api_router, prefix="/api")     # Alias for /api routes
 
 # Direct Root Mounts for Webhooks & SSE Streaming
 from app.api.v1.endpoints.webhooks import router as webhooks_root_router

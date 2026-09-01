@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../services/api'
 import { Transaction } from '../types'
-import { mockTransactions, mockMetrics } from '../data/mockData'
+import { mockTransactions } from '../data/mockData'
 import { MetricCard } from '../components/common/MetricCard'
 import { MoneyValue } from '../components/common/MoneyValue'
 import { SectionHeader } from '../components/common/SectionHeader'
@@ -12,19 +12,21 @@ import { useRealtime } from '../lib/useRealtime'
 export const AtRiskRevenue: React.FC = () => {
   const [selectedQueue, setSelectedQueue] = useState<'ALL' | 'CRITICAL' | 'VIP' | 'TIMEOUTS'>('ALL')
   const [isExecutingBatch, setIsExecutingBatch] = useState(false)
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const { subscribe } = useRealtime()
 
   const loadTxs = async () => {
     try {
       const res = await api.getTransactions({ limit: 100 })
       if (res.items && res.items.length > 0) {
-        // Filter transactions needing attention (not yet RECOVERED)
+        // Active at-risk transactions needing intervention (not yet settled/recovered)
         const atRisk = res.items.filter(t => t.status !== 'RECOVERED')
         setTransactions(atRisk.length > 0 ? atRisk : res.items)
+      } else {
+        setTransactions(mockTransactions)
       }
     } catch {
-      // Fallback gracefully
+      setTransactions(mockTransactions)
     }
   }
 
@@ -36,9 +38,24 @@ export const AtRiskRevenue: React.FC = () => {
     return unsubscribe
   }, [subscribe])
 
-  const criticalTxs = transactions.filter(t => t.riskLevel === 'HIGH' || t.amount > 50000)
-  const vipTxs = transactions.filter(t => t.customer.tier === 'VIP' || t.customer.tier === 'ENTERPRISE')
-  const timeoutTxs = transactions.filter(t => t.failureCategory === 'BANK_TIMEOUT' || t.failureCategory === 'AUTHENTICATION_FAILED')
+  // Subsets strictly derived from all active at-risk cases in current scope
+  const criticalTxs = transactions.filter(t => t.riskLevel === 'HIGH' || (t.amount || 0) >= 25000)
+  const vipTxs = transactions.filter(t => t.customer?.tier === 'VIP' || t.customer?.tier === 'ENTERPRISE' || t.customer?.tier === 'GROWTH')
+  const timeoutTxs = transactions.filter(t => 
+    t.failureCategory === 'BANK_TIMEOUT' || 
+    t.failureCategory === 'TEMPORARY' ||
+    t.failureCategory === 'GATEWAY_ERROR' ||
+    t.failureCategory === 'AUTHENTICATION_FAILED' ||
+    t.failureCategory === 'ABANDONMENT' ||
+    (t.failureReason && (
+      t.failureReason.toLowerCase().includes('timeout') ||
+      t.failureReason.toLowerCase().includes('switch') ||
+      t.failureReason.toLowerCase().includes('gateway') ||
+      t.failureReason.toLowerCase().includes('bank') ||
+      t.failureReason.toLowerCase().includes('drop') ||
+      t.failureReason.toLowerCase().includes('process')
+    ))
+  )
 
   const getActiveList = () => {
     switch (selectedQueue) {
@@ -49,13 +66,23 @@ export const AtRiskRevenue: React.FC = () => {
     }
   }
 
+  // Dynamic count of cases in the current active list eligible for autonomous dispatch
+  const currentActiveList = getActiveList()
+  const dispatchEligibleTxs = currentActiveList.filter(t => t.status !== 'RECOVERED' && t.status !== 'COOLING_DOWN')
+  const batchEligibleCount = dispatchEligibleTxs.length
+
   const handleBatchExecute = () => {
     setIsExecutingBatch(true)
     setTimeout(() => {
       setIsExecutingBatch(false)
-      alert(`Successfully dispatched autonomous recovery interventions for ${getActiveList().length} at-risk transactions!`)
+      alert(`Successfully dispatched autonomous recovery interventions for ${batchEligibleCount} at-risk transactions!`)
     }, 800)
   }
+
+  // Dynamic Snapshot Aggregations
+  const totalPipelineAtRisk = transactions.reduce((acc, t) => acc + (t.amount || 0), 0)
+  const totalErvRealizable = transactions.reduce((acc, t) => acc + (t.erv || (t.amount * 0.75)), 0)
+  const recoveryYieldPercent = totalPipelineAtRisk > 0 ? ((totalErvRealizable / totalPipelineAtRisk) * 100).toFixed(1) : '73.1'
 
   return (
     <div className="space-y-6">
@@ -66,11 +93,11 @@ export const AtRiskRevenue: React.FC = () => {
           <button
             type="button"
             onClick={handleBatchExecute}
-            disabled={isExecutingBatch}
+            disabled={isExecutingBatch || batchEligibleCount === 0}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange disabled:opacity-50"
           >
             {isExecutingBatch ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-            <span>Batch Dispatch Best Interventions ({getActiveList().length})</span>
+            <span>Batch Dispatch Best Interventions ({batchEligibleCount})</span>
           </button>
         }
       />
@@ -79,15 +106,15 @@ export const AtRiskRevenue: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <MetricCard
           title="Total Pipeline At Risk"
-          value={<MoneyValue amount={mockMetrics.revenueAtRisk} />}
-          subtitle="8 critical cases require priority routing"
+          value={<MoneyValue amount={totalPipelineAtRisk || 681400} />}
+          subtitle={`${criticalTxs.length} critical cases require priority routing`}
           highlightColor="burnt-orange"
           icon={AlertOctagon}
         />
         <MetricCard
           title="Estimated ERV Realizable"
-          value={<MoneyValue amount={498200} />}
-          subtitle="73.1% potential recovery yield"
+          value={<MoneyValue amount={totalErvRealizable || 498200} />}
+          subtitle={`${recoveryYieldPercent}% potential recovery yield`}
           highlightColor="moss-green"
           icon={Sparkles}
         />
@@ -104,7 +131,7 @@ export const AtRiskRevenue: React.FC = () => {
       <div className="flex items-center gap-2 border-b border-border pb-2 text-xs">
         <span className="text-warm-gray-500 font-medium mr-2">Queue:</span>
         {[
-          { key: 'ALL', label: 'All At-Risk', count: mockTransactions.length },
+          { key: 'ALL', label: 'All At-Risk', count: transactions.length },
           { key: 'CRITICAL', label: 'High Value / Urgent', count: criticalTxs.length },
           { key: 'VIP', label: 'VIP & Enterprise', count: vipTxs.length },
           { key: 'TIMEOUTS', label: 'Gateway & Bank Outages', count: timeoutTxs.length },
@@ -128,7 +155,7 @@ export const AtRiskRevenue: React.FC = () => {
       </div>
 
       {/* Table view */}
-      <TransactionTable transactions={getActiveList()} showFilters />
+      <TransactionTable transactions={currentActiveList} showFilters />
     </div>
   )
 }

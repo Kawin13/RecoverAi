@@ -4,8 +4,20 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.services.recovery_service import RecoveryService
 from app.schemas.recovery_case import RecoveryCaseDetailResponse, RecoveryCaseListResponse
+from app.schemas.canonical import QueueCounts
 
 router = APIRouter()
+
+@router.get("/recovery-cases/queue-counts", response_model=QueueCounts, tags=["Recovery Cases"])
+@router.get("/queue-counts", response_model=QueueCounts, tags=["Recovery Cases"])
+def get_queue_counts(db: Session = Depends(get_db)):
+    """
+    Returns canonical active at-risk queue counts where each queue category
+    is a strict subset of all active cases, and batch dispatch count equals eligible cases.
+    """
+    service = RecoveryService(db)
+    counts = service.get_queue_counts()
+    return QueueCounts(**counts)
 
 @router.get("/recovery-cases", response_model=RecoveryCaseListResponse, tags=["Recovery Cases"])
 def list_recovery_cases(

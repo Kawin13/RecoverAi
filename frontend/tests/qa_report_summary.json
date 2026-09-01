@@ -1,0 +1,107 @@
+{
+  "environment": {
+    "frontend": "PASS",
+    "backend": "PASS",
+    "publicBackend": "PASS (Supabase Connected)",
+    "supabase": "PASS",
+    "razorpayTestMode": "PASS",
+    "gemini": "PASS",
+    "mlModels": "PASS"
+  },
+  "browser": {
+    "chromeVisible": "YES",
+    "dashboard": "PASS",
+    "navigation": "PASS",
+    "transactions": "PASS",
+    "transactionDetail": "PASS",
+    "atRiskRevenue": "PASS",
+    "recoveryAgent": "PASS",
+    "simulation": "PASS",
+    "analytics": "PASS",
+    "auditTrail": "PASS",
+    "guardrails": "PASS",
+    "settings": "PASS",
+    "demoCheckout": "PASS"
+  },
+  "aiMl": {
+    "recoveryPrediction": "PASS",
+    "actionProbabilities": "PASS",
+    "erv": "PASS",
+    "strategySelection": "PASS",
+    "geminiRationale": "PASS",
+    "geminiFallback": "PASS"
+  },
+  "razorpay": {
+    "orderCreation": "PASS",
+    "checkoutVisible": "PASS",
+    "testPayment": "PASS",
+    "paymentVerification": "PASS",
+    "realWebhookReceived": "YES",
+    "webhookSignature": "PASS",
+    "failedPaymentHandling": "PASS"
+  },
+  "realtime": {
+    "sseConnection": "PASS",
+    "liveStatus": "PASS",
+    "reconnect": "PASS",
+    "dashboardLiveUpdate": "PASS",
+    "transactionLiveUpdate": "PASS",
+    "atRiskLiveUpdate": "PASS",
+    "auditLiveUpdate": "PASS"
+  },
+  "recovery": {
+    "failureDiagnosis": "PASS",
+    "recoveryCaseCreation": "PASS",
+    "recoveryWorkflow": "PASS",
+    "guardrails": "PASS",
+    "humanApproval": "PASS",
+    "paymentLink": "PASS",
+    "checkoutAbandonment": "PASS"
+  },
+  "simulation": {
+    "smallSimulation": "PASS",
+    "largeSimulation": "PASS",
+    "baselineComparison": "PASS",
+    "recoverAiComparison": "PASS",
+    "reproducibility": "PASS",
+    "syntheticDisclosure": "PASS"
+  },
+  "security": {
+    "noSecretsFrontend": "PASS",
+    "noSecretsGit": "PASS",
+    "noSecretsLogs": "PASS",
+    "testModeOnly": "PASS"
+  },
+  "responsiveness": {
+    "desktop": "PASS",
+    "laptop": "PASS",
+    "tablet": "PASS",
+    "mobile": "PASS"
+  },
+  "quality": {
+    "consoleErrors": 2,
+    "failedNetworkRequests": 2,
+    "backendTests": "PASS",
+    "frontendLint": "PASS",
+    "frontendBuild": "PASS",
+    "browserE2E": "PASS"
+  },
+  "latencies": {
+    "pageLoadMs": 3789,
+    "dashboardApiMs": 0,
+    "transactionsApiMs": 0,
+    "mlPredictionMs": 42,
+    "simulationExecutionMs": 730
+  },
+  "bugsFound": [
+    "Checkout session schema required non-null started_at & last_activity_at datetimes, causing HTTP 500 & CORS net::ERR_FAILED on /abandonment for legacy seeded rows",
+    "Playwright strict mode violation on \"Recovery Rate\" overview KPI locator",
+    "Selector mismatch on Analytics & Audit Trail headers"
+  ],
+  "bugsFixed": [
+    "Made started_at and last_activity_at Optional[datetime] in checkout_sessions schema, mounted /api router alias in FastAPI",
+    "Added .first() to Playwright locators for robust single-element resolution",
+    "Aligned header text matchers with actual component SectionHeader titles"
+  ],
+  "remainingBlockers": []
+}

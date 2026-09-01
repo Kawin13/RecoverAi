@@ -13,12 +13,16 @@ from app.api.v1.endpoints import (
     events,
     recovery_executor,
     guardrails,
-    checkout
+    checkout,
+    simulation,
+    analytics
 )
 
 api_router = APIRouter()
 
+api_router.include_router(health.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(analytics.router, prefix="/analytics", tags=["Financial Recovery Analytics"])
 api_router.include_router(transactions.router)
 api_router.include_router(recovery_cases.router)
 api_router.include_router(audit.router)
@@ -31,3 +35,4 @@ api_router.include_router(recovery_executor.router, prefix="/recovery", tags=["R
 api_router.include_router(guardrails.router, prefix="/guardrails", tags=["Fintech Guardrails & Governance"])
 api_router.include_router(checkout.router, prefix="/checkout", tags=["Pre-Payment Cart & Checkout Abandonment"])
 api_router.include_router(ai.router, prefix="/ai", tags=["Gemini GenAI & Multi-Lingual Communications"])
+api_router.include_router(simulation.router, prefix="/simulation", tags=["Batch Recovery Simulator"])

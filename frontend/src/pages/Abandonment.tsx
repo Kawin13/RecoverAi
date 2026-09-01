@@ -191,7 +191,7 @@ export const Abandonment: React.FC = () => {
       {/* Top Header */}
       <SectionHeader
         title="Pre-Payment Cart & Checkout Abandonment Engine"
-        subtitle="Detect pre-payment intent drop-offs, estimate recovery propensity & ERV, and trigger multi-channel dunning before total revenue loss"
+        subtitle="Detect pre-payment drop-offs, estimate recovery likelihood & ERV, and trigger smart recovery interventions before revenue is lost"
         actions={
           <div className="flex items-center gap-3">
             <button
@@ -200,7 +200,7 @@ export const Abandonment: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
             >
               <Clock className={`w-3.5 h-3.5 ${scannerRunning ? 'animate-spin' : ''}`} />
-              <span>Scan Timeout (15s Window)</span>
+              <span>Detect Abandonment (15s Window)</span>
             </button>
             <button
               onClick={loadData}
@@ -460,7 +460,7 @@ export const Abandonment: React.FC = () => {
         <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-4 text-xs">
           <div className="flex items-center gap-2 border-b border-border pb-3">
             <Shield className="w-4 h-4 text-burnt-orange" />
-            <h4 className="font-bold text-graphite font-display">Event Attribution Guard</h4>
+            <h4 className="font-bold text-graphite font-display">Transaction Source & Mode</h4>
           </div>
 
           <div className="space-y-3">
@@ -470,7 +470,7 @@ export const Abandonment: React.FC = () => {
                 <span>Simulated Demo Checkout Event</span>
               </div>
               <p className="text-blue-800 mt-1 leading-relaxed text-[11px]">
-                Pre-payment browser sessions, synthetic customer drop-offs, and cart abandonment telemetry. Processed safely without touching Razorpay live balances.
+                Pre-payment browser checkouts and cart drop-off sessions. Simulated safely for testing without live charges.
               </p>
             </div>
 
@@ -480,13 +480,13 @@ export const Abandonment: React.FC = () => {
                 <span>Real Razorpay Test Transaction</span>
               </div>
               <p className="text-emerald-800 mt-1 leading-relaxed text-[11px]">
-                Genuine Razorpay Test Mode orders (`order_...`), genuine signatures (`X-Razorpay-Signature`), and official webhook callbacks.
+                Official Razorpay Test Mode transactions, test orders, and verified payment updates.
               </p>
             </div>
           </div>
 
           <div className="pt-2 text-[11px] text-warm-gray-500 border-t border-border flex items-center justify-between">
-            <span>Configured Demo Inactivity Window:</span>
+            <span>Demo Inactivity Window:</span>
             <span className="font-bold font-mono text-graphite">15 Seconds</span>
           </div>
         </div>
@@ -561,7 +561,7 @@ export const Abandonment: React.FC = () => {
                     <td className="p-3 font-mono font-bold text-forest-green">
                       {formatINR(c.expected_recovery_value)}
                       <div className="text-[10px] text-warm-gray-400 font-mono">
-                        {(c.recovery_probability * 100).toFixed(0)}% propensity
+                        {(c.recovery_probability * 100).toFixed(0)}% likelihood
                       </div>
                     </td>
                     <td className="p-3 font-mono text-[11px] text-warm-gray-700">

@@ -10,10 +10,13 @@ from app.database.session import get_db
 from app.core.logging import logger
 from app.core.events import event_broadcaster
 from app.models import (
+    Customer,
     Transaction,
     PaymentAttempt,
     CheckoutSession,
     RecoveryCase,
+    RecoveryOutcome,
+    PaymentLink,
     AuditLog,
     WebhookEvent
 )
@@ -81,10 +84,12 @@ async def razorpay_webhook_receiver(
     payload_data = payload.get("payload", {})
     payment_entity = payload_data.get("payment", {}).get("entity", {})
     order_entity = payload_data.get("order", {}).get("entity", {})
+    plink_entity = payload_data.get("payment_link", {}).get("entity", {})
 
     payment_id = payment_entity.get("id")
     order_id = payment_entity.get("order_id") or order_entity.get("id")
-    amount_paise = payment_entity.get("amount") or order_entity.get("amount") or 0
+    plink_id = plink_entity.get("id") or payment_entity.get("payment_link_id") or payment_entity.get("notes", {}).get("payment_link_id")
+    amount_paise = payment_entity.get("amount") or order_entity.get("amount") or plink_entity.get("amount") or 0
     amount_inr = round(amount_paise / 100.0, 2)
     raw_method = payment_entity.get("method", "Card")
     method_map = {
@@ -96,16 +101,39 @@ async def razorpay_webhook_receiver(
     }
     normalized_method = method_map.get(raw_method.lower(), raw_method.capitalize())
 
-    logger.info(f"Processing Razorpay webhook event '{event_type}' [Event ID: {event_id}] for Order {order_id}, Payment {payment_id}")
+    logger.info(f"Processing Razorpay webhook event '{event_type}' [Event ID: {event_id}] for Order {order_id}, Payment {payment_id}, Link {plink_id}")
 
-    # Find associated transaction in database
+    # Resolve associated entities across tables
     tx = None
-    if order_id:
+    case = None
+    plink_record = None
+
+    if plink_id:
+        plink_record = db.query(PaymentLink).filter(PaymentLink.payment_link_id == plink_id).first()
+        if plink_record:
+            case = plink_record.recovery_case
+            if case:
+                tx = case.transaction
+
+    if not case:
+        notes = payment_entity.get("notes") or plink_entity.get("notes") or {}
+        case_id = notes.get("recovery_case_id")
+        if case_id:
+            case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+            if case and not tx:
+                tx = case.transaction
+
+    if not tx and order_id:
         tx = db.query(Transaction).filter(
             (Transaction.order_id == order_id) | (Transaction.razorpay_order_id == order_id)
         ).first()
+        if tx and not case:
+            case = tx.recovery_case
+
     if not tx and payment_id:
         tx = db.query(Transaction).filter(Transaction.razorpay_payment_id == payment_id).first()
+        if tx and not case:
+            case = tx.recovery_case
 
     webhook_status = "PROCESSED"
 
@@ -123,7 +151,7 @@ async def razorpay_webhook_receiver(
             webhook_record = WebhookEvent(
                 id=event_id,
                 event_type=event_type,
-                resource_id=payment_id or order_id,
+                resource_id=payment_id or order_id or plink_id,
                 status=webhook_status,
                 payload_summary=f"Ignored out-of-order {event_type} for existing {tx.status} transaction {tx.id}",
                 created_at=datetime.utcnow()
@@ -139,7 +167,35 @@ async def razorpay_webhook_receiver(
             }
 
     # 6. Event Handling Logic
-    if event_type in ("payment.captured", "order.paid"):
+    if event_type in ("payment.captured", "order.paid", "payment_link.paid"):
+        if plink_record:
+            plink_record.status = "paid"
+            plink_record.updated_at = datetime.utcnow()
+
+        if case:
+            case.status = "RECOVERED"
+            case.current_step = "RECOVERED"
+            case.recovered_at = datetime.utcnow()
+            case.updated_at = datetime.utcnow()
+
+            # Record or update RecoveryOutcome
+            outcome = db.query(RecoveryOutcome).filter(RecoveryOutcome.recovery_case_id == case.id).first()
+            recovered_val = case.risk_amount or amount_inr
+            if not outcome:
+                outcome = RecoveryOutcome(
+                    id=f"out_{uuid.uuid4().hex[:10]}",
+                    recovery_case_id=case.id,
+                    recovered_amount=recovered_val,
+                    payment_method_used=normalized_method,
+                    time_to_recover_seconds=int((datetime.utcnow() - case.created_at).total_seconds()) if case.created_at else 120,
+                    settled_at=datetime.utcnow()
+                )
+                db.add(outcome)
+            else:
+                outcome.recovered_amount = recovered_val
+                outcome.payment_method_used = normalized_method
+                outcome.settled_at = datetime.utcnow()
+
         if tx:
             tx.status = "SUCCESS"
             if payment_id:
@@ -160,26 +216,22 @@ async def razorpay_webhook_receiver(
             )
             db.add(attempt)
 
-            # If recovering a previous case
-            if tx.recovery_case:
-                tx.recovery_case.status = "RECOVERED"
-                tx.recovery_case.recovered_at = datetime.utcnow()
-
-            # Audit trail
-            db.add(
-                AuditLog(
-                    id=f"aud_{uuid.uuid4().hex[:10]}",
-                    transaction_id=tx.id,
-                    recovery_case_id=tx.recovery_case.id if tx.recovery_case else None,
-                    actor="RAZORPAY_WEBHOOK",
-                    action_type="PAYMENT_CAPTURED",
-                    target_resource=tx.id,
-                    details=f"Webhook confirmed payment.captured for ₹{tx.amount:,.2f} via {normalized_method} (Payment {payment_id})",
-                    created_at=datetime.utcnow()
-                )
+        # Audit trail
+        db.add(
+            AuditLog(
+                id=f"aud_{uuid.uuid4().hex[:10]}",
+                transaction_id=tx.id if tx else (case.transaction_id if case else None),
+                recovery_case_id=case.id if case else (tx.recovery_case.id if tx and tx.recovery_case else None),
+                actor="RAZORPAY_WEBHOOK",
+                action_type="PAYMENT_CAPTURED",
+                target_resource=case.id if case else (tx.id if tx else (payment_id or plink_id or "unknown")),
+                details=f"Webhook confirmed {event_type} for ₹{amount_inr or (case.risk_amount if case else 0):,.2f} via {normalized_method} (Payment {payment_id or 'N/A'}, Link {plink_id or 'N/A'}). Recovery case marked RECOVERED.",
+                created_at=datetime.utcnow()
             )
+        )
 
-            # Real-Time SSE Broadcast
+        # Real-Time SSE Broadcasts
+        if tx:
             event_broadcaster.broadcast_sync("TRANSACTION_UPDATED", {
                 "transaction_id": tx.id,
                 "order_id": tx.order_id,
@@ -188,16 +240,73 @@ async def razorpay_webhook_receiver(
                 "method": tx.method,
                 "event_type": event_type
             })
-            event_broadcaster.broadcast_sync("DASHBOARD_REFRESH", {
-                "reason": "payment_captured",
-                "transaction_id": tx.id,
-                "amount": tx.amount
+        if case:
+            event_broadcaster.broadcast_sync("RECOVERY_AGENT_TRANSITION", {
+                "case_id": case.id,
+                "transaction_id": case.transaction_id,
+                "prev_step": "WAITING_FOR_CUSTOMER",
+                "current_step": "RECOVERED",
+                "strategy": case.selected_strategy,
+                "status": "RECOVERED",
+                "risk_amount": case.risk_amount,
+                "details": f"Payment verified via Razorpay webhook ({event_type}).",
+                "timestamp": datetime.utcnow().isoformat()
             })
+            event_broadcaster.broadcast_sync("RECOVERY_QUEUE_UPDATED", {
+                "case_id": case.id,
+                "payment_link_id": plink_id or (plink_record.payment_link_id if plink_record else ""),
+                "status": "paid"
+            })
+        event_broadcaster.broadcast_sync("DASHBOARD_REFRESH", {
+            "reason": "payment_recovered",
+            "transaction_id": tx.id if tx else "",
+            "case_id": case.id if case else "",
+            "amount": amount_inr or (case.risk_amount if case else 0)
+        })
+        event_broadcaster.broadcast_sync("transaction_recovered", {
+            "transaction_id": tx.id if tx else "",
+            "case_id": case.id if case else "",
+            "amount": amount_inr or (case.risk_amount if case else 0)
+        })
 
     elif event_type == "payment.failed":
         error_code = payment_entity.get("error_code") or "PAYMENT_FAILED"
         error_description = payment_entity.get("error_description") or "Declined by gateway/bank."
         error_reason = payment_entity.get("error_reason") or "GATEWAY_ERROR"
+
+        if not tx:
+            # External or untracked transaction detected via webhook: auto-provision to avoid lost revenue
+            cust_email = payment_entity.get("email") or "shopper@example.com"
+            cust_contact = payment_entity.get("contact") or "+919876543210"
+            customer = db.query(Customer).filter(Customer.email == cust_email).first()
+            if not customer:
+                customer = Customer(
+                    id=f"cust_{uuid.uuid4().hex[:8]}",
+                    name=cust_email.split("@")[0].title() if "@" in cust_email else "Valued Shopper",
+                    email=cust_email,
+                    phone=cust_contact,
+                    tier="STANDARD",
+                    ltv=amount_inr,
+                    created_at=datetime.utcnow()
+                )
+                db.add(customer)
+                db.flush()
+
+            tx = Transaction(
+                id=f"tx_{uuid.uuid4().hex[:10]}",
+                order_id=order_id or f"order_ext_{uuid.uuid4().hex[:8]}",
+                customer_id=customer.id,
+                amount=amount_inr,
+                currency=payment_entity.get("currency", "INR"),
+                method=normalized_method,
+                status="FAILED",
+                razorpay_order_id=order_id,
+                razorpay_payment_id=payment_id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(tx)
+            db.flush()
 
         if tx:
             tx.status = "FAILED"

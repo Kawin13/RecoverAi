@@ -1,0 +1,17 @@
+{
+  "settingsPageRemoved": "PASS",
+  "accountNavigationAdded": "PASS",
+  "realSupabaseUserDisplayed": "PASS",
+  "nameCorrect": "PASS",
+  "emailCorrect": "PASS",
+  "providerCorrect": "PASS",
+  "createdDateCorrect": "PASS",
+  "lastSignInCorrect": "PASS",
+  "profileEdit": "PASS",
+  "topRightProfileDynamic": "PASS",
+  "logout": "PASS",
+  "protectedRoutesAfterLogout": "PASS",
+  "secretsAbsentFromFrontend": "PASS",
+  "frontendBuild": "PASS",
+  "visibleChromeTest": "PASS"
+}

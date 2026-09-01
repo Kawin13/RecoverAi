@@ -111,14 +111,32 @@ export const RecoveryAgent: React.FC = () => {
     }
   }
 
+  const handleOpenPaymentLink = (url?: string) => {
+    if (!url) {
+      alert('Payment Link creation failed: No link URL provided')
+      return
+    }
+    const isRazorpay = url.startsWith('https://rzp.io/')
+    const isLocalDemo = url.startsWith('http://localhost:') || url.startsWith('http://127.0.0.1:')
+    if (!isRazorpay && !isLocalDemo) {
+      alert('Payment Link creation failed: Invalid payment link URL format')
+      return
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   const handleGeneratePaymentLink = async (caseId: string) => {
     setIsActionBusy(caseId)
     try {
       const link = await api.generatePaymentLink(caseId, true)
       await loadData()
-      alert(`Razorpay Test Payment Link Generated!\nURL: ${link.short_url}`)
+      if (link && link.short_url) {
+        handleOpenPaymentLink(link.short_url)
+      } else {
+        alert('Payment Link creation failed: Gateway did not return a valid link')
+      }
     } catch (err: any) {
-      alert(err.message || 'Failed to generate payment link')
+      alert(`Payment Link creation failed: ${err.message || 'Gateway connection error'}`)
     } finally {
       setIsActionBusy(null)
     }
@@ -197,12 +215,12 @@ export const RecoveryAgent: React.FC = () => {
     <div className="space-y-6">
       <SectionHeader
         title="Recovery Agent Operations Center"
-        subtitle="Live 10-Stage State Machine • Bounded Loops (Max 3 Attempts) • Genuine Razorpay Test Payment Links"
+        subtitle="Autonomous 10-Stage Recovery • Maximum 3 Attempts Protection • Razorpay Test Mode Payment Links"
         actions={
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/50 border border-emerald-800/60 rounded text-xs text-emerald-400 font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              STATE MACHINE LIVE
+              AUTONOMOUS RECOVERY ACTIVE
             </span>
             <button
               type="button"
@@ -226,9 +244,9 @@ export const RecoveryAgent: React.FC = () => {
           highlightColor="burnt-orange"
         />
         <MetricCard
-          title="Bounded Loop Ceiling"
-          value="MAX 3 ATTEMPTS"
-          subtitle="Zero unbounded/infinite retry loops"
+          title="Maximum Recovery Attempts"
+          value="3 Attempts Max"
+          subtitle="Enforces strict retry limits"
           highlightColor="moss-green"
         />
         <MetricCard
@@ -238,9 +256,9 @@ export const RecoveryAgent: React.FC = () => {
           highlightColor="muted-amber"
         />
         <MetricCard
-          title="Test Payment Links Created"
+          title="Payment Links Created"
           value={`${totalPaymentLinks} Generated`}
-          subtitle="Razorpay POST /v1/payment_links"
+          subtitle="Razorpay Test Mode Links"
           highlightColor="moss-green"
         />
       </div>
@@ -264,7 +282,7 @@ export const RecoveryAgent: React.FC = () => {
 
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-stone-800 text-xs font-mono text-stone-200 border border-stone-700">
-                Loop Attempt: <strong className="text-amber-400">{selectedCase.attempt_count} / {selectedCase.max_attempts}</strong> (Bounded)
+                Recovery Attempt: <strong className="text-amber-400">{selectedCase.attempt_count} / {selectedCase.max_attempts}</strong>
               </span>
               {getStrategyBadge(selectedCase.selected_strategy)}
             </div>
@@ -318,7 +336,7 @@ export const RecoveryAgent: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-100 rounded text-xs font-medium border border-stone-700 disabled:opacity-50 transition-colors"
               >
                 <Play className={`w-3.5 h-3.5 text-amber-400 ${isActionBusy === selectedCase.id ? 'animate-spin' : ''}`} />
-                <span>Advance 1 Step</span>
+                <span>Advance Step</span>
               </button>
 
               {/* Execute Full Pipeline */}
@@ -329,7 +347,7 @@ export const RecoveryAgent: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded text-xs font-medium shadow-sm disabled:opacity-50 transition-colors"
               >
                 <FastForward className="w-3.5 h-3.5" />
-                <span>Execute Pipeline</span>
+                <span>Run Recovery</span>
               </button>
 
               {/* Generate Genuine Razorpay Test Payment Link */}
@@ -340,7 +358,7 @@ export const RecoveryAgent: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-950/60 hover:bg-sky-900/80 text-sky-200 border border-sky-800/80 rounded text-xs font-medium disabled:opacity-50 transition-colors"
               >
                 <LinkIcon className="w-3.5 h-3.5 text-sky-400" />
-                <span>Create Razorpay Link</span>
+                <span>Create Payment Link</span>
               </button>
 
               {/* Simulate Customer Payment (RECOVERED) */}
@@ -351,7 +369,7 @@ export const RecoveryAgent: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-200 border border-emerald-800/80 rounded text-xs font-medium disabled:opacity-50 transition-colors"
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Simulate Pay (Recover)</span>
+                <span>Simulate Successful Payment</span>
               </button>
 
               {/* Simulate Customer Timeout (FAILED -> NEXT_STRATEGY or ESCALATE) */}
@@ -362,7 +380,7 @@ export const RecoveryAgent: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-rose-300 border border-rose-900/50 rounded text-xs font-medium disabled:opacity-50 transition-colors"
               >
                 <Clock className="w-3.5 h-3.5 text-rose-400" />
-                <span>Simulate Timeout</span>
+                <span>Simulate No Response</span>
               </button>
             </div>
           </div>
@@ -373,50 +391,56 @@ export const RecoveryAgent: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <LinkIcon className="w-4 h-4 text-sky-400" />
-                  <span className="text-xs font-semibold text-sky-200">Razorpay Test Payment Links (Active)</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-900 text-sky-300">Live Gateway Endpoint</span>
+                  <span className="text-xs font-semibold text-sky-200">Payment Recovery Links (Active)</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-900 text-sky-300">Active Payment Links</span>
                 </div>
-                <span className="text-[11px] text-stone-400">Created via POST /v1/payment_links</span>
+                <span className="text-[11px] text-stone-400">Razorpay Test Mode</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {selectedCase.payment_links.map(pl => (
-                  <div key={pl.id} className="p-2.5 rounded bg-stone-950/80 border border-sky-900/40 flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-sky-300 font-semibold">{pl.payment_link_id}</span>
-                        <span className="text-[10px] px-1 rounded bg-stone-800 text-stone-300">{pl.status}</span>
+                {selectedCase.payment_links.map(pl => {
+                  const isReal = pl.is_live_demo || (pl.short_url && pl.short_url.startsWith('https://rzp.io/'))
+                  return (
+                    <div key={pl.id} className="p-2.5 rounded bg-stone-950/80 border border-sky-900/40 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono text-sky-300 font-semibold">{pl.payment_link_id}</span>
+                          <span className="text-[10px] px-1 rounded bg-stone-800 text-stone-300 font-mono">{pl.status}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${isReal ? 'bg-sky-900/80 text-sky-200 border border-sky-700' : 'bg-amber-950 text-amber-300 border border-amber-800'}`}>
+                            {isReal ? 'RAZORPAY TEST PAYMENT LINK' : 'DEMO RECOVERY LINK'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPaymentLink(pl.short_url)}
+                          className="text-xs text-sky-400 hover:underline truncate block mt-1 text-left font-mono max-w-full"
+                          title="Click to open link in new tab"
+                        >
+                          {pl.short_url}
+                        </button>
                       </div>
-                      <a
-                        href={pl.short_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-sky-400 hover:underline truncate block mt-0.5"
-                      >
-                        {pl.short_url}
-                      </a>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(pl.short_url)}
+                          className="p-1.5 text-stone-400 hover:text-stone-200 bg-stone-800 hover:bg-stone-700 rounded text-xs transition-colors"
+                          title="Copy payment link"
+                        >
+                          {copiedLink === pl.short_url ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPaymentLink(pl.short_url)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sky-300 hover:text-sky-100 bg-sky-900/60 hover:bg-sky-800/80 border border-sky-700/60 rounded text-xs font-medium transition-colors"
+                          title="Open Razorpay Hosted Checkout"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Open Link</span>
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(pl.short_url)}
-                        className="p-1.5 text-stone-400 hover:text-stone-200 bg-stone-800 rounded text-xs"
-                        title="Copy payment link"
-                      >
-                        {copiedLink === pl.short_url ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                      <a
-                        href={pl.short_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1.5 text-sky-300 hover:text-sky-100 bg-sky-900/60 rounded text-xs"
-                        title="Open Test Checkout"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -542,7 +566,7 @@ export const RecoveryAgent: React.FC = () => {
                         disabled={isActionBusy === wf.id || wf.status === 'RECOVERED'}
                         className="px-2 py-1 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded text-[11px] font-medium"
                       >
-                        Run Pipeline
+                        Run Recovery
                       </button>
                     </div>
                   </div>
@@ -557,7 +581,7 @@ export const RecoveryAgent: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Send className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-sm font-semibold text-stone-200">Simulated Dispatches</h3>
+              <h3 className="text-sm font-semibold text-stone-200">Customer Communications</h3>
             </div>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950/60 text-amber-300 border border-amber-800/60">
               DEMO DELIVERY

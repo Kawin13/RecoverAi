@@ -20,13 +20,13 @@ import {
   Filter, 
   XCircle, 
   Cpu, 
-  ShieldAlert, 
-  CheckCircle2, 
   FileText,
   MessageSquare,
   Copy,
   Check,
-  Globe
+  Globe,
+  Info,
+  Loader2
 } from 'lucide-react'
 
 interface TransactionTableProps {
@@ -62,6 +62,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   }
 
+  // Canonical Strategy Display Mapping
   const getStrategyLabel = (strategy: string) => {
     switch (strategy) {
       case 'SMART_PAYLINK_1CLICK':
@@ -72,10 +73,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       case 'RETRY_LATER': return 'Timed Retry'
       case 'RETRY_NOW': return 'Immediate Retry'
       case 'INCENTIVIZED_DUNNING':
-      case 'PERSONALIZED_REMINDER': return 'Personalized Dunning'
+      case 'PERSONALIZED_REMINDER': return 'Personalized Reminder'
       case 'WHATSAPP_CONCIERGE':
       case 'HUMAN_ESCALATION': return 'Concierge Escalation'
-      case 'NO_ACTION': return 'No Action (Suppress)'
+      case 'NO_ACTION': return 'No Action'
       default: return strategy.replace(/_/g, ' ')
     }
   }
@@ -140,6 +141,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   }
 
+  const selectedStrategyKey = analysis?.selected_action || selectedTx?.recommendedAction || 'UPI_SWITCH'
+  const selectedStrategyDisplayName = analysis?.display_name || getStrategyLabel(selectedStrategyKey)
+
   return (
     <div className="bg-surface rounded-md border border-border overflow-hidden shadow-fintech-card">
       {/* Optional Filters Bar */}
@@ -198,7 +202,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               <th className="py-3 px-4">Amount</th>
               <th className="py-3 px-4">Method</th>
               <th className="py-3 px-4">Failure Diagnostic</th>
-              <th className="py-3 px-4">Rec. Prob</th>
+              <th className="py-3 px-4" title="Overall Probability of recovery given transaction context P(recovery | context)">
+                <div className="flex items-center gap-1 cursor-help">
+                  <span>Overall Recoverability</span>
+                  <Info className="w-3 h-3 text-warm-gray-400" />
+                </div>
+              </th>
               <th className="py-3 px-4">Recommended Action</th>
               <th className="py-3 px-4">Status</th>
               <th className="py-3 px-4">Age</th>
@@ -273,7 +282,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     </div>
                   </td>
 
-                  {/* Recovery Probability */}
+                  {/* Overall Recoverability (P(recovery | context)) */}
                   <td className="py-3.5 px-4">
                     <ProbabilityBar value={tx.recoveryProbability} />
                   </td>
@@ -348,43 +357,62 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 </button>
               </div>
 
-              {/* Financial Snapshot & ERV */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Financial Snapshot & Distinct Probability Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-warm-gray-50 p-3.5 rounded-sm border border-border">
                   <span className="text-[11px] text-warm-gray-500 uppercase tracking-wider block">At-Risk Amount</span>
                   <div className="text-lg font-bold text-graphite mt-1 font-mono">
                     <MoneyValue amount={selectedTx.amount} />
                   </div>
+                  <span className="text-[10px] text-warm-gray-400 font-mono mt-0.5 block">
+                    Recovery Likelihood: {(selectedTx.recoveryProbability * 100).toFixed(1)}%
+                  </span>
                 </div>
 
                 <div className="bg-moss-green-subtle p-3.5 rounded-sm border border-moss-green/20">
-                  <span className="text-[11px] text-moss-green-dark uppercase tracking-wider block">Expected Recovery Value (ERV)</span>
+                  <span className="text-[11px] text-moss-green-dark uppercase tracking-wider block">Expected Recovery (ERV)</span>
                   <div className="text-lg font-bold text-moss-green mt-1 font-mono">
                     <MoneyValue amount={analysis ? analysis.expected_recovery_value : selectedTx.erv} />
                   </div>
+                  <span className="text-[10px] text-moss-green-dark/80 font-mono mt-0.5 block">
+                    Net Yield after cost/friction
+                  </span>
                 </div>
 
                 <div className="bg-warm-gray-50 p-3.5 rounded-sm border border-border">
-                  <span className="text-[11px] text-warm-gray-500 uppercase tracking-wider block">Recovery Score</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-warm-gray-500 uppercase tracking-wider block">Strategy Success</span>
+                    <span className="px-1.5 py-0.2 rounded-xs text-[9px] font-semibold bg-burnt-orange-light text-burnt-orange-dark">
+                      {selectedStrategyDisplayName}
+                    </span>
+                  </div>
                   <div className="text-lg font-bold text-graphite mt-1 font-mono">
                     {((analysis ? analysis.recovery_probability : selectedTx.recoveryProbability) * 100).toFixed(1)}%
                   </div>
+                  <span className="text-[10px] text-warm-gray-400 font-mono mt-0.5 block">
+                    Likelihood ({selectedStrategyDisplayName})
+                  </span>
                 </div>
               </div>
 
-              {/* Failure Diagnosis Card */}
-              {analysis?.diagnosis && (
+              {/* Canonical Failure Diagnosis Card */}
+              {((analysis && analysis.diagnosis) || selectedTx) && (
                 <div className="p-3.5 bg-surface border border-border rounded-sm space-y-1.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-graphite uppercase text-[11px] tracking-wider text-warm-gray-500">
-                      Failure Diagnosis
+                    <span className="font-semibold text-graphite uppercase text-[11px] tracking-wider text-warm-gray-500 flex items-center gap-1.5">
+                      <span>Failure Diagnosis</span>
+                      {(analysis?.diagnosis?.human_readable_reason || selectedTx?.failureReason) && (
+                        <span className="text-graphite font-normal text-xs">
+                          — {analysis?.diagnosis?.human_readable_reason || selectedTx?.failureReason}
+                        </span>
+                      )}
                     </span>
                     <span className="px-2 py-0.5 rounded-xs text-[10px] font-mono font-semibold bg-burnt-orange-light text-burnt-orange-dark border border-burnt-orange/30">
-                      {analysis.diagnosis.taxonomy}
+                      {analysis?.diagnosis?.taxonomy || analysis?.diagnosis?.failure_category || selectedTx?.failureCategory}
                     </span>
                   </div>
                   <p className="text-warm-gray-700 leading-relaxed font-sans">
-                    {analysis.diagnosis.description}
+                    {analysis?.diagnosis?.description || selectedTx?.failureReason || 'Transient payment processing issue diagnosed.'}
                   </p>
                 </div>
               )}
@@ -397,65 +425,67 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     <span>Strategy Comparison & ERV Ranking</span>
                   </h4>
                   <span className="text-[11px] text-warm-gray-500 font-mono">
-                    Optimizing: P(a) × Amt − Cost − Friction
+                    Expected Value Optimization
                   </span>
                 </div>
 
                 {loadingAnalysis ? (
-                  <div className="py-6 text-center text-warm-gray-500 font-mono text-xs">
-                    Evaluating candidate actions and calculating ERV...
+                  <div className="p-6 bg-warm-gray-50 rounded border border-border text-center space-y-2">
+                    <Loader2 className="w-5 h-5 text-burnt-orange animate-spin mx-auto" />
+                    <p className="text-xs text-warm-gray-600">Simulating candidate recovery actions...</p>
                   </div>
                 ) : (
-                  <div className="border border-border rounded-sm overflow-hidden text-xs">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-warm-gray-100/70 border-b border-border text-[11px] text-warm-gray-600 font-semibold uppercase">
-                          <th className="py-2.5 px-3">Rank</th>
-                          <th className="py-2.5 px-3">Action</th>
-                          <th className="py-2.5 px-3">Propensity</th>
-                          <th className="py-2.5 px-3">ERV</th>
-                          <th className="py-2.5 px-3">Cost / Friction</th>
-                          <th className="py-2.5 px-3 text-right">Status</th>
+                  <div className="border border-border rounded overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-warm-gray-50 border-b border-border text-warm-gray-600 font-medium">
+                        <tr>
+                          <th className="p-2.5">Candidate Strategy</th>
+                          <th className="p-2.5">Likelihood</th>
+                          <th className="p-2.5">Cost</th>
+                          <th className="p-2.5">Net ERV</th>
+                          <th className="p-2.5 text-right">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border/60">
+                      <tbody className="divide-y divide-border font-mono text-[11px]">
                         {(analysis?.strategies_comparison || []).map((s) => {
-                          const isSelected = s.action === analysis?.selected_action
+                          const isSelected = s.action === analysis?.selected_action || s.action_code === analysis?.selected_action
+                          const displayName = s.display_name || s.action.replace(/_/g, ' ')
                           return (
-                            <tr 
-                              key={s.action} 
+                            <tr
+                              key={s.action}
                               className={`transition-colors ${
                                 isSelected ? 'bg-moss-green-subtle/40 font-medium' : 'hover:bg-warm-gray-50'
                               } ${!s.allowed ? 'opacity-60 bg-warm-gray-100/50' : ''}`}
                             >
-                              <td className="py-2.5 px-3 font-mono font-bold text-graphite text-[11px]">
-                                #{s.rank}
-                              </td>
-                              <td className="py-2.5 px-3">
+                              <td className="p-2.5 font-sans">
                                 <div className="flex items-center gap-1.5">
                                   {isSelected && <Sparkles className="w-3.5 h-3.5 text-burnt-orange shrink-0" />}
                                   <span className={isSelected ? 'font-bold text-moss-green-dark' : 'text-graphite'}>
-                                    {getStrategyLabel(s.action)}
+                                    {displayName}
                                   </span>
                                 </div>
                               </td>
-                              <td className="py-2.5 px-3 font-mono">
+                              <td className="p-2.5">
                                 {(s.probability * 100).toFixed(1)}%
                               </td>
-                              <td className="py-2.5 px-3 font-mono font-semibold text-graphite">
-                                ₹{s.expected_recovery_value.toLocaleString('en-IN')}
+                              <td className="p-2.5 text-warm-gray-500">
+                                ₹{s.cost.toFixed(2)}
                               </td>
-                              <td className="py-2.5 px-3 font-mono text-warm-gray-500 text-[11px]">
-                                ₹{s.cost} / ₹{s.friction_penalty}
+                              <td className="p-2.5 font-bold text-moss-green-dark">
+                                <MoneyValue amount={s.expected_recovery_value} />
                               </td>
-                              <td className="py-2.5 px-3 text-right font-mono text-[11px]">
-                                {s.allowed ? (
-                                  <span className="inline-flex items-center gap-1 text-moss-green font-medium">
-                                    <CheckCircle2 className="w-3 h-3" /> Permitted
+                              <td className="p-2.5 text-right">
+                                {isSelected ? (
+                                  <span className="px-2 py-0.5 rounded-xs text-[10px] bg-moss-green text-white font-sans font-semibold">
+                                    Recommended
+                                  </span>
+                                ) : s.allowed ? (
+                                  <span className="text-[10px] text-warm-gray-400 font-sans">
+                                    Alternative
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-brick-red" title={s.guardrail_reason}>
-                                    <ShieldAlert className="w-3 h-3" /> Blocked
+                                  <span className="text-[10px] text-brick-red font-sans" title={s.guardrail_reason}>
+                                    Gated
                                   </span>
                                 )}
                               </td>
@@ -473,7 +503,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 <div className="p-4 bg-warm-gray-50 border border-border rounded-sm space-y-2 text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-graphite font-display text-xs">
                     <FileText className="w-3.5 h-3.5 text-burnt-orange" />
-                    <span>Deterministic Factual Evidence</span>
+                    <span>Decision Evidence</span>
                   </div>
                   <ul className="space-y-1.5 text-warm-gray-700">
                     {analysis.evidence.map((ev, idx) => (
@@ -491,10 +521,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 <div className="flex items-center justify-between pb-2 border-b border-border">
                   <div className="flex items-center gap-1.5 font-bold text-graphite font-display text-xs">
                     <MessageSquare className="w-3.5 h-3.5 text-moss-green" />
-                    <span>Decision Rationale & Customer Communications</span>
+                    <span>AI Explanation & Customer Communications</span>
                   </div>
                   <span className="px-2 py-0.5 text-[10px] bg-warm-gray-200 text-warm-gray-800 rounded-xs font-mono">
-                    Gemini 2.5 Flash
+                    AI Assistant
                   </span>
                 </div>
 
@@ -502,7 +532,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 {aiExplanation?.summary && (
                   <div className="p-3 bg-warm-gray-50 rounded-sm border border-border text-warm-gray-800 leading-relaxed font-sans">
                     <span className="text-[10px] text-warm-gray-500 uppercase tracking-wider block font-semibold mb-1">
-                      Executive Operator Rationale
+                      Operator AI Explanation
                     </span>
                     <p>{aiExplanation.summary}</p>
                   </div>
@@ -568,7 +598,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                       </p>
 
                       <div className="flex items-center justify-between pt-2 border-t border-warm-gray-800 text-[10px] text-warm-gray-400">
-                        <span>Action: {aiMessage.call_to_action}</span>
+                        <span>Action CTA: <strong className="text-surface font-semibold">{aiMessage.call_to_action}</strong></span>
                         <span className="text-burnt-orange-light">Channel: {aiMessage.channel_recommended}</span>
                       </div>
                     </div>
@@ -589,13 +619,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const act = analysis?.selected_action || selectedTx.recommendedAction
-                  alert(`Autonomous recovery strategy "${getStrategyLabel(act)}" successfully executed for ${selectedTx.orderId}!`)
+                  alert(`Autonomous recovery strategy "${selectedStrategyDisplayName}" successfully executed for ${selectedTx.orderId}!`)
                   setSelectedTx(null)
                 }}
                 className="px-4 py-2 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
               >
-                Execute {getStrategyLabel(analysis?.selected_action || selectedTx.recommendedAction)}
+                Execute {selectedStrategyDisplayName}
               </button>
             </div>
           </div>

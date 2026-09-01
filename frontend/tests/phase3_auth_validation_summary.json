@@ -1,0 +1,13 @@
+{
+  "supabaseBrowserClient": "PASS",
+  "signup": "PASS",
+  "login": "PASS",
+  "wrongPasswordHandling": "PASS",
+  "logout": "PASS",
+  "forgotPassword": "PASS",
+  "sessionPersistence": "PASS",
+  "protectedRoutes": "PASS",
+  "publicRoutes": "PASS",
+  "secretExposure": "PASS",
+  "frontendBuild": "PASS"
+}

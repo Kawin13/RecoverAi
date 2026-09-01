@@ -9,7 +9,7 @@ interface ErrorStateProps {
 }
 
 export const ErrorState: React.FC<ErrorStateProps> = ({
-  title = 'Failed to load data',
+  title = 'Unable to load information',
   message,
   onRetry,
   className = ''
@@ -32,7 +32,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           className="mt-3.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface text-graphite hover:bg-warm-gray-100 border border-border rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          <span>Retry Operation</span>
+          <span>Try Again</span>
         </button>
       )}
     </div>

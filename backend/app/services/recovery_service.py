@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 from sqlalchemy.orm import Session
 from app.repositories.recovery_case_repository import RecoveryCaseRepository
 from app.models.recovery_cases import RecoveryCase
@@ -27,3 +27,6 @@ class RecoveryService:
             search=search,
             min_erv=min_erv
         )
+
+    def get_queue_counts(self) -> Dict[str, int]:
+        return self.repo.get_queue_counts()

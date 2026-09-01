@@ -1,0 +1,22 @@
+{
+  "landingPage": "PASS",
+  "responsiveLanding": "PASS",
+  "emailSignup": "PASS",
+  "emailLogin": "PASS",
+  "forgotPassword": "PASS",
+  "googleLogin": "PASS",
+  "protectedRoutes": "PASS",
+  "sessionPersistence": "PASS",
+  "logout": "PASS",
+  "accountMenu": "PASS",
+  "accountPage": "PASS",
+  "backendJwtVerification": "PASS",
+  "existingRazorpayIntegration": "PASS",
+  "existingSse": "PASS",
+  "existingMl": "PASS",
+  "existingGemini": "PASS",
+  "existingSimulator": "PASS",
+  "secretsProtected": "PASS",
+  "browserConsoleErrors": 3,
+  "failedRequests": 2
+}

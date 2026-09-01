@@ -1,0 +1,708 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/simulation/MethodologyModal.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=f7d029dd"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=f7d029dd"; const useState = __vite__cjsImport3_react["useState"];
+import {
+  X,
+  Scale,
+  ShieldCheck,
+  Cpu,
+  AlertTriangle,
+  CheckCircle2,
+  TrendingUp
+} from "/node_modules/.vite/deps/lucide-react.js?v=f7d029dd";
+export const MethodologyModal = ({
+  isOpen,
+  onClose,
+  methodology
+}) => {
+  _s();
+  const [activeTab, setActiveTab] = useState("comparison");
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 overflow-y-auto bg-graphite/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-surface rounded-md border border-border max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "p-5 border-b border-border bg-dark-surface text-surface flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "w-9 h-9 rounded-sm bg-burnt-orange flex items-center justify-center text-white font-bold", children: /* @__PURE__ */ jsxDEV(Scale, { className: "w-5 h-5" }, void 0, false, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 54,
+          columnNumber: 15
+        }, this) }, void 0, false, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 53,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV("h2", { className: "text-base font-bold font-display tracking-tight text-white", children: "Simulation Methodology & Empirical Assumptions" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 58,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "px-2 py-0.5 bg-warm-gray-800 text-[10px] font-mono text-warm-gray-300 border border-warm-gray-700 rounded-sm", children: "v2.0 Model" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 61,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 57,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-warm-gray-400", children: "Transparent documentation of Baseline rules, XGBoost inference, ERV minor unit math, and guardrails" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 65,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 56,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 52,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: onClose,
+          className: "p-1.5 rounded-sm hover:bg-warm-gray-800 text-warm-gray-400 hover:text-white transition-colors",
+          children: /* @__PURE__ */ jsxDEV(X, { className: "w-5 h-5" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 74,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 70,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+      lineNumber: 51,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "bg-amber-500/10 border-b border-amber-500/30 px-5 py-2.5 flex items-center gap-2.5 text-xs text-amber-800 dark:text-amber-300 font-medium", children: [
+      /* @__PURE__ */ jsxDEV(AlertTriangle, { className: "w-4 h-4 text-amber-600 flex-shrink-0" }, void 0, false, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 80,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("span", { children: [
+        /* @__PURE__ */ jsxDEV("strong", { className: "font-bold", children: "SIMULATED TEST DATA:" }, void 0, false, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 82,
+          columnNumber: 13
+        }, this),
+        " All outcomes and telemetry are synthetic benchmarks produced by the RecoverAI simulation sandbox. No live payment links or merchant charges are processed."
+      ] }, void 0, true, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 81,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+      lineNumber: 79,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "flex border-b border-border bg-warm-gray-50/50 px-5 gap-4 text-xs font-medium", children: [
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: () => setActiveTab("comparison"),
+          className: `py-3 border-b-2 flex items-center gap-1.5 transition-all ${activeTab === "comparison" ? "border-burnt-orange text-burnt-orange font-bold" : "border-transparent text-warm-gray-500 hover:text-graphite"}`,
+          children: [
+            /* @__PURE__ */ jsxDEV(Scale, { className: "w-4 h-4" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 96,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "Baseline vs RecoverAI" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 97,
+              columnNumber: 13
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 88,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: () => setActiveTab("erv"),
+          className: `py-3 border-b-2 flex items-center gap-1.5 transition-all ${activeTab === "erv" ? "border-burnt-orange text-burnt-orange font-bold" : "border-transparent text-warm-gray-500 hover:text-graphite"}`,
+          children: [
+            /* @__PURE__ */ jsxDEV(TrendingUp, { className: "w-4 h-4" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 107,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "ERV Formula Math" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 108,
+              columnNumber: 13
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 99,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: () => setActiveTab("ml"),
+          className: `py-3 border-b-2 flex items-center gap-1.5 transition-all ${activeTab === "ml" ? "border-burnt-orange text-burnt-orange font-bold" : "border-transparent text-warm-gray-500 hover:text-graphite"}`,
+          children: [
+            /* @__PURE__ */ jsxDEV(Cpu, { className: "w-4 h-4" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 118,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "ML Propensity Model" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 119,
+              columnNumber: 13
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 110,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: () => setActiveTab("guardrails"),
+          className: `py-3 border-b-2 flex items-center gap-1.5 transition-all ${activeTab === "guardrails" ? "border-burnt-orange text-burnt-orange font-bold" : "border-transparent text-warm-gray-500 hover:text-graphite"}`,
+          children: [
+            /* @__PURE__ */ jsxDEV(ShieldCheck, { className: "w-4 h-4" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 129,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "Fintech Guardrails" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 130,
+              columnNumber: 13
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 121,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+      lineNumber: 87,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "p-6 overflow-y-auto flex-1 space-y-6 text-xs text-graphite", children: [
+      activeTab === "comparison" && /* @__PURE__ */ jsxDEV("div", { className: "space-y-6", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("h3", { className: "text-sm font-bold font-display text-graphite mb-1", children: "Baseline Dunning Logic (Industry Standard)" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 139,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-warm-gray-600 mb-3", children: "Traditional payment operations rely on static, scheduled retry sequences with zero real-time context. The simulation models these simple rules explicitly:" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 142,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3", children: methodology?.baseline_rules?.map(
+            (rule, idx) => /* @__PURE__ */ jsxDEV("div", { className: "p-3.5 bg-warm-gray-50 border border-border rounded-sm space-y-2", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between", children: [
+                /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-graphite font-display", children: rule.name }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 150,
+                  columnNumber: 25
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-mono text-warm-gray-500", children: rule.cost }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 151,
+                  columnNumber: 25
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 149,
+                columnNumber: 23
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-warm-gray-600", children: [
+                /* @__PURE__ */ jsxDEV("strong", { children: "Trigger:" }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 154,
+                  columnNumber: 25
+                }, this),
+                " ",
+                rule.trigger
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 153,
+                columnNumber: 23
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-warm-gray-600", children: [
+                /* @__PURE__ */ jsxDEV("strong", { children: "Action:" }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 157,
+                  columnNumber: 25
+                }, this),
+                " ",
+                rule.action
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 156,
+                columnNumber: 23
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "p-2 bg-red-50 border border-red-200/60 rounded-xs text-[10px] text-red-800", children: [
+                /* @__PURE__ */ jsxDEV("strong", { children: "Flaw:" }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 160,
+                  columnNumber: 25
+                }, this),
+                " ",
+                rule.drawback
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 159,
+                columnNumber: 23
+              }, this)
+            ] }, idx, true, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 148,
+              columnNumber: 17
+            }, this)
+          ) }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 146,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 138,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "pt-4 border-t border-border", children: [
+          /* @__PURE__ */ jsxDEV("h3", { className: "text-sm font-bold font-display text-graphite mb-1", children: "RecoverAI Autonomous Recovery Pipeline" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 168,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-warm-gray-600 mb-3", children: "RecoverAI replaces static clocks with closed-loop mathematical decision intelligence across 5 stages:" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 171,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-2", children: methodology?.recoverai_pipeline?.map(
+            (p, idx) => /* @__PURE__ */ jsxDEV("div", { className: "p-3 bg-surface border border-border rounded-sm flex items-start gap-3", children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "w-5 h-5 rounded-full bg-burnt-orange/10 text-burnt-orange font-bold flex items-center justify-center flex-shrink-0 text-[11px]", children: idx + 1 }, void 0, false, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 177,
+                columnNumber: 23
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-graphite", children: p.step }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 181,
+                  columnNumber: 25
+                }, this),
+                /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-warm-gray-600 mt-0.5", children: p.description }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 182,
+                  columnNumber: 25
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 180,
+                columnNumber: 23
+              }, this)
+            ] }, idx, true, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 176,
+              columnNumber: 17
+            }, this)
+          ) }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 174,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 167,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 137,
+        columnNumber: 11
+      }, this),
+      activeTab === "erv" && /* @__PURE__ */ jsxDEV("div", { className: "space-y-6", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-4 bg-dark-surface rounded-sm border border-warm-gray-800 text-surface", children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] uppercase font-mono tracking-wider text-burnt-orange block mb-1 font-bold", children: "Core Objective Function (Calculated in Minor Units / Paise)" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 194,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "font-mono text-sm sm:text-base font-bold text-white bg-warm-gray-900 p-3 rounded-xs border border-warm-gray-700", children: methodology?.erv_formula || "ERV = (P_recovery * Amount) - InterventionCost - CustomerFriction - RiskPenalty" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 197,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-warm-gray-400 mt-2", children: "Avoids floating-point truncation errors by evaluating strictly in integer paise before INR conversion." }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 200,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 193,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "p-4 border border-border rounded-sm bg-warm-gray-50/50 space-y-2", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold font-display text-graphite text-xs", children: "Term Breakdown:" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 207,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("ul", { className: "space-y-2 text-[11px] text-warm-gray-600 list-disc pl-4", children: [
+              /* @__PURE__ */ jsxDEV("li", { children: [
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-graphite", children: "P_recovery:" }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 210,
+                  columnNumber: 23
+                }, this),
+                " Calibrated probability of success conditioned on the specific intervention action and telemetry vector."
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 209,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("li", { children: [
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-graphite", children: "Intervention Cost:" }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 213,
+                  columnNumber: 23
+                }, this),
+                " Real processing fee (SMS: ₹2.5, Dynamic Paylink: ₹5, UPI Switch: ₹4, Concierge: ₹45)."
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 212,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("li", { children: [
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-graphite", children: "Customer Friction Penalty:" }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 216,
+                  columnNumber: 23
+                }, this),
+                " Exponential penalty scaling with attempt count to prevent spamming and brand wear-out."
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 215,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("li", { children: [
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-graphite", children: "Risk Penalty:" }, void 0, false, {
+                  fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                  lineNumber: 219,
+                  columnNumber: 23
+                }, this),
+                " 90% haircut on suspicious transactions; 0 for supervised human reviews."
+              ] }, void 0, true, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 218,
+                columnNumber: 21
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 208,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 206,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "p-4 border border-border rounded-sm bg-warm-gray-50/50 space-y-2", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold font-display text-graphite text-xs", children: "Economic Optimality Principle:" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 225,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-warm-gray-600 leading-relaxed", children: [
+              "If all candidate actions yield ",
+              /* @__PURE__ */ jsxDEV("code", { className: "font-mono text-burnt-orange font-bold", children: "ERV ≤ 0" }, void 0, false, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 227,
+                columnNumber: 52
+              }, this),
+              ", or if safe guardrails suppress intervention, the engine deterministically outputs ",
+              /* @__PURE__ */ jsxDEV("code", { className: "font-mono text-graphite font-bold", children: "NO_ACTION" }, void 0, false, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 227,
+                columnNumber: 209
+              }, this),
+              "."
+            ] }, void 0, true, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 226,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-warm-gray-600 leading-relaxed", children: "This prevents merchants from throwing good money after bad (e.g. paying SMS and gateway fees on invalid cards or fraud cases)." }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 229,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 224,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 205,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 192,
+        columnNumber: 11
+      }, this),
+      activeTab === "ml" && /* @__PURE__ */ jsxDEV("div", { className: "space-y-5", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between p-3 bg-surface border border-border rounded-sm", children: [
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-graphite font-display text-xs", children: "Production Model Architecture:" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 241,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-warm-gray-500", children: "XGBoost 3.2.0 Gradient Boosted Decision Trees with Scikit-Learn Preprocessor" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 242,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 240,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { className: "px-2.5 py-1 bg-moss-green-light text-moss-green-dark border border-moss-green/30 rounded-sm font-mono text-[11px] font-bold", children: "ROC-AUC 0.72 | F1 0.86" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 244,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 239,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "font-bold font-display text-graphite text-xs block mb-2", children: "18 Vectorized Feature Inputs:" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 250,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono", children: [
+            "amount (INR)",
+            "payment_method",
+            "bank",
+            "failure_reason",
+            "failure_category",
+            "attempt_count",
+            "previous_success_count",
+            "previous_failure_count",
+            "preferred_payment_method",
+            "customer_tenure_days",
+            "customer_value_segment",
+            "hour_of_day (0-23)",
+            "day_of_week (0-6)",
+            "merchant_category",
+            "checkout_abandoned (0/1)",
+            "checkout_duration_sec",
+            "device_type",
+            "historical_avg_order_value"
+          ].map(
+            (feat, idx) => /* @__PURE__ */ jsxDEV("div", { className: "p-2 bg-warm-gray-50 border border-border rounded-xs text-warm-gray-700", children: [
+              "• ",
+              feat
+            ] }, idx, true, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 272,
+              columnNumber: 17
+            }, this)
+          ) }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 251,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 249,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "p-3 bg-warm-gray-50 border border-border rounded-sm text-[11px] text-warm-gray-600", children: [
+          /* @__PURE__ */ jsxDEV("strong", { children: "Inference Vectorization:" }, void 0, false, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 280,
+            columnNumber: 17
+          }, this),
+          " The simulation processes batches simultaneously through vectorized column transforms and matrix predictions, evaluating 1,000 transactions and 7 candidate action branches in under 200ms."
+        ] }, void 0, true, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 279,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 238,
+        columnNumber: 11
+      }, this),
+      activeTab === "guardrails" && /* @__PURE__ */ jsxDEV("div", { className: "space-y-4", children: [
+        /* @__PURE__ */ jsxDEV("p", { className: "text-warm-gray-600 text-xs", children: "To safeguard customer experience, merchant reputation, and regulatory compliance, RecoverAI applies 6 deterministic policy gates before any intervention can be executed:" }, void 0, false, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 287,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-2.5", children: methodology?.guardrail_policies?.map(
+          (g, idx) => /* @__PURE__ */ jsxDEV("div", { className: "p-3 bg-surface border border-border rounded-sm flex items-start gap-3", children: [
+            /* @__PURE__ */ jsxDEV(CheckCircle2, { className: "w-4 h-4 text-moss-green mt-0.5 flex-shrink-0" }, void 0, false, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 294,
+              columnNumber: 21
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "font-bold font-mono text-graphite text-xs", children: g.rule }, void 0, false, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 296,
+                columnNumber: 23
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-warm-gray-600 mt-0.5", children: g.policy }, void 0, false, {
+                fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+                lineNumber: 297,
+                columnNumber: 23
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+              lineNumber: 295,
+              columnNumber: 21
+            }, this)
+          ] }, idx, true, {
+            fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+            lineNumber: 293,
+            columnNumber: 15
+          }, this)
+        ) }, void 0, false, {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 291,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 286,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+      lineNumber: 135,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "p-4 border-t border-border bg-warm-gray-50 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] text-warm-gray-500 font-mono", children: "RecoverAI Autonomous Financial Intelligence Engine" }, void 0, false, {
+        fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+        lineNumber: 308,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: onClose,
+          className: "px-4 py-1.5 bg-dark-surface hover:bg-graphite text-surface rounded-sm text-xs font-medium transition-colors",
+          children: "Close Methodology"
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+          lineNumber: 311,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+      lineNumber: 307,
+      columnNumber: 9
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+    lineNumber: 49,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx",
+    lineNumber: 48,
+    columnNumber: 5
+  }, this);
+};
+_s(MethodologyModal, "XQ55FqC1AfPoyqz7c+fkfuADixI=");
+_c = MethodologyModal;
+var _c;
+$RefreshReg$(_c, "MethodologyModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/Recovery Ai/frontend/src/components/simulation/MethodologyModal.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QztBQUFBLHFDQUFDLFVBQUssV0FBVSw2Q0FBNkNhLFlBQUVkLFFBQS9EO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQW9FO0FBQUEsY0FDcEUsdUJBQUMsT0FBRSxXQUFVLHlDQUF5Q2MsWUFBRUMsVUFBeEQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBK0Q7QUFBQSxpQkFGakU7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFHQTtBQUFBLGVBTFFkLEtBQVY7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFNQTtBQUFBLFFBQ0QsS0FUSDtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBVUE7QUFBQSxXQWZGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFnQkE7QUFBQSxTQXZLSjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBeUtBO0FBQUEsSUFHQSx1QkFBQyxTQUFJLFdBQVUsZ0ZBQ2I7QUFBQSw2QkFBQyxVQUFLLFdBQVUsNENBQTBDLGtFQUExRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBRUE7QUFBQSxNQUNBO0FBQUEsUUFBQztBQUFBO0FBQUEsVUFDQyxTQUFTUjtBQUFBQSxVQUNULFdBQVU7QUFBQSxVQUE2RztBQUFBO0FBQUEsUUFGekg7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLE1BS0E7QUFBQSxTQVRGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FVQTtBQUFBLE9BNVFGO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0E2UUEsS0E5UUY7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQStRQTtBQUVKO0FBQUNFLEdBM1JZSixrQkFBaUQ7QUFBQSxLQUFqREE7QUFBaUQsSUFBQXlCO0FBQUEsYUFBQUEsSUFBQSIsIm5hbWVzIjpbInVzZVN0YXRlIiwiWCIsIlNjYWxlIiwiU2hpZWxkQ2hlY2siLCJDcHUiLCJBbGVydFRyaWFuZ2xlIiwiQ2hlY2tDaXJjbGUyIiwiVHJlbmRpbmdVcCIsIk1ldGhvZG9sb2d5TW9kYWwiLCJpc09wZW4iLCJvbkNsb3NlIiwibWV0aG9kb2xvZ3kiLCJfcyIsImFjdGl2ZVRhYiIsInNldEFjdGl2ZVRhYiIsImJhc2VsaW5lX3J1bGVzIiwibWFwIiwicnVsZSIsImlkeCIsIm5hbWUiLCJjb3N0IiwidHJpZ2dlciIsImFjdGlvbiIsImRyYXdiYWNrIiwicmVjb3ZlcmFpX3BpcGVsaW5lIiwicCIsInN0ZXAiLCJkZXNjcmlwdGlvbiIsImVydl9mb3JtdWxhIiwiZmVhdCIsImd1YXJkcmFpbF9wb2xpY2llcyIsImciLCJwb2xpY3kiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJNZXRob2RvbG9neU1vZGFsLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlU3RhdGUgfSBmcm9tICdyZWFjdCdcbmltcG9ydCB7XG4gIFgsXG4gIFNjYWxlLFxuICBTaGllbGRDaGVjayxcbiAgQ3B1LFxuICBBbGVydFRyaWFuZ2xlLFxuICBDaGVja0NpcmNsZTIsXG4gIFRyZW5kaW5nVXBcbn0gZnJvbSAnbHVjaWRlLXJlYWN0J1xuaW1wb3J0IHsgTWV0aG9kb2xvZ3lEb2MgfSBmcm9tICcuLi8uLi9zZXJ2aWNlcy9hcGknXG5cbmludGVyZmFjZSBNZXRob2RvbG9neU1vZGFsUHJvcHMge1xuICBpc09wZW46IGJvb2xlYW5cbiAgb25DbG9zZTogKCkgPT4gdm9pZFxuICBtZXRob2RvbG9neTogTWV0aG9kb2xvZ3lEb2MgfCBudWxsXG59XG5cbmV4cG9ydCBjb25zdCBNZXRob2RvbG9neU1vZGFsOiBSZWFjdC5GQzxNZXRob2RvbG9neU1vZGFsUHJvcHM+ID0gKHtcbiAgaXNPcGVuLFxuICBvbkNsb3NlLFxuICBtZXRob2RvbG9neVxufSkgPT4ge1xuICBjb25zdCBbYWN0aXZlVGFiLCBzZXRBY3RpdmVUYWJdID0gdXNlU3RhdGU8J2NvbXBhcmlzb24nIHwgJ2VydicgfCAnbWwnIHwgJ2d1YXJkcmFpbHMnPignY29tcGFyaXNvbicpXG5cbiAgaWYgKCFpc09wZW4pIHJldHVybiBudWxsXG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cImZpeGVkIGluc2V0LTAgei01MCBvdmVyZmxvdy15LWF1dG8gYmctZ3JhcGhpdGUvNjAgYmFja2Ryb3AtYmx1ci14cyBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTQgc206cC02IGFuaW1hdGUtaW4gZmFkZS1pbiBkdXJhdGlvbi0yMDBcIj5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctc3VyZmFjZSByb3VuZGVkLW1kIGJvcmRlciBib3JkZXItYm9yZGVyIG1heC13LTR4bCB3LWZ1bGwgc2hhZG93LTJ4bCBvdmVyZmxvdy1oaWRkZW4gZmxleCBmbGV4LWNvbCBtYXgtaC1bOTB2aF1cIj5cbiAgICAgICAgey8qIEhlYWRlciAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTUgYm9yZGVyLWIgYm9yZGVyLWJvcmRlciBiZy1kYXJrLXN1cmZhY2UgdGV4dC1zdXJmYWNlIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlblwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTNcIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidy05IGgtOSByb3VuZGVkLXNtIGJnLWJ1cm50LW9yYW5nZSBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciB0ZXh0LXdoaXRlIGZvbnQtYm9sZFwiPlxuICAgICAgICAgICAgICA8U2NhbGUgY2xhc3NOYW1lPVwidy01IGgtNVwiIC8+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtYm9sZCBmb250LWRpc3BsYXkgdHJhY2tpbmctdGlnaHQgdGV4dC13aGl0ZVwiPlxuICAgICAgICAgICAgICAgICAgU2ltdWxhdGlvbiBNZXRob2RvbG9neSAmIEVtcGlyaWNhbCBBc3N1bXB0aW9uc1xuICAgICAgICAgICAgICAgIDwvaDI+XG4gICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwicHgtMiBweS0wLjUgYmctd2FybS1ncmF5LTgwMCB0ZXh0LVsxMHB4XSBmb250LW1vbm8gdGV4dC13YXJtLWdyYXktMzAwIGJvcmRlciBib3JkZXItd2FybS1ncmF5LTcwMCByb3VuZGVkLXNtXCI+XG4gICAgICAgICAgICAgICAgICB2Mi4wIE1vZGVsXG4gICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LXdhcm0tZ3JheS00MDBcIj5cbiAgICAgICAgICAgICAgICBUcmFuc3BhcmVudCBkb2N1bWVudGF0aW9uIG9mIEJhc2VsaW5lIHJ1bGVzLCBYR0Jvb3N0IGluZmVyZW5jZSwgRVJWIG1pbm9yIHVuaXQgbWF0aCwgYW5kIGd1YXJkcmFpbHNcbiAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgb25DbGljaz17b25DbG9zZX1cbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInAtMS41IHJvdW5kZWQtc20gaG92ZXI6Ymctd2FybS1ncmF5LTgwMCB0ZXh0LXdhcm0tZ3JheS00MDAgaG92ZXI6dGV4dC13aGl0ZSB0cmFuc2l0aW9uLWNvbG9yc1wiXG4gICAgICAgICAgPlxuICAgICAgICAgICAgPFggY2xhc3NOYW1lPVwidy01IGgtNVwiIC8+XG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBNYW5kYXRvcnkgU2ltdWxhdGVkIFRlc3QgRGF0YSBCYW5uZXIgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctYW1iZXItNTAwLzEwIGJvcmRlci1iIGJvcmRlci1hbWJlci01MDAvMzAgcHgtNSBweS0yLjUgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIuNSB0ZXh0LXhzIHRleHQtYW1iZXItODAwIGRhcms6dGV4dC1hbWJlci0zMDAgZm9udC1tZWRpdW1cIj5cbiAgICAgICAgICA8QWxlcnRUcmlhbmdsZSBjbGFzc05hbWU9XCJ3LTQgaC00IHRleHQtYW1iZXItNjAwIGZsZXgtc2hyaW5rLTBcIiAvPlxuICAgICAgICAgIDxzcGFuPlxuICAgICAgICAgICAgPHN0cm9uZyBjbGFzc05hbWU9XCJmb250LWJvbGRcIj5TSU1VTEFURUQgVEVTVCBEQVRBOjwvc3Ryb25nPiBBbGwgb3V0Y29tZXMgYW5kIHRlbGVtZXRyeSBhcmUgc3ludGhldGljIGJlbmNobWFya3MgcHJvZHVjZWQgYnkgdGhlIFJlY292ZXJBSSBzaW11bGF0aW9uIHNhbmRib3guIE5vIGxpdmUgcGF5bWVudCBsaW5rcyBvciBtZXJjaGFudCBjaGFyZ2VzIGFyZSBwcm9jZXNzZWQuXG4gICAgICAgICAgPC9zcGFuPlxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICB7LyogVGFicyAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGJvcmRlci1iIGJvcmRlci1ib3JkZXIgYmctd2FybS1ncmF5LTUwLzUwIHB4LTUgZ2FwLTQgdGV4dC14cyBmb250LW1lZGl1bVwiPlxuICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHNldEFjdGl2ZVRhYignY29tcGFyaXNvbicpfVxuICAgICAgICAgICAgY2xhc3NOYW1lPXtgcHktMyBib3JkZXItYi0yIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgdHJhbnNpdGlvbi1hbGwgJHtcbiAgICAgICAgICAgICAgYWN0aXZlVGFiID09PSAnY29tcGFyaXNvbidcbiAgICAgICAgICAgICAgICA/ICdib3JkZXItYnVybnQtb3JhbmdlIHRleHQtYnVybnQtb3JhbmdlIGZvbnQtYm9sZCdcbiAgICAgICAgICAgICAgICA6ICdib3JkZXItdHJhbnNwYXJlbnQgdGV4dC13YXJtLWdyYXktNTAwIGhvdmVyOnRleHQtZ3JhcGhpdGUnXG4gICAgICAgICAgICB9YH1cbiAgICAgICAgICA+XG4gICAgICAgICAgICA8U2NhbGUgY2xhc3NOYW1lPVwidy00IGgtNFwiIC8+XG4gICAgICAgICAgICA8c3Bhbj5CYXNlbGluZSB2cyBSZWNvdmVyQUk8L3NwYW4+XG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0QWN0aXZlVGFiKCdlcnYnKX1cbiAgICAgICAgICAgIGNsYXNzTmFtZT17YHB5LTMgYm9yZGVyLWItMiBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IHRyYW5zaXRpb24tYWxsICR7XG4gICAgICAgICAgICAgIGFjdGl2ZVRhYiA9PT0gJ2VydidcbiAgICAgICAgICAgICAgICA/ICdib3JkZXItYnVybnQtb3JhbmdlIHRleHQtYnVybnQtb3JhbmdlIGZvbnQtYm9sZCdcbiAgICAgICAgICAgICAgICA6ICdib3JkZXItdHJhbnNwYXJlbnQgdGV4dC13YXJtLWdyYXktNTAwIGhvdmVyOnRleHQtZ3JhcGhpdGUnXG4gICAgICAgICAgICB9YH1cbiAgICAgICAgICA+XG4gICAgICAgICAgICA8VHJlbmRpbmdVcCBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICAgIDxzcGFuPkVSViBGb3JtdWxhIE1hdGg8L3NwYW4+XG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0QWN0aXZlVGFiKCdtbCcpfVxuICAgICAgICAgICAgY2xhc3NOYW1lPXtgcHktMyBib3JkZXItYi0yIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgdHJhbnNpdGlvbi1hbGwgJHtcbiAgICAgICAgICAgICAgYWN0aXZlVGFiID09PSAnbWwnXG4gICAgICAgICAgICAgICAgPyAnYm9yZGVyLWJ1cm50LW9yYW5nZSB0ZXh0LWJ1cm50LW9yYW5nZSBmb250LWJvbGQnXG4gICAgICAgICAgICAgICAgOiAnYm9yZGVyLXRyYW5zcGFyZW50IHRleHQtd2FybS1ncmF5LTUwMCBob3Zlcjp0ZXh0LWdyYXBoaXRlJ1xuICAgICAgICAgICAgfWB9XG4gICAgICAgICAgPlxuICAgICAgICAgICAgPENwdSBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICAgIDxzcGFuPk1MIFByb3BlbnNpdHkgTW9kZWw8L3NwYW4+XG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0QWN0aXZlVGFiKCdndWFyZHJhaWxzJyl9XG4gICAgICAgICAgICBjbGFzc05hbWU9e2BweS0zIGJvcmRlci1iLTIgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSB0cmFuc2l0aW9uLWFsbCAke1xuICAgICAgICAgICAgICBhY3RpdmVUYWIgPT09ICdndWFyZHJhaWxzJ1xuICAgICAgICAgICAgICAgID8gJ2JvcmRlci1idXJudC1vcmFuZ2UgdGV4dC1idXJudC1vcmFuZ2UgZm9udC1ib2xkJ1xuICAgICAgICAgICAgICAgIDogJ2JvcmRlci10cmFuc3BhcmVudCB0ZXh0LXdhcm0tZ3JheS01MDAgaG92ZXI6dGV4dC1ncmFwaGl0ZSdcbiAgICAgICAgICAgIH1gfVxuICAgICAgICAgID5cbiAgICAgICAgICAgIDxTaGllbGRDaGVjayBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICAgIDxzcGFuPkZpbnRlY2ggR3VhcmRyYWlsczwvc3Bhbj5cbiAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIENvbnRlbnQgQm9keSAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTYgb3ZlcmZsb3cteS1hdXRvIGZsZXgtMSBzcGFjZS15LTYgdGV4dC14cyB0ZXh0LWdyYXBoaXRlXCI+XG4gICAgICAgICAge2FjdGl2ZVRhYiA9PT0gJ2NvbXBhcmlzb24nICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS02XCI+XG4gICAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQtc20gZm9udC1ib2xkIGZvbnQtZGlzcGxheSB0ZXh0LWdyYXBoaXRlIG1iLTFcIj5cbiAgICAgICAgICAgICAgICAgIEJhc2VsaW5lIER1bm5pbmcgTG9naWMgKEluZHVzdHJ5IFN0YW5kYXJkKVxuICAgICAgICAgICAgICAgIDwvaDM+XG4gICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC13YXJtLWdyYXktNjAwIG1iLTNcIj5cbiAgICAgICAgICAgICAgICAgIFRyYWRpdGlvbmFsIHBheW1lbnQgb3BlcmF0aW9ucyByZWx5IG9uIHN0YXRpYywgc2NoZWR1bGVkIHJldHJ5IHNlcXVlbmNlcyB3aXRoIHplcm8gcmVhbC10aW1lIGNvbnRleHQuXG4gICAgICAgICAgICAgICAgICBUaGUgc2ltdWxhdGlvbiBtb2RlbHMgdGhlc2Ugc2ltcGxlIHJ1bGVzIGV4cGxpY2l0bHk6XG4gICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMyBnYXAtM1wiPlxuICAgICAgICAgICAgICAgICAge21ldGhvZG9sb2d5Py5iYXNlbGluZV9ydWxlcz8ubWFwKChydWxlLCBpZHgpID0+IChcbiAgICAgICAgICAgICAgICAgICAgPGRpdiBrZXk9e2lkeH0gY2xhc3NOYW1lPVwicC0zLjUgYmctd2FybS1ncmF5LTUwIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQtc20gc3BhY2UteS0yXCI+XG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWdyYXBoaXRlIGZvbnQtZGlzcGxheVwiPntydWxlLm5hbWV9PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gZm9udC1tb25vIHRleHQtd2FybS1ncmF5LTUwMFwiPntydWxlLmNvc3R9PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIHRleHQtd2FybS1ncmF5LTYwMFwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgPHN0cm9uZz5UcmlnZ2VyOjwvc3Ryb25nPiB7cnVsZS50cmlnZ2VyfVxuICAgICAgICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LXdhcm0tZ3JheS02MDBcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxzdHJvbmc+QWN0aW9uOjwvc3Ryb25nPiB7cnVsZS5hY3Rpb259XG4gICAgICAgICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0yIGJnLXJlZC01MCBib3JkZXIgYm9yZGVyLXJlZC0yMDAvNjAgcm91bmRlZC14cyB0ZXh0LVsxMHB4XSB0ZXh0LXJlZC04MDBcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxzdHJvbmc+Rmxhdzo8L3N0cm9uZz4ge3J1bGUuZHJhd2JhY2t9XG4gICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicHQtNCBib3JkZXItdCBib3JkZXItYm9yZGVyXCI+XG4gICAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQtc20gZm9udC1ib2xkIGZvbnQtZGlzcGxheSB0ZXh0LWdyYXBoaXRlIG1iLTFcIj5cbiAgICAgICAgICAgICAgICAgIFJlY292ZXJBSSBBdXRvbm9tb3VzIFJlY292ZXJ5IFBpcGVsaW5lXG4gICAgICAgICAgICAgICAgPC9oMz5cbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXdhcm0tZ3JheS02MDAgbWItM1wiPlxuICAgICAgICAgICAgICAgICAgUmVjb3ZlckFJIHJlcGxhY2VzIHN0YXRpYyBjbG9ja3Mgd2l0aCBjbG9zZWQtbG9vcCBtYXRoZW1hdGljYWwgZGVjaXNpb24gaW50ZWxsaWdlbmNlIGFjcm9zcyA1IHN0YWdlczpcbiAgICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTJcIj5cbiAgICAgICAgICAgICAgICAgIHttZXRob2RvbG9neT8ucmVjb3ZlcmFpX3BpcGVsaW5lPy5tYXAoKHAsIGlkeCkgPT4gKFxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGtleT17aWR4fSBjbGFzc05hbWU9XCJwLTMgYmctc3VyZmFjZSBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXNtIGZsZXggaXRlbXMtc3RhcnQgZ2FwLTNcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ3LTUgaC01IHJvdW5kZWQtZnVsbCBiZy1idXJudC1vcmFuZ2UvMTAgdGV4dC1idXJudC1vcmFuZ2UgZm9udC1ib2xkIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGZsZXgtc2hyaW5rLTAgdGV4dC1bMTFweF1cIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIHtpZHggKyAxfVxuICAgICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZ3JhcGhpdGVcIj57cC5zdGVwfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIHRleHQtd2FybS1ncmF5LTYwMCBtdC0wLjVcIj57cC5kZXNjcmlwdGlvbn08L3A+XG4gICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cblxuICAgICAgICAgIHthY3RpdmVUYWIgPT09ICdlcnYnICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS02XCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC00IGJnLWRhcmstc3VyZmFjZSByb3VuZGVkLXNtIGJvcmRlciBib3JkZXItd2FybS1ncmF5LTgwMCB0ZXh0LXN1cmZhY2VcIj5cbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB1cHBlcmNhc2UgZm9udC1tb25vIHRyYWNraW5nLXdpZGVyIHRleHQtYnVybnQtb3JhbmdlIGJsb2NrIG1iLTEgZm9udC1ib2xkXCI+XG4gICAgICAgICAgICAgICAgICBDb3JlIE9iamVjdGl2ZSBGdW5jdGlvbiAoQ2FsY3VsYXRlZCBpbiBNaW5vciBVbml0cyAvIFBhaXNlKVxuICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZvbnQtbW9ubyB0ZXh0LXNtIHNtOnRleHQtYmFzZSBmb250LWJvbGQgdGV4dC13aGl0ZSBiZy13YXJtLWdyYXktOTAwIHAtMyByb3VuZGVkLXhzIGJvcmRlciBib3JkZXItd2FybS1ncmF5LTcwMFwiPlxuICAgICAgICAgICAgICAgICAge21ldGhvZG9sb2d5Py5lcnZfZm9ybXVsYSB8fCAnRVJWID0gKFBfcmVjb3ZlcnkgKiBBbW91bnQpIC0gSW50ZXJ2ZW50aW9uQ29zdCAtIEN1c3RvbWVyRnJpY3Rpb24gLSBSaXNrUGVuYWx0eSd9XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LXdhcm0tZ3JheS00MDAgbXQtMlwiPlxuICAgICAgICAgICAgICAgICAgQXZvaWRzIGZsb2F0aW5nLXBvaW50IHRydW5jYXRpb24gZXJyb3JzIGJ5IGV2YWx1YXRpbmcgc3RyaWN0bHkgaW4gaW50ZWdlciBwYWlzZSBiZWZvcmUgSU5SIGNvbnZlcnNpb24uXG4gICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTIgZ2FwLTRcIj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtNCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXNtIGJnLXdhcm0tZ3JheS01MC81MCBzcGFjZS15LTJcIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtYm9sZCBmb250LWRpc3BsYXkgdGV4dC1ncmFwaGl0ZSB0ZXh0LXhzXCI+VGVybSBCcmVha2Rvd246PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPHVsIGNsYXNzTmFtZT1cInNwYWNlLXktMiB0ZXh0LVsxMXB4XSB0ZXh0LXdhcm0tZ3JheS02MDAgbGlzdC1kaXNjIHBsLTRcIj5cbiAgICAgICAgICAgICAgICAgICAgPGxpPlxuICAgICAgICAgICAgICAgICAgICAgIDxzdHJvbmcgY2xhc3NOYW1lPVwidGV4dC1ncmFwaGl0ZVwiPlBfcmVjb3Zlcnk6PC9zdHJvbmc+IENhbGlicmF0ZWQgcHJvYmFiaWxpdHkgb2Ygc3VjY2VzcyBjb25kaXRpb25lZCBvbiB0aGUgc3BlY2lmaWMgaW50ZXJ2ZW50aW9uIGFjdGlvbiBhbmQgdGVsZW1ldHJ5IHZlY3Rvci5cbiAgICAgICAgICAgICAgICAgICAgPC9saT5cbiAgICAgICAgICAgICAgICAgICAgPGxpPlxuICAgICAgICAgICAgICAgICAgICAgIDxzdHJvbmcgY2xhc3NOYW1lPVwidGV4dC1ncmFwaGl0ZVwiPkludGVydmVudGlvbiBDb3N0Ojwvc3Ryb25nPiBSZWFsIHByb2Nlc3NpbmcgZmVlIChTTVM6IOKCuTIuNSwgRHluYW1pYyBQYXlsaW5rOiDigrk1LCBVUEkgU3dpdGNoOiDigrk0LCBDb25jaWVyZ2U6IOKCuTQ1KS5cbiAgICAgICAgICAgICAgICAgICAgPC9saT5cbiAgICAgICAgICAgICAgICAgICAgPGxpPlxuICAgICAgICAgICAgICAgICAgICAgIDxzdHJvbmcgY2xhc3NOYW1lPVwidGV4dC1ncmFwaGl0ZVwiPkN1c3RvbWVyIEZyaWN0aW9uIFBlbmFsdHk6PC9zdHJvbmc+IEV4cG9uZW50aWFsIHBlbmFsdHkgc2NhbGluZyB3aXRoIGF0dGVtcHQgY291bnQgdG8gcHJldmVudCBzcGFtbWluZyBhbmQgYnJhbmQgd2Vhci1vdXQuXG4gICAgICAgICAgICAgICAgICAgIDwvbGk+XG4gICAgICAgICAgICAgICAgICAgIDxsaT5cbiAgICAgICAgICAgICAgICAgICAgICA8c3Ryb25nIGNsYXNzTmFtZT1cInRleHQtZ3JhcGhpdGVcIj5SaXNrIFBlbmFsdHk6PC9zdHJvbmc+IDkwJSBoYWlyY3V0IG9uIHN1c3BpY2lvdXMgdHJhbnNhY3Rpb25zOyAwIGZvciBzdXBlcnZpc2VkIGh1bWFuIHJldmlld3MuXG4gICAgICAgICAgICAgICAgICAgIDwvbGk+XG4gICAgICAgICAgICAgICAgICA8L3VsPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTQgYm9yZGVyIGJvcmRlci1ib3JkZXIgcm91bmRlZC1zbSBiZy13YXJtLWdyYXktNTAvNTAgc3BhY2UteS0yXCI+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgZm9udC1kaXNwbGF5IHRleHQtZ3JhcGhpdGUgdGV4dC14c1wiPkVjb25vbWljIE9wdGltYWxpdHkgUHJpbmNpcGxlOjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIHRleHQtd2FybS1ncmF5LTYwMCBsZWFkaW5nLXJlbGF4ZWRcIj5cbiAgICAgICAgICAgICAgICAgICAgSWYgYWxsIGNhbmRpZGF0ZSBhY3Rpb25zIHlpZWxkIDxjb2RlIGNsYXNzTmFtZT1cImZvbnQtbW9ubyB0ZXh0LWJ1cm50LW9yYW5nZSBmb250LWJvbGRcIj5FUlYgJmxlOyAwPC9jb2RlPiwgb3IgaWYgc2FmZSBndWFyZHJhaWxzIHN1cHByZXNzIGludGVydmVudGlvbiwgdGhlIGVuZ2luZSBkZXRlcm1pbmlzdGljYWxseSBvdXRwdXRzIDxjb2RlIGNsYXNzTmFtZT1cImZvbnQtbW9ubyB0ZXh0LWdyYXBoaXRlIGZvbnQtYm9sZFwiPk5PX0FDVElPTjwvY29kZT4uXG4gICAgICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LXdhcm0tZ3JheS02MDAgbGVhZGluZy1yZWxheGVkXCI+XG4gICAgICAgICAgICAgICAgICAgIFRoaXMgcHJldmVudHMgbWVyY2hhbnRzIGZyb20gdGhyb3dpbmcgZ29vZCBtb25leSBhZnRlciBiYWQgKGUuZy4gcGF5aW5nIFNNUyBhbmQgZ2F0ZXdheSBmZWVzIG9uIGludmFsaWQgY2FyZHMgb3IgZnJhdWQgY2FzZXMpLlxuICAgICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICl9XG5cbiAgICAgICAgICB7YWN0aXZlVGFiID09PSAnbWwnICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS01XCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIHAtMyBiZy1zdXJmYWNlIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQtc21cIj5cbiAgICAgICAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZ3JhcGhpdGUgZm9udC1kaXNwbGF5IHRleHQteHNcIj5Qcm9kdWN0aW9uIE1vZGVsIEFyY2hpdGVjdHVyZTo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LXdhcm0tZ3JheS01MDBcIj5YR0Jvb3N0IDMuMi4wIEdyYWRpZW50IEJvb3N0ZWQgRGVjaXNpb24gVHJlZXMgd2l0aCBTY2lraXQtTGVhcm4gUHJlcHJvY2Vzc29yPC9wPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInB4LTIuNSBweS0xIGJnLW1vc3MtZ3JlZW4tbGlnaHQgdGV4dC1tb3NzLWdyZWVuLWRhcmsgYm9yZGVyIGJvcmRlci1tb3NzLWdyZWVuLzMwIHJvdW5kZWQtc20gZm9udC1tb25vIHRleHQtWzExcHhdIGZvbnQtYm9sZFwiPlxuICAgICAgICAgICAgICAgICAgUk9DLUFVQyAwLjcyIHwgRjEgMC44NlxuICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgZm9udC1kaXNwbGF5IHRleHQtZ3JhcGhpdGUgdGV4dC14cyBibG9jayBtYi0yXCI+MTggVmVjdG9yaXplZCBGZWF0dXJlIElucHV0czo8L3NwYW4+XG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0yIHNtOmdyaWQtY29scy0zIGdhcC0yIHRleHQtWzExcHhdIGZvbnQtbW9ub1wiPlxuICAgICAgICAgICAgICAgICAge1tcbiAgICAgICAgICAgICAgICAgICAgJ2Ftb3VudCAoSU5SKScsXG4gICAgICAgICAgICAgICAgICAgICdwYXltZW50X21ldGhvZCcsXG4gICAgICAgICAgICAgICAgICAgICdiYW5rJyxcbiAgICAgICAgICAgICAgICAgICAgJ2ZhaWx1cmVfcmVhc29uJyxcbiAgICAgICAgICAgICAgICAgICAgJ2ZhaWx1cmVfY2F0ZWdvcnknLFxuICAgICAgICAgICAgICAgICAgICAnYXR0ZW1wdF9jb3VudCcsXG4gICAgICAgICAgICAgICAgICAgICdwcmV2aW91c19zdWNjZXNzX2NvdW50JyxcbiAgICAgICAgICAgICAgICAgICAgJ3ByZXZpb3VzX2ZhaWx1cmVfY291bnQnLFxuICAgICAgICAgICAgICAgICAgICAncHJlZmVycmVkX3BheW1lbnRfbWV0aG9kJyxcbiAgICAgICAgICAgICAgICAgICAgJ2N1c3RvbWVyX3RlbnVyZV9kYXlzJyxcbiAgICAgICAgICAgICAgICAgICAgJ2N1c3RvbWVyX3ZhbHVlX3NlZ21lbnQnLFxuICAgICAgICAgICAgICAgICAgICAnaG91cl9vZl9kYXkgKDAtMjMpJyxcbiAgICAgICAgICAgICAgICAgICAgJ2RheV9vZl93ZWVrICgwLTYpJyxcbiAgICAgICAgICAgICAgICAgICAgJ21lcmNoYW50X2NhdGVnb3J5JyxcbiAgICAgICAgICAgICAgICAgICAgJ2NoZWNrb3V0X2FiYW5kb25lZCAoMC8xKScsXG4gICAgICAgICAgICAgICAgICAgICdjaGVja291dF9kdXJhdGlvbl9zZWMnLFxuICAgICAgICAgICAgICAgICAgICAnZGV2aWNlX3R5cGUnLFxuICAgICAgICAgICAgICAgICAgICAnaGlzdG9yaWNhbF9hdmdfb3JkZXJfdmFsdWUnXG4gICAgICAgICAgICAgICAgICBdLm1hcCgoZmVhdCwgaWR4KSA9PiAoXG4gICAgICAgICAgICAgICAgICAgIDxkaXYga2V5PXtpZHh9IGNsYXNzTmFtZT1cInAtMiBiZy13YXJtLWdyYXktNTAgYm9yZGVyIGJvcmRlci1ib3JkZXIgcm91bmRlZC14cyB0ZXh0LXdhcm0tZ3JheS03MDBcIj5cbiAgICAgICAgICAgICAgICAgICAgICAmYnVsbDsge2ZlYXR9XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0zIGJnLXdhcm0tZ3JheS01MCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXNtIHRleHQtWzExcHhdIHRleHQtd2FybS1ncmF5LTYwMFwiPlxuICAgICAgICAgICAgICAgIDxzdHJvbmc+SW5mZXJlbmNlIFZlY3Rvcml6YXRpb246PC9zdHJvbmc+IFRoZSBzaW11bGF0aW9uIHByb2Nlc3NlcyBiYXRjaGVzIHNpbXVsdGFuZW91c2x5IHRocm91Z2ggdmVjdG9yaXplZCBjb2x1bW4gdHJhbnNmb3JtcyBhbmQgbWF0cml4IHByZWRpY3Rpb25zLCBldmFsdWF0aW5nIDEsMDAwIHRyYW5zYWN0aW9ucyBhbmQgNyBjYW5kaWRhdGUgYWN0aW9uIGJyYW5jaGVzIGluIHVuZGVyIDIwMG1zLlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICl9XG5cbiAgICAgICAgICB7YWN0aXZlVGFiID09PSAnZ3VhcmRyYWlscycgJiYgKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTRcIj5cbiAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC13YXJtLWdyYXktNjAwIHRleHQteHNcIj5cbiAgICAgICAgICAgICAgICBUbyBzYWZlZ3VhcmQgY3VzdG9tZXIgZXhwZXJpZW5jZSwgbWVyY2hhbnQgcmVwdXRhdGlvbiwgYW5kIHJlZ3VsYXRvcnkgY29tcGxpYW5jZSwgUmVjb3ZlckFJIGFwcGxpZXMgNiBkZXRlcm1pbmlzdGljIHBvbGljeSBnYXRlcyBiZWZvcmUgYW55IGludGVydmVudGlvbiBjYW4gYmUgZXhlY3V0ZWQ6XG4gICAgICAgICAgICAgIDwvcD5cblxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMi41XCI+XG4gICAgICAgICAgICAgICAge21ldGhvZG9sb2d5Py5ndWFyZHJhaWxfcG9saWNpZXM/Lm1hcCgoZywgaWR4KSA9PiAoXG4gICAgICAgICAgICAgICAgICA8ZGl2IGtleT17aWR4fSBjbGFzc05hbWU9XCJwLTMgYmctc3VyZmFjZSBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXNtIGZsZXggaXRlbXMtc3RhcnQgZ2FwLTNcIj5cbiAgICAgICAgICAgICAgICAgICAgPENoZWNrQ2lyY2xlMiBjbGFzc05hbWU9XCJ3LTQgaC00IHRleHQtbW9zcy1ncmVlbiBtdC0wLjUgZmxleC1zaHJpbmstMFwiIC8+XG4gICAgICAgICAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1ib2xkIGZvbnQtbW9ubyB0ZXh0LWdyYXBoaXRlIHRleHQteHNcIj57Zy5ydWxlfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LXdhcm0tZ3JheS02MDAgbXQtMC41XCI+e2cucG9saWN5fTwvcD5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApfVxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICB7LyogRm9vdGVyICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtNCBib3JkZXItdCBib3JkZXItYm9yZGVyIGJnLXdhcm0tZ3JheS01MCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LXdhcm0tZ3JheS01MDAgZm9udC1tb25vXCI+XG4gICAgICAgICAgICBSZWNvdmVyQUkgQXV0b25vbW91cyBGaW5hbmNpYWwgSW50ZWxsaWdlbmNlIEVuZ2luZVxuICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICBvbkNsaWNrPXtvbkNsb3NlfVxuICAgICAgICAgICAgY2xhc3NOYW1lPVwicHgtNCBweS0xLjUgYmctZGFyay1zdXJmYWNlIGhvdmVyOmJnLWdyYXBoaXRlIHRleHQtc3VyZmFjZSByb3VuZGVkLXNtIHRleHQteHMgZm9udC1tZWRpdW0gdHJhbnNpdGlvbi1jb2xvcnNcIlxuICAgICAgICAgID5cbiAgICAgICAgICAgIENsb3NlIE1ldGhvZG9sb2d5XG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9kaXY+XG4gICAgPC9kaXY+XG4gIClcbn1cbiJdLCJmaWxlIjoiRDovUmVjb3ZlcnkgQWkvZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvc2ltdWxhdGlvbi9NZXRob2RvbG9neU1vZGFsLnRzeCJ9

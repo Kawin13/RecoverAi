@@ -1,12 +1,12 @@
 """
 RecoverAI - Strategy Evaluator & ERV Engine
 Computes Expected Recovery Value (ERV), evaluates guardrail constraints,
-and produces ranked candidate action evaluation comparisons.
+and produces ranked candidate action evaluation comparisons with canonical action metadata.
 """
 
 from typing import Dict, Any, List, Optional
 from app.core.decision_config import decision_config, PAISE_PER_INR
-from app.agents.diagnosis import FailureTaxonomy
+from app.schemas.canonical import FailureTaxonomy, get_canonical_action
 from app.ml.inference import inference_engine
 
 class StrategyEvaluator:
@@ -26,8 +26,8 @@ class StrategyEvaluator:
         amount_paise = int(amount_inr * PAISE_PER_INR)
         attempt_count = int(transaction_data.get("attempt_count", 1))
         customer_tier = str(transaction_data.get("customer_value") or transaction_data.get("customer_value_segment") or "STANDARD").upper()
-        failure_reason = str(diagnosis.get("failure_reason", "UPI_TIMEOUT")).upper()
-        taxonomy = str(diagnosis.get("taxonomy", "TEMPORARY")).upper()
+        failure_reason = str(diagnosis.get("failure_reason_code") or diagnosis.get("failure_reason") or "UNKNOWN").upper()
+        taxonomy = str(diagnosis.get("failure_category") or diagnosis.get("taxonomy") or "UNKNOWN").upper()
 
         # Get ML predicted probabilities for all candidate actions
         ml_prediction = inference_engine.predict(transaction_data)
@@ -36,6 +36,7 @@ class StrategyEvaluator:
         evaluations = []
 
         for action, prob in action_probs.items():
+            canonical_act = get_canonical_action(action)
             cost_inr = self.config.INTERVENTION_COSTS_INR.get(action, 5.0)
             cost_paise = int(cost_inr * PAISE_PER_INR)
 
@@ -64,7 +65,10 @@ class StrategyEvaluator:
             )
 
             evaluations.append({
-                "action": action,
+                "action": canonical_act.action_code,
+                "action_code": canonical_act.action_code,
+                "display_name": canonical_act.display_name,
+                "customer_cta": canonical_act.customer_cta,
                 "probability": round(float(prob), 4),
                 "expected_recovery_value": erv_inr,
                 "erv_paise": max(0, erv_paise),

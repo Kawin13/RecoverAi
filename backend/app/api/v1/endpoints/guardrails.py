@@ -37,42 +37,64 @@ def get_approval_queue(
 ):
     """
     Returns high-value or gated cases requiring human supervisor sign-off before intervention dispatch.
-    Monetary amounts are strictly immutable and derived directly from the transaction.
+    A case enters and remains in this queue ONLY when an explicit guardrail sets requires_approval = True.
+    Transactions below ₹10,000 without explicit approval triggers are automatically unblocked and cleared.
     """
     cases = (
         db.query(RecoveryCase)
         .options(
             joinedload(RecoveryCase.transaction).joinedload(Transaction.customer)
         )
-        .filter(RecoveryCase.status == "PENDING_APPROVAL")
+        .filter(RecoveryCase.status.in_(["PENDING_APPROVAL", "IN_PROGRESS", "ATTEMPTING", "DETECTED", "ACTION_SCHEDULED"]))
         .order_by(RecoveryCase.created_at.desc())
         .all()
     )
 
     items = []
     for c in cases:
-        tx = c.transaction
-        cust = tx.customer if tx else None
         decision = guardrails_service.evaluate(c, db)
-        items.append({
-            "case_id": c.id,
-            "transaction_id": c.transaction_id,
-            "order_id": tx.order_id if tx else None,
-            "customer_name": cust.name if cust else "Valued Customer",
-            "customer_tier": cust.tier if cust else "GROWTH",
-            "customer_phone": cust.phone if cust else "+919876543210",
-            "amount": c.risk_amount,
-            "currency": "INR",
-            "failure_category": c.failure_category,
-            "selected_strategy": c.selected_strategy or "PAYMENT_LINK",
-            "channel": c.channel or "IN_APP",
-            "expected_recovery_value": c.expected_recovery_value,
-            "recovery_probability": c.recovery_probability,
-            "reason_code": decision.reason_code,
-            "human_readable_reason": decision.human_readable_reason,
-            "created_at": c.created_at,
-            "updated_at": c.updated_at
-        })
+        if decision.requires_approval:
+            # Sync database status if not already PENDING_APPROVAL
+            if c.status != "PENDING_APPROVAL":
+                c.status = "PENDING_APPROVAL"
+                c.current_step = "PENDING_APPROVAL"
+                db.add(c)
+                db.commit()
+
+            tx = c.transaction
+            cust = tx.customer if tx else None
+            items.append({
+                "case_id": c.id,
+                "transaction_id": c.transaction_id,
+                "order_id": tx.order_id if tx else None,
+                "customer_name": cust.name if cust else "Valued Customer",
+                "customer_tier": cust.tier if cust else "GROWTH",
+                "customer_phone": cust.phone if cust else "+919876543210",
+                "amount": c.risk_amount,
+                "currency": "INR",
+                "failure_category": c.failure_category,
+                "selected_strategy": c.selected_strategy or "PAYMENT_LINK",
+                "channel": c.channel or "IN_APP",
+                "expected_recovery_value": c.expected_recovery_value,
+                "recovery_probability": c.recovery_probability,
+                "reason_code": decision.reason_code,
+                "human_readable_reason": f"Reason: {decision.reason_code} — {decision.human_readable_reason}",
+                "created_at": c.created_at,
+                "updated_at": c.updated_at
+            })
+        elif c.status == "PENDING_APPROVAL":
+            # If all safety policies are cleared and requires_approval is false: remove from approval queue
+            from datetime import datetime
+            if decision.allowed:
+                c.status = "ACTION_SCHEDULED"
+                c.current_step = "ACTION_SCHEDULED"
+            else:
+                c.status = "STOPPED"
+                c.current_step = "STOPPED"
+            c.updated_at = datetime.utcnow()
+            db.add(c)
+            db.commit()
+
     return items
 
 @router.post("/approval-queue/{case_id}/decision", summary="Submit Human Supervisor Decision")

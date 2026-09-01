@@ -29,8 +29,8 @@ class CheckoutSessionResponse(BaseModel):
     status: str
     selected_method: Optional[str] = None
     payment_attempted: bool
-    started_at: datetime
-    last_activity_at: datetime
+    started_at: Optional[datetime] = None
+    last_activity_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     abandoned_at: Optional[datetime] = None
     is_demo_simulation: bool
@@ -64,8 +64,8 @@ class AbandonmentCaseDetail(BaseModel):
     recovery_message: Dict[str, Any]
     recovery_case_id: Optional[str] = None
     is_demo_simulation: bool
-    started_at: datetime
-    abandoned_at: datetime
+    started_at: Optional[datetime] = None
+    abandoned_at: Optional[datetime] = None
 
 class FunnelStageItem(BaseModel):
     stage_key: str

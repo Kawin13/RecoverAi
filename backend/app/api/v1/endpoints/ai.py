@@ -24,11 +24,16 @@ def explain_recovery_case(recovery_id: str, db: Session = Depends(get_db)):
     if tx:
         cust = tx.customer
         latest_attempt = tx.payment_attempts[0] if tx.payment_attempts else None
+        reason = (
+            latest_attempt.error_code 
+            if (latest_attempt and latest_attempt.error_code) 
+            else (tx.recovery_case.failure_category if (tx.recovery_case and tx.recovery_case.failure_category) else "UNKNOWN")
+        )
         tx_data = {
             "order_id": tx.order_id,
             "amount": tx.amount,
             "payment_method": tx.method,
-            "failure_reason": latest_attempt.error_code if latest_attempt else "UPI_TIMEOUT",
+            "failure_reason": reason,
             "customer_name": cust.name if cust else "Valued Customer",
             "customer_value": cust.tier if cust else "STANDARD"
         }
@@ -37,7 +42,7 @@ def explain_recovery_case(recovery_id: str, db: Session = Depends(get_db)):
             "order_id": f"ORD-{recovery_id[-6:] if len(recovery_id)>=6 else '99821'}",
             "amount": 3500.0,
             "payment_method": "UPI",
-            "failure_reason": "UPI_TIMEOUT",
+            "failure_reason": "UNKNOWN",
             "customer_name": "Rohan Sharma",
             "customer_value": "GROWTH"
         }
@@ -71,11 +76,16 @@ def generate_recovery_message(
     if tx:
         cust = tx.customer
         latest_attempt = tx.payment_attempts[0] if tx.payment_attempts else None
+        reason = (
+            latest_attempt.error_code 
+            if (latest_attempt and latest_attempt.error_code) 
+            else (tx.recovery_case.failure_category if (tx.recovery_case and tx.recovery_case.failure_category) else "UNKNOWN")
+        )
         tx_data = {
             "order_id": tx.order_id,
             "amount": tx.amount,
             "payment_method": tx.method,
-            "failure_reason": latest_attempt.error_code if latest_attempt else "UPI_TIMEOUT",
+            "failure_reason": reason,
             "customer_name": cust.name if cust else "Customer"
         }
     else:
@@ -83,7 +93,7 @@ def generate_recovery_message(
             "order_id": f"ORD-{recovery_id[-6:] if len(recovery_id)>=6 else '99821'}",
             "amount": 2500.0,
             "payment_method": "UPI",
-            "failure_reason": "UPI_TIMEOUT",
+            "failure_reason": "UNKNOWN",
             "customer_name": "Customer"
         }
 

@@ -55,10 +55,10 @@ const PRODUCTS: ProductItem[] = [
     badge: 'Most Popular',
     description: 'Autonomous AI revenue recovery platform for mid-market payment operations.',
     features: [
-      'Real-time ML Propensity Engine',
-      'Multi-PSP Dynamic Smart Fallbacks',
-      'Gemini-powered Multi-lingual Paylinks',
-      'Continuous Audit & Guardrail Enforcement'
+      'Real-Time Recovery Likelihood Engine',
+      'Multi-Rail Smart Payment Fallbacks',
+      'AI-Personalized Multi-Lingual Paylinks',
+      'Continuous Audit & Safety Guardrails'
     ]
   },
   {
@@ -381,10 +381,10 @@ export const DemoCheckout: React.FC = () => {
               </span>
             </div>
             <p className="text-amber-800 leading-relaxed">
-              To connect your real Razorpay Test Account, put your test keys in{' '}
+              To connect your real Razorpay Test Account, configure your test keys in{' '}
               <code className="px-1 py-0.5 bg-amber-100 rounded text-amber-950 font-mono">backend/.env</code>{' '}
               (<code className="font-mono">RAZORPAY_KEY_ID=rzp_test_...</code> and{' '}
-              <code className="font-mono">RAZORPAY_KEY_SECRET=...</code>). The checkout will automatically switch to live Razorpay servers.
+              <code className="font-mono">API_GATEWAY_SECRET=...</code>). The checkout will automatically switch to live Razorpay servers.
             </p>
           </div>
         </div>
@@ -723,7 +723,7 @@ export const DemoCheckout: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-warm-gray-600" />
                   <span className="text-xs font-bold text-graphite font-display">
-                    Razorpay Test Credentials & Supported Test Methods
+                    Test Payment Options & Supported Payment Methods
                   </span>
                 </div>
                 {showHelper ? (
@@ -758,10 +758,10 @@ export const DemoCheckout: React.FC = () => {
                       </span>
                       <ul className="text-[11px] text-warm-gray-600 space-y-1 list-disc pl-4">
                         <li>
-                          <strong>Card:</strong> <code className="font-mono bg-white px-1 py-0.5 rounded border border-border">4000 0000 0000 0002</code> or click &ldquo;Failure&rdquo; on test OTP screen.
+                          <strong>Card:</strong> Select &ldquo;Failure&rdquo; on the Razorpay test OTP screen.
                         </li>
                         <li>
-                          <strong>UPI:</strong> Enter <code className="font-mono bg-white px-1 py-0.5 rounded border border-border">failure@razorpay</code>.
+                          <strong>Dismiss:</strong> Close or dismiss the payment popup to trigger cart recovery.
                         </li>
                       </ul>
                     </div>
@@ -839,17 +839,17 @@ export const DemoCheckout: React.FC = () => {
                   title="Directly trigger RecoverAI agent failure handling"
                 >
                   <Cpu className="w-3.5 h-3.5 text-crimson-red" />
-                  <span>Simulate Instant Bank Failure</span>
+                  <span>Simulate Payment Failure</span>
                 </button>
               </div>
 
               <div className="pt-3 border-t border-border/80 text-[10px] text-warm-gray-400 space-y-1">
                 <div className="flex items-center gap-1.5 text-warm-gray-500">
                   <ShieldCheck className="w-3 h-3 text-moss-green" />
-                  <span>Server-Side HMAC SHA-256 Verified</span>
+                  <span>Securely Verified & Recorded</span>
                 </div>
                 <p className="leading-snug">
-                  Payments are cryptographically verified before persisting. Failure cases automatically trigger RecoverAI&rsquo;s ERV decision matrix.
+                  Payments are verified securely before persisting. Failure cases automatically trigger RecoverAI&rsquo;s ERV recovery workflow.
                 </p>
               </div>
             </div>

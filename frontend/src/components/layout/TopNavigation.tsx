@@ -1,11 +1,17 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   Menu,
   Bell,
-  Building
+  Building,
+  LogOut,
+  CheckCircle2,
+  ChevronDown,
+  Loader2,
+  User
 } from 'lucide-react'
-
 import { useRealtime } from '../../lib/useRealtime'
+import { useAuth } from '../../context/AuthContext'
 
 interface TopNavigationProps {
   onToggleSidebar: () => void
@@ -13,8 +19,52 @@ interface TopNavigationProps {
 
 export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar }) => {
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  
   const { status } = useRealtime()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  
   const activeMerchant = 'Zenith Commerce India'
+
+  const userDisplayName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Revenue Operations User')
+  const userEmail = user?.email || ''
+  const avatarUrl = user?.user_metadata?.avatar_url
+  const userInitials = (userDisplayName || 'RA')
+    .split(' ')
+    .filter(Boolean)
+    .map((n: string) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'RA'
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true)
+    try {
+      await signOut()
+      setShowUserMenu(false)
+      navigate('/login', { replace: true })
+    } catch (err) {
+      console.error('Sign out error:', err)
+      setShowUserMenu(false)
+      navigate('/login', { replace: true })
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
 
   return (
     <header className="h-16 bg-surface border-b border-border px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-fintech-subtle">
@@ -39,17 +89,17 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
         </div>
       </div>
 
-      {/* Right: Realtime Status, Agent Status, Search, Notifications, Profile */}
+      {/* Right: Realtime Status, Agent Status, Notifications, Profile Menu */}
       <div className="flex items-center gap-3">
-        {/* Real-time SSE Connection Status Indicator */}
+        {/* Real-time Connection Status Indicator */}
         <div
-          title={`Gateway & AI Event Stream: ${status}`}
+          title={`Live Updates: ${status === 'LIVE' ? 'Connected' : status}`}
           className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-warm-gray-50 border border-border text-[11px] font-mono select-none"
         >
           {status === 'LIVE' && (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-moss-green animate-pulse" />
-              <span className="text-moss-green-dark font-medium">Live</span>
+              <span className="text-moss-green-dark font-medium">Live Updates</span>
             </>
           )}
           {status === 'RECONNECTING' && (
@@ -66,11 +116,11 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
           )}
         </div>
 
-        {/* Agent Operational Status Pill */}
+        {/* Recovery Mode Status Pill */}
         <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-sm bg-moss-green-subtle border border-moss-green/30 text-xs">
           <span className="w-2 h-2 rounded-full bg-moss-green animate-pulse" />
           <span className="text-moss-green-dark font-medium font-display">
-            Agent Autonomous: <strong className="font-semibold">Optimal (67.48% Rec)</strong>
+            Autonomous Recovery: <strong className="font-semibold">67.48%</strong>
           </span>
         </div>
 
@@ -116,15 +166,94 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
           )}
         </div>
 
-        {/* User Badge */}
-        <div className="flex items-center gap-2 pl-2 border-l border-border">
-          <div className="w-7 h-7 rounded-sm bg-dark-surface text-surface flex items-center justify-center font-bold text-xs font-display">
-            RA
-          </div>
-          <div className="hidden lg:block text-left text-xs">
-            <span className="font-semibold text-graphite block leading-tight">Revenue Ops Admin</span>
-            <span className="text-[10px] text-warm-gray-500 block">ops@recoverai.io</span>
-          </div>
+        {/* User Profile Menu & Logout */}
+        <div className="relative pl-2 border-l border-border" ref={userMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            aria-label="User account menu"
+            className="flex items-center gap-2 p-1 rounded-sm hover:bg-warm-gray-100 transition-colors focus-visible:ring-2 focus-visible:ring-burnt-orange"
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={userDisplayName} className="w-7 h-7 rounded-sm object-cover" />
+            ) : (
+              <div className="w-7 h-7 rounded-sm bg-dark-surface text-surface flex items-center justify-center font-bold text-xs font-display">
+                {userInitials}
+              </div>
+            )}
+            <div className="hidden lg:block text-left text-xs">
+              <span className="font-semibold text-graphite block leading-tight truncate max-w-[130px]">
+                {userDisplayName}
+              </span>
+              <span className="text-[10px] text-warm-gray-500 block truncate max-w-[130px]">
+                {userEmail}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-warm-gray-400 hidden sm:block" />
+          </button>
+
+          {/* User Account Dropdown Modal */}
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-64 bg-surface border border-border shadow-fintech-modal rounded-sm p-3 z-50 animate-in fade-in">
+              <div className="pb-3 border-b border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={userDisplayName} className="w-8 h-8 rounded-sm object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-sm bg-burnt-orange text-white flex items-center justify-center font-bold text-xs font-display">
+                      {userInitials}
+                    </div>
+                  )}
+                  <div className="overflow-hidden">
+                    <p className="text-xs font-semibold text-graphite truncate font-display">
+                      {userDisplayName}
+                    </p>
+                    <p className="text-[10px] text-warm-gray-500 truncate font-mono">
+                      {userEmail}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 text-[10px] text-moss-green-dark bg-moss-green-subtle px-2 py-0.5 rounded-sm border border-moss-green/20">
+                  <CheckCircle2 className="w-3 h-3 text-moss-green" />
+                  <span>Authenticated Workspace Session</span>
+                </div>
+              </div>
+
+              {/* Menu Links */}
+              <div className="py-1.5 space-y-0.5 text-xs">
+                <Link
+                  to="/account"
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm text-graphite hover:bg-warm-gray-50 transition-colors font-medium"
+                >
+                  <User className="w-3.5 h-3.5 text-warm-gray-500" />
+                  <span>Account</span>
+                </Link>
+              </div>
+
+              {/* Sign Out Action */}
+              <div className="pt-1.5 border-t border-border">
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-sm text-xs font-medium text-brick-red hover:bg-brick-red-light transition-colors disabled:opacity-60 text-left"
+                >
+                  {isSigningOut ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-brick-red" />
+                      <span>Signing Out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-3.5 h-3.5 text-brick-red" />
+                      <span>Sign Out</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

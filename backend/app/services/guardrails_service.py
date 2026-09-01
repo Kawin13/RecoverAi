@@ -65,22 +65,28 @@ class GuardrailsService:
             )
 
         # ---------------------------------------------------------------------
-        # Rule 2: RISK/FRAUD FLAG -> STOP AUTO RECOVERY
+        # Rule 2: RISK/FRAUD FLAG -> REQUIRES HUMAN APPROVAL (FRAUD_RISK)
         # ---------------------------------------------------------------------
         is_fraud_flag = False
-        if failure_cat in self.policy.RISK_TAXONOMIES or "FRAUD" in failure_cat or "RISK" in failure_cat:
+        if (
+            failure_cat in self.policy.RISK_TAXONOMIES
+            or "FRAUD" in failure_cat
+            or "RISK" in failure_cat
+            or "SUSPECTED" in failure_cat
+            or (cust and "FRAUD" in (getattr(cust, "notes", "") or "").upper())
+        ):
             is_fraud_flag = True
 
         if is_fraud_flag:
-            reason = f"Transaction flagged by risk/fraud detection ({failure_cat}). Automated recovery permanently stopped."
-            self._record_breach(case, "RISK_FRAUD_CIRCUIT_BREAKER", failure_cat, "STOP_AUTO_RECOVERY", reason, db)
+            reason = f"Transaction flagged by risk/fraud detection ({failure_cat}). Human supervisor review required before recovery."
+            self._record_breach(case, "RISK_FRAUD_CIRCUIT_BREAKER", failure_cat, "HUMAN_APPROVAL", reason, db)
             return GuardrailDecision(
-                allowed=False,
-                requires_approval=False,
-                reason_code="RISK_FRAUD_FLAG",
+                allowed=True,
+                requires_approval=True,
+                reason_code="FRAUD_RISK",
                 human_readable_reason=reason,
                 policy_version=self.policy.POLICY_VERSION,
-                suggested_action="STOP",
+                suggested_action="HUMAN_APPROVAL",
                 rule_details={"rule": "RISK_FRAUD_CIRCUIT_BREAKER", "failure_category": failure_cat}
             )
 
@@ -147,6 +153,30 @@ class GuardrailsService:
                 policy_version=self.policy.POLICY_VERSION,
                 suggested_action="NO_ACTION",
                 rule_details={"rule": "MIN_RECOVERY_PROBABILITY", "probability": prob, "threshold": self.policy.MIN_RECOVERY_PROBABILITY}
+            )
+
+        # ---------------------------------------------------------------------
+        # Additional Explicit Approval Checks (Manual Escalation / Policy Override)
+        # ---------------------------------------------------------------------
+        if case.current_step == "MANUAL_ESCALATION" or (case.execution_payload and "MANUAL_ESCALATION" in str(case.execution_payload)) or failure_cat == "MANUAL_ESCALATION":
+            return GuardrailDecision(
+                allowed=True,
+                requires_approval=True,
+                reason_code="MANUAL_ESCALATION",
+                human_readable_reason="Case manually escalated by operator for supervisory review.",
+                policy_version=self.policy.POLICY_VERSION,
+                suggested_action="HUMAN_APPROVAL",
+                rule_details={"rule": "MANUAL_ESCALATION"}
+            )
+        if case.current_step == "POLICY_OVERRIDE" or (case.execution_payload and "POLICY_OVERRIDE" in str(case.execution_payload)) or failure_cat == "POLICY_OVERRIDE":
+            return GuardrailDecision(
+                allowed=True,
+                requires_approval=True,
+                reason_code="POLICY_OVERRIDE",
+                human_readable_reason="Policy override active. Requires supervisor confirmation before dispatch.",
+                policy_version=self.policy.POLICY_VERSION,
+                suggested_action="HUMAN_APPROVAL",
+                rule_details={"rule": "POLICY_OVERRIDE"}
             )
 
         # ---------------------------------------------------------------------

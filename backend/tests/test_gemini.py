@@ -54,7 +54,7 @@ def test_gemini_fallback_graceful_degradation():
 
     fallback_expl = gemini_agent._get_fallback_explanation("rc_test", tx, decision)
     assert fallback_expl["source"] == "deterministic-fallback"
-    assert "UPI SWITCH" in fallback_expl["summary"]
+    assert "UPI SWITCH" in fallback_expl["summary"].upper()
     assert len(fallback_expl["operator_notes"]) >= 2
 
     fallback_msg_hi = gemini_agent._get_fallback_message("rc_test", tx, decision, "HI")

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.services.transaction_service import TransactionService
 from app.schemas.transaction import TransactionResponse, TransactionListResponse
+from app.core.auth import get_current_user
 
 router = APIRouter()
 
@@ -16,7 +17,8 @@ def list_transactions(
     search: Optional[str] = Query(None, description="Search by Order ID, Transaction ID, customer name or email"),
     sort_by: str = Query("created_at", description="Field to sort by"),
     sort_order: str = Query("desc", description="Sort direction: asc or desc"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     service = TransactionService(db)
     items, total = service.list_transactions(
@@ -40,7 +42,11 @@ def list_transactions(
     )
 
 @router.get("/transactions/{id}", response_model=TransactionResponse, tags=["Transactions"])
-def get_transaction(id: str, db: Session = Depends(get_db)):
+def get_transaction(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     service = TransactionService(db)
     tx = service.get_transaction(id)
     if not tx:

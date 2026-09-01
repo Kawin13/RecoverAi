@@ -57,6 +57,8 @@ class AbandonmentService:
             customer_id=customer.id,
             order_id=order_id,
             cart_amount=data.cart_amount,
+            cart_value=data.cart_amount,
+            created_at=now,
             status="STARTED",
             selected_method=data.selected_method or "UPI",
             payment_attempted=False,

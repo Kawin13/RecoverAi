@@ -23,7 +23,7 @@ export const Transactions: React.FC = () => {
       const res = await api.getTransactions({ limit: 50 })
       setTransactions(res.items)
     } catch (e: any) {
-      if (!silent) setError(e.message || 'Failed to fetch transactions from backend')
+      if (!silent) setError('Unable to load transactions. Please check your connection and try again.')
     } finally {
       if (!silent) setLoading(false)
     }

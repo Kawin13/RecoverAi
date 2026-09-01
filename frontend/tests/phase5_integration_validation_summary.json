@@ -1,0 +1,10 @@
+{
+  "userMenu": "PASS",
+  "accountPage": "PASS",
+  "frontendSessionHandling": "PASS",
+  "backendJwtValidation": "PASS",
+  "protectedApis": "PASS",
+  "webhookUnaffected": "PASS",
+  "razorpayUnaffected": "PASS",
+  "sseAuthenticatedCorrectly": "PASS"
+}

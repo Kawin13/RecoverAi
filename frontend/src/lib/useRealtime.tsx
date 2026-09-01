@@ -12,12 +12,14 @@ interface RealtimeContextType {
   status: ConnectionStatus
   lastEvent: RealtimeEvent | null
   subscribe: (eventType: string, callback: (event: RealtimeEvent) => void) => () => void
+  reconnect: () => void
 }
 
 const RealtimeContext = createContext<RealtimeContextType>({
   status: 'OFFLINE',
   lastEvent: null,
-  subscribe: () => () => {}
+  subscribe: () => () => {},
+  reconnect: () => {}
 })
 
 const SSE_URL = import.meta.env.VITE_API_BASE_URL 
@@ -107,7 +109,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [])
 
   return (
-    <RealtimeContext.Provider value={{ status, lastEvent, subscribe }}>
+    <RealtimeContext.Provider value={{ status, lastEvent, subscribe, reconnect: connect }}>
       {children}
     </RealtimeContext.Provider>
   )
