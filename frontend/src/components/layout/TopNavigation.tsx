@@ -5,11 +5,11 @@ import {
   Bell,
   Building,
   LogOut,
-  CheckCircle2,
   ChevronDown,
   Loader2,
   User
 } from 'lucide-react'
+
 import { useRealtime } from '../../lib/useRealtime'
 import { useAuth } from '../../context/AuthContext'
 
@@ -24,14 +24,15 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
   const userMenuRef = useRef<HTMLDivElement>(null)
   
   const { status } = useRealtime()
-  const { user, signOut } = useAuth()
+  const { user, profile, role, signOut } = useAuth()
   const navigate = useNavigate()
   
   const activeMerchant = 'Zenith Commerce India'
 
-  const userDisplayName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Revenue Operations User')
-  const userEmail = user?.email || ''
-  const avatarUrl = user?.user_metadata?.avatar_url
+  const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Revenue Operations User')
+  const userEmail = profile?.email || user?.email || ''
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url
+  const roleDisplay = role === 'admin' ? 'Administrator' : 'Revenue Operator'
   const userInitials = (userDisplayName || 'RA')
     .split(' ')
     .filter(Boolean)
@@ -39,6 +40,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
     .slice(0, 2)
     .join('')
     .toUpperCase() || 'RA'
+
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -182,10 +184,19 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
               </div>
             )}
             <div className="hidden lg:block text-left text-xs">
-              <span className="font-semibold text-graphite block leading-tight truncate max-w-[130px]">
-                {userDisplayName}
-              </span>
-              <span className="text-[10px] text-warm-gray-500 block truncate max-w-[130px]">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-graphite block leading-tight truncate max-w-[130px]">
+                  {userDisplayName}
+                </span>
+                <span className={`px-1.5 py-0.2 text-[9px] font-semibold rounded-sm border ${
+                  role === 'admin'
+                    ? 'bg-burnt-orange/10 text-burnt-orange border-burnt-orange/30'
+                    : 'bg-warm-gray-100 text-warm-gray-600 border-warm-gray-200'
+                }`}>
+                  {roleDisplay}
+                </span>
+              </div>
+              <span className="text-[10px] text-warm-gray-500 block truncate max-w-[150px]">
                 {userEmail}
               </span>
             </div>
@@ -213,14 +224,30 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
                     </p>
                   </div>
                 </div>
-                <div className="mt-2 flex items-center gap-1.5 text-[10px] text-moss-green-dark bg-moss-green-subtle px-2 py-0.5 rounded-sm border border-moss-green/20">
-                  <CheckCircle2 className="w-3 h-3 text-moss-green" />
-                  <span>Authenticated Workspace Session</span>
+                <div className="mt-2 flex items-center justify-between gap-1.5 text-[10px] bg-warm-gray-50 px-2 py-1 rounded-sm border border-border">
+                  <span className="text-warm-gray-500 font-medium">Workspace Role:</span>
+                  <span className={`px-1.5 py-0.2 rounded-sm font-semibold border ${
+                    role === 'admin'
+                      ? 'bg-burnt-orange/15 text-burnt-orange border-burnt-orange/30'
+                      : 'bg-warm-gray-200/70 text-warm-gray-700 border-warm-gray-300'
+                  }`}>
+                    {roleDisplay}
+                  </span>
                 </div>
               </div>
 
               {/* Menu Links */}
               <div className="py-1.5 space-y-0.5 text-xs">
+                {role === 'admin' && (
+                  <Link
+                    to="/admin/users"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm text-graphite hover:bg-warm-gray-50 transition-colors font-medium"
+                  >
+                    <Building className="w-3.5 h-3.5 text-burnt-orange" />
+                    <span>User Management</span>
+                  </Link>
+                )}
                 <Link
                   to="/account"
                   onClick={() => setShowUserMenu(false)}
@@ -230,6 +257,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
                   <span>Account</span>
                 </Link>
               </div>
+
 
               {/* Sign Out Action */}
               <div className="pt-1.5 border-t border-border">

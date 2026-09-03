@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { SectionHeader } from '../components/common/SectionHeader'
 import { api, GuardrailPolicyRuleItem, HumanApprovalQueueItem, WhyStoppedForensicResponse, WorkflowCase } from '../services/api'
 import { useRealtime } from '../lib/useRealtime'
+import { useAuth } from '../context/AuthContext'
 import { formatINR, formatTimeAgo } from '../lib/utils'
+
 import {
   ShieldAlert,
   ShieldCheck,
@@ -19,6 +21,7 @@ import {
 
 export const Guardrails: React.FC = () => {
   const { status } = useRealtime()
+  const { role, user, profile } = useAuth()
   const isConnected = status === 'LIVE'
 
   // State
@@ -30,12 +33,13 @@ export const Guardrails: React.FC = () => {
   const [forensics, setForensics] = useState<WhyStoppedForensicResponse | null>(null)
   
   // Operator Input
-  const [operatorName, setOperatorName] = useState('Risk Supervisor')
+  const [operatorName, setOperatorName] = useState(profile?.full_name || user?.user_metadata?.full_name || 'Administrator')
   const [operatorNotes, setOperatorNotes] = useState('')
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [forensicsLoading, setForensicsLoading] = useState(false)
   const [bannerMessage, setBannerMessage] = useState<string | null>(null)
+
 
   // Fetch initial data
   const fetchData = async () => {
@@ -293,56 +297,70 @@ export const Guardrails: React.FC = () => {
                 </div>
 
                 {/* Operator Actions Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/60">
-                  <input
-                    type="text"
-                    placeholder="Optional supervisor notes / rationale..."
-                    value={operatorNotes}
-                    onChange={(e) => setOperatorNotes(e.target.value)}
-                    className="flex-1 max-w-md px-2.5 py-1 text-xs border border-border rounded-sm bg-white text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange"
-                  />
+                {role === 'admin' ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/60">
+                    <input
+                      type="text"
+                      placeholder="Optional supervisor notes / rationale..."
+                      value={operatorNotes}
+                      onChange={(e) => setOperatorNotes(e.target.value)}
+                      className="flex-1 max-w-md px-2.5 py-1 text-xs border border-border rounded-sm bg-white text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange"
+                    />
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleDecision(item.case_id, 'APPROVE')}
-                      disabled={actionInProgress !== null}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
-                    >
-                      {actionInProgress === `${item.case_id}_APPROVE` ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <UserCheck className="w-3.5 h-3.5" />
-                      )}
-                      <span>Approve & Dispatch</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDecision(item.case_id, 'APPROVE')}
+                        disabled={actionInProgress !== null}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                      >
+                        {actionInProgress === `${item.case_id}_APPROVE` ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <UserCheck className="w-3.5 h-3.5" />
+                        )}
+                        <span>Approve & Dispatch</span>
+                      </button>
 
-                    <button
-                      onClick={() => handleDecision(item.case_id, 'REJECT')}
-                      disabled={actionInProgress !== null}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brick-red hover:bg-brick-red-dark text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
-                    >
-                      {actionInProgress === `${item.case_id}_REJECT` ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <XCircle className="w-3.5 h-3.5" />
-                      )}
-                      <span>Reject Intervention</span>
-                    </button>
+                      <button
+                        onClick={() => handleDecision(item.case_id, 'REJECT')}
+                        disabled={actionInProgress !== null}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brick-red hover:bg-brick-red-dark text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                      >
+                        {actionInProgress === `${item.case_id}_REJECT` ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5" />
+                        )}
+                        <span>Reject Intervention</span>
+                      </button>
 
-                    <button
-                      onClick={() => handleDecision(item.case_id, 'NO_ACTION')}
-                      disabled={actionInProgress !== null}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warm-gray-200 hover:bg-warm-gray-300 text-graphite rounded-sm text-xs font-medium transition-colors disabled:opacity-50"
-                    >
-                      <span>Change to No Action</span>
-                    </button>
+                      <button
+                        onClick={() => handleDecision(item.case_id, 'NO_ACTION')}
+                        disabled={actionInProgress !== null}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warm-gray-200 hover:bg-warm-gray-300 text-graphite rounded-sm text-xs font-medium transition-colors disabled:opacity-50"
+                      >
+                        <span>Change to No Action</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/60">
+                    <div className="flex items-center gap-2 text-xs text-warm-gray-500">
+                      <Lock className="w-3.5 h-3.5 text-warm-gray-400" />
+                      <span>Supervisory review is required before recovering this transaction.</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warm-gray-100 border border-warm-gray-300 text-warm-gray-700 rounded-sm text-xs font-semibold select-none">
+                      <Lock className="w-3.5 h-3.5 text-warm-gray-500" />
+                      <span>Awaiting Administrator Approval</span>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
 
       {/* SECTION 2: "Why Was This Stopped?" Forensic Inspector */}
       <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-4">

@@ -18,11 +18,14 @@ import { Analytics } from './pages/Analytics'
 import { AuditTrail } from './pages/AuditTrail'
 import { Guardrails } from './pages/Guardrails'
 import { Account } from './pages/Account'
+import { AdminUsers } from './pages/AdminUsers'
+import { AdminRoute } from './components/auth/AdminRoute'
 import { DemoCheckout } from './pages/DemoCheckout'
 import { Abandonment } from './pages/Abandonment'
 import { NotFound } from './pages/NotFound'
 import { RealtimeProvider } from './lib/useRealtime'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+
 
 export const App: React.FC = () => {
   return (
@@ -67,9 +70,19 @@ export const App: React.FC = () => {
                 <Route path="/audit" element={<AuditTrail />} />
                 <Route path="/audit-trail" element={<Navigate to="/audit" replace />} />
                 <Route path="/guardrails" element={<Guardrails />} />
+                <Route
+                  path="/admin/users"
+                  element={
+                    <AdminRoute>
+                      <AdminUsers />
+                    </AdminRoute>
+                  }
+                />
+                <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
                 <Route path="/settings" element={<Navigate to="/account" replace />} />
                 <Route path="/account" element={<Account />} />
               </Route>
+
             </Route>
 
             {/* Unknown Route Catch-All (Graceful 404 handler) */}

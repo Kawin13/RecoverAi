@@ -65,30 +65,31 @@ class GuardrailsService:
             )
 
         # ---------------------------------------------------------------------
-        # Rule 2: RISK/FRAUD FLAG -> REQUIRES HUMAN APPROVAL (FRAUD_RISK)
+        # Rule 2: RISK/FRAUD FLAG -> STOP
         # ---------------------------------------------------------------------
         is_fraud_flag = False
         if (
             failure_cat in self.policy.RISK_TAXONOMIES
             or "FRAUD" in failure_cat
-            or "RISK" in failure_cat
-            or "SUSPECTED" in failure_cat
+            or "RISK_BLOCKED" in failure_cat
+            or "FRAUD_SUSPECTED" in failure_cat
             or (cust and "FRAUD" in (getattr(cust, "notes", "") or "").upper())
         ):
             is_fraud_flag = True
 
         if is_fraud_flag:
-            reason = f"Transaction flagged by risk/fraud detection ({failure_cat}). Human supervisor review required before recovery."
-            self._record_breach(case, "RISK_FRAUD_CIRCUIT_BREAKER", failure_cat, "HUMAN_APPROVAL", reason, db)
+            reason = f"Transaction flagged by risk/fraud detection ({failure_cat}). Automated recovery halted."
+            self._record_breach(case, "RISK_FRAUD_CIRCUIT_BREAKER", failure_cat, "STOP_AUTO_RECOVERY", reason, db)
             return GuardrailDecision(
-                allowed=True,
-                requires_approval=True,
-                reason_code="FRAUD_RISK",
+                allowed=False,
+                requires_approval=False,
+                reason_code="RISK_FRAUD_FLAG",
                 human_readable_reason=reason,
                 policy_version=self.policy.POLICY_VERSION,
-                suggested_action="HUMAN_APPROVAL",
+                suggested_action="STOP",
                 rule_details={"rule": "RISK_FRAUD_CIRCUIT_BREAKER", "failure_category": failure_cat}
             )
+
 
         # ---------------------------------------------------------------------
         # Rule 3: PERMANENT FAILURE -> DO NOT RETRY SAME METHOD

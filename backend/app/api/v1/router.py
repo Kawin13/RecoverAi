@@ -15,7 +15,8 @@ from app.api.v1.endpoints import (
     guardrails,
     checkout,
     simulation,
-    analytics
+    analytics,
+    admin_users
 )
 
 api_router = APIRouter()
@@ -36,3 +37,5 @@ api_router.include_router(guardrails.router, prefix="/guardrails", tags=["Fintec
 api_router.include_router(checkout.router, prefix="/checkout", tags=["Pre-Payment Cart & Checkout Abandonment"])
 api_router.include_router(ai.router, prefix="/ai", tags=["Gemini GenAI & Multi-Lingual Communications"])
 api_router.include_router(simulation.router, prefix="/simulation", tags=["Batch Recovery Simulator"])
+api_router.include_router(admin_users.router, prefix="/admin/users", tags=["Admin User Management & RBAC"])
+

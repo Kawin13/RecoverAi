@@ -99,6 +99,21 @@ async def lifespan(app: FastAPI):
                     conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN is_demo_simulation BOOLEAN DEFAULT 1;"))
                 if "recovery_case_id" not in cols_cs:
                     conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN recovery_case_id VARCHAR(64);"))
+                
+                # Check profiles table in sqlite
+                res_pr = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='profiles';")).fetchall()
+                if not res_pr:
+                    conn.execute(text("""
+                        CREATE TABLE profiles (
+                            id VARCHAR(64) PRIMARY KEY,
+                            full_name VARCHAR(255),
+                            email VARCHAR(255),
+                            avatar_url TEXT,
+                            role VARCHAR(32) NOT NULL DEFAULT 'operator',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        );
+                    """))
                 conn.commit()
     except Exception as exc:
         logger.warning(f"Schema auto-migration notice: {exc}")

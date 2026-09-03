@@ -12,7 +12,8 @@ from app.models import (
     AgentDecision,
     AuditLog,
     GuardrailEvent,
-    RecoveryOutcome
+    RecoveryOutcome,
+    Profile
 )
 from app.core.logging import logger
 
@@ -20,12 +21,28 @@ def seed_database(db: Session):
     # Ensure tables exist
     Base.metadata.create_all(bind=engine)
 
+    now = datetime.utcnow()
+
+    # Ensure default Admin Profile exists
+    admin_prof = db.query(Profile).filter(Profile.id == "597289a7-e26e-415d-ab4d-fa587e32899a").first()
+    if not admin_prof:
+        db.add(Profile(
+            id="597289a7-e26e-415d-ab4d-fa587e32899a",
+            email="test.ops@recoverai.io",
+            full_name="Revenue Ops Admin",
+            role="admin",
+            created_at=now,
+            updated_at=now
+        ))
+        db.commit()
+
     # Check if database already has records
     if db.query(Customer).count() > 0:
-        logger.info("Database already seeded. Skipping initial seeding.")
+        logger.info("Database already seeded. Skipping initial customer/tx seeding.")
         return
 
     logger.info("Seeding minimal realistic sample records into RecoverAI database...")
+
 
     now = datetime.utcnow()
 

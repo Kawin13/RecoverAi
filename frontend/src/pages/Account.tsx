@@ -23,11 +23,11 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 
 export const Account: React.FC = () => {
-  const { user, signOut } = useAuth()
+  const { user, profile, role, signOut } = useAuth()
   const navigate = useNavigate()
 
   const [isEditingName, setIsEditingName] = useState(false)
-  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '')
+  const [fullName, setFullName] = useState(profile?.full_name || user?.user_metadata?.full_name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -42,18 +42,22 @@ export const Account: React.FC = () => {
 
   const [isSigningOut, setIsSigningOut] = useState(false)
 
-  // Sync state when user changes
+  // Sync state when user/profile changes
   useEffect(() => {
-    if (user?.user_metadata?.full_name) {
+    if (profile?.full_name) {
+      setFullName(profile.full_name)
+    } else if (user?.user_metadata?.full_name) {
       setFullName(user.user_metadata.full_name)
     } else if (user?.email) {
       setFullName(user.email.split('@')[0])
     }
-  }, [user])
+  }, [user, profile])
 
-  const email = user?.email || ''
-  const avatarUrl = user?.user_metadata?.avatar_url
-  const role = user?.user_metadata?.role || 'Revenue Operations User'
+  const email = profile?.email || user?.email || ''
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url
+  const roleDisplay = role === 'admin' ? 'Administrator' : 'Revenue Operator'
+  const roleTag = role === 'admin' ? 'ADMINISTRATOR' : 'REVENUE OPERATOR'
+
 
   const authProvider = (() => {
     if (user?.app_metadata?.provider) {
@@ -252,8 +256,12 @@ export const Account: React.FC = () => {
                     <h2 className="text-lg font-bold font-display text-graphite tracking-tight">
                       {fullName || 'Authenticated User'}
                     </h2>
-                    <span className="px-2 py-0.5 rounded-sm bg-warm-gray-100 text-warm-gray-700 text-[10px] font-mono font-medium">
-                      OPERATOR
+                    <span className={`px-2 py-0.5 rounded-sm text-[10px] font-mono font-medium border ${
+                      role === 'admin'
+                        ? 'bg-burnt-orange/15 text-burnt-orange border-burnt-orange/30'
+                        : 'bg-warm-gray-100 text-warm-gray-700 border-warm-gray-300'
+                    }`}>
+                      {roleTag}
                     </span>
                   </div>
                   <p className="text-xs text-warm-gray-500 font-mono mt-0.5">
@@ -360,12 +368,13 @@ export const Account: React.FC = () => {
                   <span>Role</span>
                 </div>
                 <p className="text-xs font-semibold text-graphite">
-                  {role}
+                  {roleDisplay}
                 </p>
                 <span className="text-[10px] text-moss-green-dark mt-1 block font-medium">
-                  • Full Operations Access
+                  {role === 'admin' ? '• Full System & Governance Access' : '• Operational Workflow Access'}
                 </span>
               </div>
+
 
               {/* Authentication Provider */}
               <div className="p-3.5 bg-bg border border-border rounded-sm">

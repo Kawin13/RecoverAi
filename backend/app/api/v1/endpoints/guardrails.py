@@ -11,6 +11,7 @@ from app.database.session import get_db
 from app.models import RecoveryCase, Transaction, GuardrailEvent, AuditLog
 from app.core.guardrail_policy import guardrail_policy
 from app.services.guardrails_service import guardrails_service
+from app.core.auth import require_admin
 from app.schemas.guardrails import (
     GuardrailPoliciesResponse,
     HumanApprovalQueueItem,
@@ -19,6 +20,7 @@ from app.schemas.guardrails import (
 )
 
 router = APIRouter()
+
 
 @router.get("/policies", response_model=GuardrailPoliciesResponse, summary="Get Central Guardrail Policies")
 def get_policies():
@@ -97,14 +99,16 @@ def get_approval_queue(
 
     return items
 
-@router.post("/approval-queue/{case_id}/decision", summary="Submit Human Supervisor Decision")
+@router.post("/approval-queue/{case_id}/decision", summary="Submit Human Supervisor Decision (Admin Only)")
 def submit_approval_decision(
     case_id: str,
     payload: HumanApprovalActionRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin_user: Dict[str, Any] = Depends(require_admin)
 ):
     """
     Processes human operator action (APPROVE, REJECT, NO_ACTION).
+    Strictly restricted to Administrators with require_admin().
     Monetary amounts cannot be altered. Logs operator identity and audit details.
     """
     case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
@@ -112,16 +116,18 @@ def submit_approval_decision(
         raise HTTPException(status_code=404, detail="Recovery case not found")
 
     try:
+        operator_display = payload.operator_name or admin_user.get("email") or "Administrator"
         res = guardrails_service.process_human_approval(
             case=case,
             decision=payload.decision,
-            operator_name=payload.operator_name,
+            operator_name=operator_display,
             operator_notes=payload.operator_notes,
             db=db
         )
         return {"status": "success", "approval_record": res}
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
+
 
 @router.get("/forensics/{case_id}", response_model=WhyStoppedForensicResponse, summary="'Why Was This Stopped?' Forensic Inspection")
 def get_why_stopped_forensics(

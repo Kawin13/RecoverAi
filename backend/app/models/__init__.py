@@ -10,6 +10,7 @@ from app.models.guardrail_events import GuardrailEvent
 from app.models.recovery_outcomes import RecoveryOutcome
 from app.models.webhook_events import WebhookEvent
 from app.models.payment_links import PaymentLink
+from app.models.profiles import Profile
 
 __all__ = [
     "Customer",
@@ -24,4 +25,6 @@ __all__ = [
     "RecoveryOutcome",
     "WebhookEvent",
     "PaymentLink",
+    "Profile",
 ]
+

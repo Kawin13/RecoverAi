@@ -809,7 +809,7 @@ export const api = {
     caseId: string,
     payload: { decision: string; operator_name: string; operator_notes?: string }
   ): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/api/guardrails/approval-queue/${caseId}/decision`, {
+    const res = await authFetch(`${API_BASE_URL}/api/guardrails/approval-queue/${caseId}/decision`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -820,6 +820,7 @@ export const api = {
     }
     return await res.json()
   },
+
 
   async getWhyStoppedForensics(caseId: string): Promise<WhyStoppedForensicResponse> {
     const res = await fetch(`${API_BASE_URL}/api/guardrails/forensics/${caseId}`)
@@ -1598,5 +1599,38 @@ export interface CaseAuditListResponse {
   total: number
 }
 
+export interface AdminUser {
+  id: string
+  full_name?: string
+  email?: string
+  avatar_url?: string
+  provider: string
+  role: 'admin' | 'operator'
+  created_at?: string
+  last_sign_in_at?: string
+  status: string
+}
 
+export const adminApi = {
+  async getUsers(): Promise<AdminUser[]> {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/admin/users`)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to fetch administrator user list')
+    }
+    return await res.json()
+  },
 
+  async updateUserRole(userId: string, role: 'admin' | 'operator'): Promise<AdminUser> {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/admin/users/${userId}/role`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to update user role')
+    }
+    return await res.json()
+  }
+}

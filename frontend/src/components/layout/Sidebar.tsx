@@ -13,15 +13,20 @@ import {
   Shield,
   CreditCard,
   ShoppingBag,
-  ShoppingCart
+  ShoppingCart,
+  Users
 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 interface SidebarProps {
+
   isOpen: boolean
   onCloseMobile?: () => void
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
+  const { role } = useAuth()
+
   const navItems = [
     { label: 'Overview', path: '/overview', icon: LayoutDashboard },
     { label: 'Demo Store', path: '/demo-checkout', icon: ShoppingBag, badge: 'Sandbox' },
@@ -33,8 +38,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { label: 'Analytics', path: '/analytics', icon: BarChart3 },
     { label: 'Audit Trail', path: '/audit', icon: ScrollText },
     { label: 'Guardrails', path: '/guardrails', icon: ShieldCheck },
+    ...(role === 'admin'
+      ? [{ label: 'User Management', path: '/admin/users', icon: Users, badge: 'Admin' }]
+      : []),
     { label: 'Account', path: '/account', icon: User },
   ]
+
 
   return (
     <>
