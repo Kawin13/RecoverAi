@@ -55,6 +55,7 @@ htmlcov/
 # Machine Learning Artifacts & Large Datasets
 *.pkl
 *.joblib
+!backend/ml/artifacts/*.joblib
 *.onnx
 *.pt
 *.pth

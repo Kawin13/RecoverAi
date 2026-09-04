@@ -187,6 +187,12 @@ export const DemoCheckout: React.FC = () => {
 
       const orderData: CreateOrderResponse = await api.createPaymentOrder(orderPayload)
 
+      if (!orderData.key_id || !orderData.key_id.startsWith('rzp_test_')) {
+        throw new Error(
+          'Razorpay Gateway is unconfigured: A valid Test Mode key (starting with rzp_test_) is required for checkout.'
+        )
+      }
+
       // Track session transition to PAYMENT_METHOD_VIEWED and PAYMENT_INITIATED
       if (activeSessionId) {
         api.transitionCheckoutSession(activeSessionId, { new_status: 'PAYMENT_METHOD_VIEWED' }).catch(() => {})

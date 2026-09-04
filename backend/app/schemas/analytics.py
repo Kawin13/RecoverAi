@@ -90,3 +90,5 @@ class AnalyticsResponse(BaseModel):
     filter_options: FilterOptions
     applied_filters: AnalyticsFilters
     evaluated_at: str
+    data_mode: str = "LIVE TEST DATA"
+    workspace_id: Optional[str] = None

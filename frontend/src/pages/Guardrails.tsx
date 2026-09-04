@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { SectionHeader } from '../components/common/SectionHeader'
 import { api, GuardrailPolicyRuleItem, HumanApprovalQueueItem, WhyStoppedForensicResponse, WorkflowCase } from '../services/api'
+import { HUMAN_APPROVAL_THRESHOLD } from '../constants/thresholds'
 import { useRealtime } from '../lib/useRealtime'
 import { useAuth } from '../context/AuthContext'
 import { formatINR, formatTimeAgo } from '../lib/utils'
@@ -184,7 +185,7 @@ export const Guardrails: React.FC = () => {
               </span>
             )}
           </div>
-          <div className="text-[11px] text-warm-gray-500 mt-1">Transactions ≥ ₹10,000</div>
+          <div className="text-[11px] text-warm-gray-500 mt-1">Human Approval Threshold (≥ ₹{HUMAN_APPROVAL_THRESHOLD.toLocaleString('en-IN')})</div>
         </div>
 
         <div className="bg-surface rounded-md border border-border p-4 shadow-fintech-card">
@@ -227,7 +228,7 @@ export const Guardrails: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-warm-gray-600 mt-0.5">
-              High-value transactions (≥ ₹10,000) diverted for supervisor sign-off before any external link or notification is generated.
+              Transactions meeting or exceeding the Human Approval Threshold (≥ ₹{HUMAN_APPROVAL_THRESHOLD.toLocaleString('en-IN')}) or requiring explicit supervisor guardrails are held for review before dispatch.
             </p>
           </div>
 
@@ -248,7 +249,7 @@ export const Guardrails: React.FC = () => {
             <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
             <p className="font-medium text-graphite">Approval Queue is Clear</p>
             <p className="text-warm-gray-500 mt-1">
-              No high-ticket transactions are currently waiting for human intervention. Autonomous recovery is operating within safe parameters.
+              No transactions currently require human supervisor sign-off. Orders below ₹{HUMAN_APPROVAL_THRESHOLD.toLocaleString('en-IN')} proceed autonomously unless an explicit guardrail requires manual approval.
             </p>
           </div>
         ) : (

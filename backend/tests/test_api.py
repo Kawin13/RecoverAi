@@ -7,8 +7,8 @@ def test_health_check(client):
     assert data["status"] == "healthy"
     assert "RecoverAI" in data["service"]
 
-def test_get_dashboard(client):
-    response = client.get("/api/dashboard")
+def test_get_dashboard(auth_client):
+    response = auth_client.get("/api/dashboard")
     assert response.status_code == 200
     data = response.json()
     assert "metrics" in data
@@ -17,8 +17,8 @@ def test_get_dashboard(client):
     assert data["metrics"]["revenue_at_risk"] > 0
     assert data["metrics"]["recovery_rate"] > 0
 
-def test_list_transactions(client):
-    response = client.get("/api/transactions?page=1&limit=10")
+def test_list_transactions(auth_client):
+    response = auth_client.get("/api/transactions?page=1&limit=10")
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
@@ -32,37 +32,37 @@ def test_list_transactions(client):
     assert "amount" in first_item
     assert "customer" in first_item
 
-def test_filter_transactions_by_method(client):
-    response = client.get("/api/transactions?method=UPI")
+def test_filter_transactions_by_method(auth_client):
+    response = auth_client.get("/api/transactions?method=UPI")
     assert response.status_code == 200
     data = response.json()
     for item in data["items"]:
         assert item["method"] == "UPI"
 
-def test_search_transactions(client):
-    response = client.get("/api/transactions?search=Aditya")
+def test_search_transactions(auth_client):
+    response = auth_client.get("/api/transactions?search=Aditya")
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
     assert "Aditya" in data["items"][0]["customer"]["name"]
 
-def test_get_transaction_by_id(client):
+def test_get_transaction_by_id(auth_client):
     # First get list
-    list_res = client.get("/api/transactions")
+    list_res = auth_client.get("/api/transactions")
     tx_id = list_res.json()["items"][0]["id"]
 
-    res = client.get(f"/api/transactions/{tx_id}")
+    res = auth_client.get(f"/api/transactions/{tx_id}")
     assert res.status_code == 200
     data = res.json()
     assert data["id"] == tx_id
     assert data["customer"] is not None
 
-def test_get_transaction_not_found(client):
-    res = client.get("/api/transactions/non_existent_id_9999")
+def test_get_transaction_not_found(auth_client):
+    res = auth_client.get("/api/transactions/non_existent_id_9999")
     assert res.status_code == 404
 
-def test_list_recovery_cases(client):
-    response = client.get("/api/recovery-cases?page=1&limit=10")
+def test_list_recovery_cases(auth_client):
+    response = auth_client.get("/api/recovery-cases?page=1&limit=10")
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
@@ -74,18 +74,18 @@ def test_list_recovery_cases(client):
     assert "recovery_probability" in first_case
     assert "expected_recovery_value" in first_case
 
-def test_get_recovery_case_by_id(client):
-    list_res = client.get("/api/recovery-cases")
+def test_get_recovery_case_by_id(auth_client):
+    list_res = auth_client.get("/api/recovery-cases")
     case_id = list_res.json()["items"][0]["id"]
 
-    res = client.get(f"/api/recovery-cases/{case_id}")
+    res = auth_client.get(f"/api/recovery-cases/{case_id}")
     assert res.status_code == 200
     data = res.json()
     assert data["id"] == case_id
     assert "transaction" in data
 
-def test_get_audit_trail_for_transaction(client):
-    res = client.get("/api/audit/tx_rec_98214")
+def test_get_audit_trail_for_transaction(auth_client):
+    res = auth_client.get("/api/audit/tx_rec_98214")
     assert res.status_code == 200
     data = res.json()
     assert isinstance(data, list)

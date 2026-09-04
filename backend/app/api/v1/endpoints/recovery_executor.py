@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from app.database.session import get_db
 from app.core.logging import logger
 from app.core.events import event_broadcaster
+from app.core.auth import get_current_user
 from app.models import RecoveryCase, Transaction, PaymentLink
 from app.services.recovery_executor import recovery_state_machine, RecoveryStep
 from app.services.notification_service import notification_service
@@ -63,23 +64,26 @@ def _serialize_case(case: RecoveryCase) -> Dict[str, Any]:
 @router.get("/workflows", response_model=WorkflowListResponse, summary="List Active Recovery Agent Workflows")
 def list_workflows(
     limit: int = 50,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Returns active recovery cases showing their state machine position,
     bounded attempt count, current strategy, and payment link associations.
     Uses eager joinedload to eliminate N+1 network roundtrips.
     """
-    cases = (
+    ws_id = current_user.get("workspace_id")
+    query = (
         db.query(RecoveryCase)
         .options(
             joinedload(RecoveryCase.transaction).joinedload(Transaction.customer),
             joinedload(RecoveryCase.payment_links)
         )
-        .order_by(RecoveryCase.created_at.desc())
-        .limit(limit)
-        .all()
     )
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+
+    cases = query.order_by(RecoveryCase.created_at.desc()).limit(limit).all()
     serialized = [_serialize_case(c) for c in cases]
     active_count = sum(1 for c in cases if c.status not in ("RECOVERED", "STOPPED"))
 
@@ -92,9 +96,14 @@ def list_workflows(
 @router.get("/workflows/{case_id}", response_model=WorkflowCaseResponse, summary="Get Single Recovery Workflow")
 def get_workflow(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    ws_id = current_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+    case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
     return _serialize_case(case)
@@ -103,13 +112,18 @@ def get_workflow(
 def advance_workflow_step(
     case_id: str,
     payload: WorkflowStepRequest = WorkflowStepRequest(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Advances a single case through the 10-state machine by exactly one bounded step.
     Produces an AuditLog row on every transition.
     """
-    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    ws_id = current_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+    case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
 
@@ -128,13 +142,18 @@ def advance_workflow_step(
 def execute_workflow(
     case_id: str,
     payload: WorkflowStepRequest = WorkflowStepRequest(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Runs autonomous pipeline through to WAITING_FOR_CUSTOMER or terminal state.
     Guarantees bounded attempts without infinite loops.
     """
-    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    ws_id = current_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+    case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
 
@@ -154,13 +173,18 @@ def execute_workflow(
 def generate_payment_link(
     case_id: str,
     payload: WorkflowStepRequest = WorkflowStepRequest(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Creates a real Razorpay Test Payment Link (POST /v1/payment_links) for demo checkout.
     Persists to database with exact short_url and emits real-time event.
     """
-    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    ws_id = current_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+    case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
 
@@ -195,6 +219,7 @@ def generate_payment_link(
 
     plink_record = PaymentLink(
         id=f"pl_{uuid.uuid4().hex[:10]}",
+        workspace_id=case.workspace_id,
         payment_link_id=link_res["payment_link_id"],
         recovery_case_id=case.id,
         short_url=link_res["short_url"],
@@ -207,12 +232,17 @@ def generate_payment_link(
     db.commit()
     db.refresh(plink_record)
 
-    event_broadcaster.broadcast_sync("RECOVERY_QUEUE_UPDATED", {
-        "case_id": case.id,
-        "payment_link_id": plink_record.payment_link_id,
-        "short_url": plink_record.short_url,
-        "status": plink_record.status
-    })
+    event_broadcaster.broadcast_sync(
+        "RECOVERY_QUEUE_UPDATED",
+        {
+            "case_id": case.id,
+            "payment_link_id": plink_record.payment_link_id,
+            "short_url": plink_record.short_url,
+            "status": plink_record.status,
+            "workspace_id": str(case.workspace_id)
+        },
+        workspace_id=case.workspace_id
+    )
 
     return plink_record
 
@@ -220,13 +250,18 @@ def generate_payment_link(
 def simulate_outcome(
     case_id: str,
     payload: WorkflowOutcomeRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Simulates customer recovery ('RECOVERED') or timeout ('FAILED').
     Tests downstream state machine branches, attempt counting, and bounded halts.
     """
-    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    ws_id = current_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+    case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
 
@@ -243,7 +278,8 @@ def simulate_outcome(
 @router.get("/notifications", summary="Get Recent Notification Receipts")
 def get_notifications(
     case_id: Optional[str] = None,
-    limit: int = 20
+    limit: int = 20,
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Returns recent notification simulation receipts labeled with DEMO DELIVERY."""
     return notification_service.get_recent_notifications(case_id=case_id, limit=limit)

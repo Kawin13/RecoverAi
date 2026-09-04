@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.get("", response_model=AnalyticsResponse, summary="Get Consolidated Financial Recovery Analytics")
 def get_analytics(
-    time_range: str = Query("7d", description="Time interval: today, 7d, 30d, custom"),
+    time_range: str = Query("7d", description="Time interval: today, 24h, 7d, 30d, custom"),
     start_date: Optional[str] = Query(None, description="Custom start date ISO format"),
     end_date: Optional[str] = Query(None, description="Custom end date ISO format"),
     payment_method: Optional[str] = Query(None, description="Filter by payment method"),
@@ -25,6 +25,7 @@ def get_analytics(
     Revenue at Risk, Revenue Recovered, Recovery Rate, Net Recovery Value,
     velocity metrics, and breakdowns across strategies, failure reasons,
     payment methods, merchant categories, and customer segments.
+    Truthful metrics scoped to workspace and bounded by time filters.
     """
     filters = AnalyticsFilters(
         time_range=time_range,
@@ -35,5 +36,6 @@ def get_analytics(
         strategy=strategy,
         status=status
     )
+    workspace_id = current_user.get("workspace_id")
     service = AnalyticsService(db)
-    return service.get_financial_analytics(filters)
+    return service.get_financial_analytics(filters, workspace_id=workspace_id)

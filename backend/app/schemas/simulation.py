@@ -1,13 +1,24 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from typing import Dict, Any, List, Optional
 
 class PaymentMethodDistribution(BaseModel):
-    UPI: float = Field(0.60, ge=0.0, le=1.0)
-    CARD: float = Field(0.25, ge=0.0, le=1.0)
-    NET_BANKING: float = Field(0.10, ge=0.0, le=1.0)
-    WALLET: float = Field(0.05, ge=0.0, le=1.0)
+    model_config = ConfigDict(extra="forbid")
+
+    UPI: float = Field(0.65, ge=0.0, le=1.0, description="UPI payment rail share")
+    CARD: float = Field(0.20, ge=0.0, le=1.0, description="Credit/Debit card payment rail share")
+    NET_BANKING: float = Field(0.10, ge=0.0, le=1.0, description="NetBanking payment rail share")
+    WALLET: float = Field(0.05, ge=0.0, le=1.0, description="Digital wallet payment rail share")
+
+    @model_validator(mode="after")
+    def validate_total_distribution(self):
+        total = self.UPI + self.CARD + self.NET_BANKING + self.WALLET
+        if not (0.99 <= total <= 1.01):
+            raise ValueError(f"Payment method distribution percentages must total 100% (got {round(total * 100, 1)}%)")
+        return self
 
 class SimulationControls(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     num_transactions: int = Field(250, ge=20, le=2000, description="Total number of transactions in simulation batch")
     merchant_category: str = Field("E-Commerce & Retail", description="Industry merchant vertical")
     payment_methods_dist: PaymentMethodDistribution = Field(default_factory=PaymentMethodDistribution)

@@ -9,8 +9,8 @@ class TransactionRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_id(self, transaction_id: str) -> Optional[Transaction]:
-        return (
+    def get_by_id(self, transaction_id: str, workspace_id: Optional[str] = None) -> Optional[Transaction]:
+        query = (
             self.db.query(Transaction)
             .options(
                 joinedload(Transaction.customer),
@@ -18,8 +18,10 @@ class TransactionRepository:
                 joinedload(Transaction.payment_attempts)
             )
             .filter(Transaction.id == transaction_id)
-            .first()
         )
+        if workspace_id is not None:
+            query = query.filter(Transaction.workspace_id == workspace_id)
+        return query.first()
 
     def list_transactions(
         self,
@@ -29,7 +31,8 @@ class TransactionRepository:
         status: Optional[str] = None,
         search: Optional[str] = None,
         sort_by: str = "created_at",
-        sort_order: str = "desc"
+        sort_order: str = "desc",
+        workspace_id: Optional[str] = None
     ) -> Tuple[List[Transaction], int]:
         query = (
             self.db.query(Transaction)
@@ -41,6 +44,9 @@ class TransactionRepository:
                 joinedload(Transaction.payment_attempts)
             )
         )
+
+        if workspace_id is not None:
+            query = query.filter(Transaction.workspace_id == workspace_id)
 
         if method and method != "ALL":
             query = query.filter(Transaction.method == method)

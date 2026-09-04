@@ -7,7 +7,8 @@ import {
 import { SectionHeader } from '../components/common/SectionHeader'
 import { MetricCard } from '../components/common/MetricCard'
 import { useRealtime } from '../lib/useRealtime'
-import { formatTimeAgo, formatINR } from '../lib/utils'
+import { formatTimeAgo, formatINR, isTerminalState } from '../lib/utils'
+import { ENV } from '../config/env'
 import {
   Bot,
   Play,
@@ -24,7 +25,8 @@ import {
   Copy,
   Check,
   RefreshCw,
-  Layers
+  Layers,
+  AlertOctagon
 } from 'lucide-react'
 
 const STATE_STEPS = [
@@ -44,12 +46,14 @@ export const RecoveryAgent: React.FC = () => {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
   const [isActionBusy, setIsActionBusy] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState<string | null>(null)
   const { subscribe } = useRealtime()
 
   const loadData = useCallback(async () => {
     try {
+      setError(null)
       const [wfRes, notifRes] = await Promise.all([
         api.getWorkflows(50),
         api.getNotifications(undefined, 20)
@@ -61,6 +65,7 @@ export const RecoveryAgent: React.FC = () => {
       }
     } catch (err) {
       console.warn('Failed to load live recovery agent data:', err)
+      setError('Recovery agent workflows temporarily unavailable. Please verify the backend service connection.')
     } finally {
       setIsLoading(false)
     }
@@ -160,14 +165,14 @@ export const RecoveryAgent: React.FC = () => {
     setTimeout(() => setCopiedLink(null), 2000)
   }
 
-  const activeWorkflows = workflows.filter(w => w.status !== 'RECOVERED' && w.status !== 'STOPPED')
+  const activeWorkflows = workflows.filter(w => !isTerminalState(w.status))
   const recoveredCount = workflows.filter(w => w.status === 'RECOVERED').length
   const totalErv = workflows.reduce((acc, w) => acc + (w.expected_recovery_value || 0), 0)
   const totalPaymentLinks = workflows.reduce((acc, w) => acc + (w.payment_links?.length || 0), 0)
 
   const filteredWorkflows = workflows.filter(w => {
     if (statusFilter === 'ALL') return true
-    if (statusFilter === 'ACTIVE') return w.status !== 'RECOVERED' && w.status !== 'STOPPED'
+    if (statusFilter === 'ACTIVE') return !isTerminalState(w.status)
     if (statusFilter === 'WAITING') return w.current_step === 'WAITING_FOR_CUSTOMER'
     if (statusFilter === 'RECOVERED') return w.status === 'RECOVERED'
     if (statusFilter === 'ESCALATED') return w.status === 'ESCALATED' || w.status === 'STOPPED'
@@ -211,6 +216,38 @@ export const RecoveryAgent: React.FC = () => {
     }
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Recovery Agent Operations Center"
+          subtitle="Autonomous 10-Stage Recovery • Maximum 3 Attempts Protection • Razorpay Test Mode Payment Links"
+        />
+        <div className="p-10 text-center bg-surface border border-border rounded-md shadow-fintech-card space-y-4">
+          <AlertOctagon className="w-9 h-9 text-burnt-orange mx-auto" />
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-graphite font-display">
+              Recovery recommendation temporarily unavailable.
+            </h3>
+            <p className="text-xs text-warm-gray-600 max-w-md mx-auto">
+              {error}
+            </p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={loadData}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded-sm text-xs font-medium transition-colors shadow-xs cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Try again</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -218,6 +255,11 @@ export const RecoveryAgent: React.FC = () => {
         subtitle="Autonomous 10-Stage Recovery • Maximum 3 Attempts Protection • Razorpay Test Mode Payment Links"
         actions={
           <div className="flex items-center gap-3">
+            {ENV.DEMO_MODE && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-muted-amber-light text-muted-amber-dark border border-muted-amber/30">
+                Demo Data
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/50 border border-emerald-800/60 rounded text-xs text-emerald-400 font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               AUTONOMOUS RECOVERY ACTIVE
@@ -495,7 +537,14 @@ export const RecoveryAgent: React.FC = () => {
 
           {/* Workflow Cards */}
           <div className="space-y-3">
-            {filteredWorkflows.map(wf => {
+            {filteredWorkflows.length === 0 ? (
+              <div className="p-8 text-center bg-stone-900/60 border border-stone-800 rounded-lg space-y-2">
+                <CheckCircle2 className="w-7 h-7 text-emerald-400 mx-auto" />
+                <h3 className="text-sm font-semibold text-stone-200">No active recovery workflows.</h3>
+                <p className="text-xs text-stone-400 max-w-sm mx-auto">All cases in this queue have completed recovery or reached terminal resolution.</p>
+              </div>
+            ) : (
+              filteredWorkflows.map(wf => {
               const isSelected = selectedCaseId === wf.id
               return (
                 <div
@@ -572,7 +621,8 @@ export const RecoveryAgent: React.FC = () => {
                   </div>
                 </div>
               )
-            })}
+            })
+          )}
           </div>
         </div>
 

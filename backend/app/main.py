@@ -6,118 +6,35 @@ from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
 from app.database.session import engine, SessionLocal
-from app.database.base import Base
 from app.database.seed import seed_database
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.router import api_router
+
+from app.core.config_validator import validate_startup_config
 
 # Initialize structured logging
 setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Ensure tables exist and seed database
-    logger.info("Initializing RecoverAI database schema and tables...")
-    Base.metadata.create_all(bind=engine)
+    # 1. Startup Configuration Validation (Fail-Safe)
+    logger.info(f"Validating configuration for environment: {settings.ENVIRONMENT}...")
+    validate_startup_config(settings)
 
+    # 2. Verify database connectivity
+    logger.info("Verifying database connectivity...")
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
-            dialect = engine.dialect.name
-            if dialect == "postgresql":
-                conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(64);"))
-                conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(64);"))
-                conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS razorpay_signature VARCHAR(255);"))
-                conn.execute(text("ALTER TABLE payment_attempts ADD COLUMN IF NOT EXISTS gateway_payment_id VARCHAR(64);"))
-                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS current_step VARCHAR(64) DEFAULT 'DETECTED';"))
-                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 3;"))
-                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS channel VARCHAR(32) DEFAULT 'IN_APP';"))
-                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS executed_at TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS execution_payload TEXT;"))
-                conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS checkout_session_id VARCHAR(64);"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS cart_amount FLOAT DEFAULT 0.0;"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'STARTED';"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS selected_method VARCHAR(32);"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS payment_attempted BOOLEAN DEFAULT FALSE;"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS abandoned_at TIMESTAMP;"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS is_demo_simulation BOOLEAN DEFAULT TRUE;"))
-                conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS recovery_case_id VARCHAR(64);"))
-                conn.commit()
-            elif dialect == "sqlite":
-                res = conn.execute(text("PRAGMA table_info(transactions);")).fetchall()
-                cols = [r[1] for r in res]
-                if "razorpay_order_id" not in cols:
-                    conn.execute(text("ALTER TABLE transactions ADD COLUMN razorpay_order_id VARCHAR(64);"))
-                if "razorpay_payment_id" not in cols:
-                    conn.execute(text("ALTER TABLE transactions ADD COLUMN razorpay_payment_id VARCHAR(64);"))
-                if "razorpay_signature" not in cols:
-                    conn.execute(text("ALTER TABLE transactions ADD COLUMN razorpay_signature VARCHAR(255);"))
-                res_pa = conn.execute(text("PRAGMA table_info(payment_attempts);")).fetchall()
-                cols_pa = [r[1] for r in res_pa]
-                if "gateway_payment_id" not in cols_pa:
-                    conn.execute(text("ALTER TABLE payment_attempts ADD COLUMN gateway_payment_id VARCHAR(64);"))
-                res_rc = conn.execute(text("PRAGMA table_info(recovery_cases);")).fetchall()
-                cols_rc = [r[1] for r in res_rc]
-                if "current_step" not in cols_rc:
-                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN current_step VARCHAR(64) DEFAULT 'DETECTED';"))
-                if "max_attempts" not in cols_rc:
-                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN max_attempts INTEGER DEFAULT 3;"))
-                if "channel" not in cols_rc:
-                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN channel VARCHAR(32) DEFAULT 'IN_APP';"))
-                if "scheduled_at" not in cols_rc:
-                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN scheduled_at TIMESTAMP;"))
-                if "executed_at" not in cols_rc:
-                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN executed_at TIMESTAMP;"))
-                if "execution_payload" not in cols_rc:
-                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN execution_payload TEXT;"))
-                if "checkout_session_id" not in cols_rc:
-                    conn.execute(text("ALTER TABLE recovery_cases ADD COLUMN checkout_session_id VARCHAR(64);"))
-                
-                res_cs = conn.execute(text("PRAGMA table_info(checkout_sessions);")).fetchall()
-                cols_cs = [r[1] for r in res_cs]
-                if "cart_amount" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN cart_amount FLOAT DEFAULT 0.0;"))
-                if "status" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN status VARCHAR(32) DEFAULT 'STARTED';"))
-                if "selected_method" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN selected_method VARCHAR(32);"))
-                if "payment_attempted" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN payment_attempted BOOLEAN DEFAULT 0;"))
-                if "started_at" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN started_at TIMESTAMP;"))
-                if "last_activity_at" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN last_activity_at TIMESTAMP;"))
-                if "completed_at" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN completed_at TIMESTAMP;"))
-                if "abandoned_at" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN abandoned_at TIMESTAMP;"))
-                if "is_demo_simulation" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN is_demo_simulation BOOLEAN DEFAULT 1;"))
-                if "recovery_case_id" not in cols_cs:
-                    conn.execute(text("ALTER TABLE checkout_sessions ADD COLUMN recovery_case_id VARCHAR(64);"))
-                
-                # Check profiles table in sqlite
-                res_pr = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='profiles';")).fetchall()
-                if not res_pr:
-                    conn.execute(text("""
-                        CREATE TABLE profiles (
-                            id VARCHAR(64) PRIMARY KEY,
-                            full_name VARCHAR(255),
-                            email VARCHAR(255),
-                            avatar_url TEXT,
-                            role VARCHAR(32) NOT NULL DEFAULT 'operator',
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        );
-                    """))
-                conn.commit()
+            conn.execute(text("SELECT 1;"))
+        logger.info("Database connectivity established successfully.")
     except Exception as exc:
-        logger.warning(f"Schema auto-migration notice: {exc}")
-    
+        if str(settings.ENVIRONMENT).lower() == "production":
+            logger.critical(f"FATAL: Production database connectivity verification failed: {exc}")
+            raise RuntimeError(f"FATAL: Production database connectivity verification failed: {exc}")
+        logger.warning(f"Database connection notice on startup: {exc}")
+
+    # Seed minimal baseline records if needed (DML only, no DDL modifications)
     db = SessionLocal()
     try:
         seed_database(db)

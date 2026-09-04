@@ -1,7 +1,7 @@
 import React from 'react'
 
 interface ProbabilityBarProps {
-  value: number // 0.0 to 1.0 or 0 to 100
+  value?: number | null // 0.0 to 1.0 or 0 to 100, or null if unanalyzed
   showLabel?: boolean
   className?: string
 }
@@ -11,6 +11,10 @@ export const ProbabilityBar: React.FC<ProbabilityBarProps> = ({
   showLabel = true,
   className = ''
 }) => {
+  if (value == null || isNaN(value)) {
+    return <span className={`text-xs font-mono text-warm-gray-400 ${className}`}>—</span>
+  }
+
   const percent = value <= 1.0 ? Math.round(value * 100) : Math.round(value)
 
   const getColorClass = (p: number) => {

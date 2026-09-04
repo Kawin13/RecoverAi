@@ -1,12 +1,13 @@
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
+
 from app.models.recovery_cases import RecoveryCase
 from app.models.recovery_outcomes import RecoveryOutcome
 from app.models.transactions import Transaction
-from app.models.recovery_actions import RecoveryAction
-from app.models.agent_decisions import AgentDecision
 from app.models.customers import Customer
+from app.models.workspaces import DEFAULT_WORKSPACE_ID
 from app.schemas.dashboard import (
     DashboardResponse,
     DashboardMetrics,
@@ -21,127 +22,228 @@ class DashboardService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_dashboard_summary(self) -> DashboardResponse:
-        # Aggregated Metrics: Dynamically accounts for recovered outcomes and active at-risk cases
-        db_at_risk = self.db.query(func.sum(RecoveryCase.risk_amount)).filter(RecoveryCase.status != "RECOVERED").scalar() or 0.0
-        db_recovered = self.db.query(func.sum(RecoveryOutcome.recovered_amount)).scalar() or 0.0
+    def get_dashboard_summary(
+        self,
+        time_range: str = "7d",
+        workspace_id: Optional[str] = None
+    ) -> DashboardResponse:
+        now = datetime.utcnow()
+        tr = (time_range or "7d").lower()
 
-        base_at_risk = 681400.0
-        base_recovered = 459840.0
+        # 1. Genuine Time Window Determination
+        if tr in ("24h", "today"):
+            start_time = now - timedelta(hours=24)
+            num_trend_points = 6
+        elif tr == "30d":
+            start_time = now - timedelta(days=30)
+            num_trend_points = 10
+        else:  # default 7d
+            start_time = now - timedelta(days=7)
+            num_trend_points = 7
+        end_time = now
 
-        total_at_risk = max(0.0, base_at_risk - db_recovered + db_at_risk if db_recovered > 0 else (db_at_risk or base_at_risk))
-        total_recovered = base_recovered + db_recovered
+        # 2. Base Query with strictly bound time filters and workspace isolation
+        case_query = (
+            self.db.query(RecoveryCase)
+            .join(Transaction, RecoveryCase.transaction_id == Transaction.id)
+            .outerjoin(RecoveryOutcome, RecoveryCase.id == RecoveryOutcome.recovery_case_id)
+            .filter(
+                RecoveryCase.created_at >= start_time,
+                RecoveryCase.created_at <= end_time
+            )
+        )
+        if workspace_id:
+            case_query = case_query.filter(RecoveryCase.workspace_id == workspace_id)
 
-        active_count = self.db.query(RecoveryCase).filter(
-            RecoveryCase.status.notin_(["RECOVERED", "STOPPED", "ESCALATED"])
-        ).count()
-        if active_count == 0:
-            active_count = 184
+        cases = case_query.all()
 
-        recovery_rate = (total_recovered / (total_at_risk + total_recovered) * 100) if (total_at_risk + total_recovered) > 0 else 67.48
+        # 3. Calculate genuine operational totals (Zero hardcoded additions)
+        total_at_risk = 0.0
+        total_recovered = 0.0
+        active_count = 0
+
+        strategy_stats: Dict[str, Dict[str, Any]] = {}
+        payment_stats: Dict[str, Dict[str, Any]] = {}
+        failure_stats: Dict[str, Dict[str, Any]] = {}
+
+        is_demo_dataset = False
+        is_simulation_dataset = False
+
+        for case in cases:
+            risk = float(case.risk_amount or 0.0)
+            outcome = case.recovery_outcome
+            # Canonical recovery logic: Status MUST be RECOVERED
+            is_rec = (case.status == "RECOVERED")
+            rec_amt = float(outcome.recovered_amount) if (outcome and outcome.recovered_amount is not None) else (risk if is_rec else 0.0)
+
+            # Check provenance tags
+            if case.channel and "SIMULATION" in case.channel.upper():
+                is_simulation_dataset = True
+            if case.transaction and case.transaction.customer_id in ["cust_771", "cust_802", "cust_419", "cust_901", "cust_112"]:
+                is_demo_dataset = True
+
+            if is_rec:
+                total_recovered += rec_amt
+            else:
+                total_at_risk += risk
+
+            if case.status in [
+                "DETECTED", "ANALYZED", "STRATEGY_SELECTED", "GUARDRAIL_CHECKED",
+                "ACTION_SCHEDULED", "ACTION_EXECUTED", "WAITING_FOR_CUSTOMER", "IN_PROGRESS"
+            ]:
+                active_count += 1
+
+            # Strategy breakdown
+            strat_key = (case.selected_strategy or "SMART_PAYLINK_1CLICK").upper()
+            if strat_key not in strategy_stats:
+                strategy_stats[strat_key] = {
+                    "attempts": 0,
+                    "success": 0,
+                    "recovered": 0.0,
+                    "total_time": 0
+                }
+            strategy_stats[strat_key]["attempts"] += 1
+            if is_rec:
+                strategy_stats[strat_key]["success"] += 1
+                strategy_stats[strat_key]["recovered"] += rec_amt
+                strategy_stats[strat_key]["total_time"] += (outcome.time_to_recover_seconds if outcome else 240)
+
+            # Payment method breakdown
+            method_name = (case.transaction.method if case.transaction else "UPI").capitalize()
+            if method_name not in payment_stats:
+                payment_stats[method_name] = {"volume": 0, "recovered": 0.0, "loss": 0.0}
+            payment_stats[method_name]["volume"] += 1
+            if is_rec:
+                payment_stats[method_name]["recovered"] += rec_amt
+            else:
+                payment_stats[method_name]["loss"] += risk
+
+            # Failure category breakdown
+            fail_cat = (case.failure_category or "TECHNICAL_TIMEOUT").upper()
+            if fail_cat not in failure_stats:
+                failure_stats[fail_cat] = {"count": 0, "total": 0.0, "recovered": 0.0}
+            failure_stats[fail_cat]["count"] += 1
+            failure_stats[fail_cat]["total"] += risk
+            if is_rec:
+                failure_stats[fail_cat]["recovered"] += rec_amt
+
+        recovery_rate = (
+            round((total_recovered / (total_at_risk + total_recovered) * 100), 2)
+            if (total_at_risk + total_recovered) > 0
+            else 0.0
+        )
 
         metrics = DashboardMetrics(
             revenue_at_risk=round(total_at_risk, 2),
             revenue_recovered=round(total_recovered, 2),
-            recovery_rate=round(recovery_rate, 2),
+            recovery_rate=recovery_rate,
             active_recoveries=active_count,
-            at_risk_delta_percent=-4.2,
-            recovered_delta_percent=18.6,
-            recovery_rate_delta_percent=5.3,
-            active_delta_count=12
+            at_risk_delta_percent=0.0,
+            recovered_delta_percent=0.0,
+            recovery_rate_delta_percent=0.0,
+            active_delta_count=0
         )
 
-        # 7-day trend
-        trend_data = [
-            TrendPoint(date="Aug 19", at_risk=92400, recovered=58200, target=50000),
-            TrendPoint(date="Aug 20", at_risk=104500, recovered=71300, target=65000),
-            TrendPoint(date="Aug 21", at_risk=88200, recovered=62400, target=55000),
-            TrendPoint(date="Aug 22", at_risk=115000, recovered=78900, target=72000),
-            TrendPoint(date="Aug 23", at_risk=96800, recovered=66140, target=60000),
-            TrendPoint(date="Aug 24", at_risk=89500, recovered=61900, target=58000),
-            TrendPoint(date="Aug 25", at_risk=95000, recovered=61000, target=60000),
-        ]
+        # 4. Generate dynamic trend points across the selected time range
+        trend_data: List[TrendPoint] = []
+        step_seconds = (end_time - start_time).total_seconds() / max(1, num_trend_points)
+        for i in range(num_trend_points):
+            bucket_start = start_time + timedelta(seconds=i * step_seconds)
+            bucket_end = bucket_start + timedelta(seconds=step_seconds)
+            b_at_risk = 0.0
+            b_rec = 0.0
+            for c in cases:
+                if c.created_at and bucket_start <= c.created_at < bucket_end:
+                    r = float(c.risk_amount or 0.0)
+                    if c.status == "RECOVERED":
+                        b_rec += float(c.recovery_outcome.recovered_amount) if (c.recovery_outcome and c.recovery_outcome.recovered_amount is not None) else r
+                    else:
+                        b_at_risk += r
+            label = bucket_start.strftime("%b %d" if tr != "24h" else "%H:%M")
+            trend_data.append(TrendPoint(
+                date=label,
+                at_risk=round(b_at_risk, 2),
+                recovered=round(b_rec, 2),
+                target=round(b_at_risk * 0.70, 2)
+            ))
 
-        # Strategy Performance
-        strategy_performance = [
-            StrategyMetric(
-                strategy="Dynamic 1-Click Paylink",
-                strategy_key="SMART_PAYLINK_1CLICK",
-                attempts=342,
-                success_count=268,
-                recovery_rate=78.36,
-                recovered_amount=214500,
-                avg_recovery_time_minutes=4.2
-            ),
-            StrategyMetric(
-                strategy="UPI Intent Instant Fallback",
-                strategy_key="UPI_INTENT_FALLBACK",
-                attempts=218,
-                success_count=161,
-                recovery_rate=73.85,
-                recovered_amount=128400,
-                avg_recovery_time_minutes=2.1
-            ),
-            StrategyMetric(
-                strategy="Timed Smart Retry (Off-Peak/Salary)",
-                strategy_key="TIMED_SMART_RETRY",
-                attempts=145,
-                success_count=89,
-                recovery_rate=61.38,
-                recovered_amount=64200,
-                avg_recovery_time_minutes=180.0
-            ),
-            StrategyMetric(
-                strategy="AI Incentivized Dunning Email",
-                strategy_key="INCENTIVIZED_DUNNING",
-                attempts=98,
-                success_count=47,
-                recovery_rate=47.96,
-                recovered_amount=34740,
-                avg_recovery_time_minutes=72.5
-            ),
-            StrategyMetric(
-                strategy="WhatsApp Payment Concierge",
-                strategy_key="WHATSAPP_CONCIERGE",
-                attempts=45,
-                success_count=26,
-                recovery_rate=57.78,
-                recovered_amount=18000,
-                avg_recovery_time_minutes=15.0
-            )
-        ]
+        # 5. Build Strategy Performance from genuine cases
+        strategy_labels = {
+            "SMART_PAYLINK_1CLICK": "Dynamic 1-Click Paylink",
+            "UPI_INTENT_FALLBACK": "UPI Intent Instant Fallback",
+            "TIMED_SMART_RETRY": "Timed Smart Retry (Off-Peak/Salary)",
+            "INCENTIVIZED_DUNNING": "AI Incentivized Dunning Email",
+            "WHATSAPP_CONCIERGE": "WhatsApp Payment Concierge",
+            "RETRY_NOW": "Direct Instant Gateway Retry"
+        }
+        strategy_performance: List[StrategyMetric] = []
+        for skey, sdata in strategy_stats.items():
+            att = sdata["attempts"]
+            succ = sdata["success"]
+            rec_val = round(sdata["recovered"], 2)
+            s_rate = round((succ / att * 100) if att > 0 else 0.0, 2)
+            avg_time = round((sdata["total_time"] / (succ * 60)) if succ > 0 else 0.0, 1)
+            strategy_performance.append(StrategyMetric(
+                strategy=strategy_labels.get(skey, skey.replace("_", " ").title()),
+                strategy_key=skey,
+                attempts=att,
+                success_count=succ,
+                recovery_rate=s_rate,
+                recovered_amount=rec_val,
+                avg_recovery_time_minutes=avg_time
+            ))
+        strategy_performance.sort(key=lambda x: x.recovered_amount, reverse=True)
 
-        # Payment Methods
-        payment_breakdown = [
-            PaymentBreakdown(method="UPI", volume=540, recovered_amount=242000, loss_amount=68000, recovery_rate=78.1),
-            PaymentBreakdown(method="Card", volume=320, recovered_amount=146840, loss_amount=89200, recovery_rate=62.2),
-            PaymentBreakdown(method="NetBanking", volume=110, recovered_amount=42000, loss_amount=34000, recovery_rate=55.3),
-            PaymentBreakdown(method="Wallet", volume=55, recovered_amount=19000, loss_amount=8400, recovery_rate=69.3),
-            PaymentBreakdown(method="EMI", volume=35, recovered_amount=10000, loss_amount=22000, recovery_rate=31.2),
-        ]
+        # 6. Build Payment Breakdown from genuine cases
+        payment_breakdown: List[PaymentBreakdown] = []
+        for p_method, p_data in payment_stats.items():
+            vol = p_data["volume"]
+            r_amt = round(p_data["recovered"], 2)
+            l_amt = round(p_data["loss"], 2)
+            p_rate = round((r_amt / (r_amt + l_amt) * 100) if (r_amt + l_amt) > 0 else 0.0, 2)
+            payment_breakdown.append(PaymentBreakdown(
+                method=p_method,
+                volume=vol,
+                recovered_amount=r_amt,
+                loss_amount=l_amt,
+                recovery_rate=p_rate
+            ))
+        payment_breakdown.sort(key=lambda x: x.recovered_amount, reverse=True)
 
-        # Failure Reasons
-        failure_reasons = [
-            FailureReasonBreakdown(category="INSUFFICIENT_FUNDS", label="Insufficient Funds / Card Limit", count=182, total_amount=248000, recovered_amount=161200, recovery_rate=65.0),
-            FailureReasonBreakdown(category="AUTHENTICATION_FAILED", label="3DS / OTP Timeout or Dismiss", count=144, total_amount=172400, recovered_amount=137920, recovery_rate=80.0),
-            FailureReasonBreakdown(category="BANK_TIMEOUT", label="Issuer Bank Downtime / Timeout", count=96, total_amount=124000, recovered_amount=89280, recovery_rate=72.0),
-            FailureReasonBreakdown(category="CHECKOUT_ABANDONED", label="Cart Drop at Final Payment Step", count=85, total_amount=88000, recovered_amount=48400, recovery_rate=55.0),
-            FailureReasonBreakdown(category="CARD_EXPIRED", label="Expired / Invalidated Mandate", count=32, total_amount=49000, recovered_amount=23040, recovery_rate=47.0),
-        ]
+        # 7. Build Failure Reasons from genuine cases
+        failure_reasons: List[FailureReasonBreakdown] = []
+        for f_cat, f_data in failure_stats.items():
+            tot = round(f_data["total"], 2)
+            rec = round(f_data["recovered"], 2)
+            fr_rate = round((rec / tot * 100) if tot > 0 else 0.0, 2)
+            failure_reasons.append(FailureReasonBreakdown(
+                category=f_cat,
+                label=f_cat.replace("_", " ").title(),
+                count=f_data["count"],
+                total_amount=tot,
+                recovered_amount=rec,
+                recovery_rate=fr_rate
+            ))
+        failure_reasons.sort(key=lambda x: x.total_amount, reverse=True)
 
-        # Recent Agent Decisions from DB
-        recent_cases = (
+        # 8. Recent Agent Decisions from DB (Scoped by workspace)
+        recent_cases_q = (
             self.db.query(RecoveryCase)
             .join(Transaction, RecoveryCase.transaction_id == Transaction.id)
             .join(Customer, Transaction.customer_id == Customer.id)
             .order_by(desc(RecoveryCase.created_at))
-            .limit(5)
-            .all()
         )
+        if workspace_id:
+            recent_cases_q = recent_cases_q.filter(RecoveryCase.workspace_id == workspace_id)
+        recent_cases = recent_cases_q.limit(5).all()
 
         recent_activities: List[RecentAgentActivity] = []
         for rc in recent_cases:
-            customer_name = rc.transaction.customer.name if rc.transaction and rc.transaction.customer else "Valued Merchant Customer"
+            customer_name = (
+                rc.transaction.customer.name
+                if rc.transaction and rc.transaction.customer
+                else "Valued Merchant Customer"
+            )
             recent_activities.append(
                 RecentAgentActivity(
                     id=f"act_{rc.id}",
@@ -149,12 +251,20 @@ class DashboardService:
                     transaction_id=rc.transaction_id,
                     customer_name=customer_name,
                     amount=rc.risk_amount,
-                    action=rc.selected_strategy,
+                    action=rc.selected_strategy or "NO_ACTION",
                     status="SUCCESS" if rc.status == "RECOVERED" else "EXECUTED",
-                    erv=rc.expected_recovery_value,
+                    erv=rc.expected_recovery_value or 0.0,
                     explanation=f"Autonomous diagnosis for {rc.failure_category.replace('_', ' ').title()}. Selected {rc.selected_strategy} with ERV ₹{rc.expected_recovery_value:,.0f}."
                 )
             )
+
+        # 9. Explicit Data Mode Determination
+        if is_simulation_dataset:
+            data_mode = "SIMULATED DATA"
+        elif is_demo_dataset:
+            data_mode = "Demo Dataset"
+        else:
+            data_mode = "LIVE TEST DATA"
 
         return DashboardResponse(
             metrics=metrics,
@@ -162,5 +272,7 @@ class DashboardService:
             strategy_performance=strategy_performance,
             payment_breakdown=payment_breakdown,
             failure_reasons=failure_reasons,
-            recent_activities=recent_activities
+            recent_activities=recent_activities,
+            data_mode=data_mode,
+            workspace_id=workspace_id
         )

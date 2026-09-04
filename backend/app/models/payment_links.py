@@ -1,12 +1,14 @@
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
 from app.database.base import Base
+from app.models.workspaces import DEFAULT_WORKSPACE_ID
 
 class PaymentLink(Base):
     __tablename__ = "payment_links"
 
     id = Column(String(64), primary_key=True, index=True)
+    workspace_id = Column(Uuid(as_uuid=False), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, default=DEFAULT_WORKSPACE_ID, index=True)
     payment_link_id = Column(String(64), nullable=False, unique=True, index=True)  # Razorpay plink_...
     recovery_case_id = Column(String(64), ForeignKey("recovery_cases.id"), nullable=False, index=True)
     short_url = Column(String(256), nullable=False)

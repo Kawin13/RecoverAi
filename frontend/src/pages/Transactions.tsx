@@ -5,8 +5,9 @@ import { SectionHeader } from '../components/common/SectionHeader'
 import { TransactionTable } from '../components/common/TransactionTable'
 import { SkeletonLoader } from '../components/common/SkeletonLoader'
 import { ErrorState } from '../components/common/ErrorState'
-import { Download, RefreshCw } from 'lucide-react'
+import { Download, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { useRealtime } from '../lib/useRealtime'
+import { ENV } from '../config/env'
 
 export const Transactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -67,6 +68,11 @@ export const Transactions: React.FC = () => {
         subtitle="Complete chronological record of all processed payment attempts, drop-offs, and recovery outcomes"
         actions={
           <div className="flex items-center gap-2">
+            {ENV.DEMO_MODE && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-muted-amber-light text-muted-amber-dark border border-muted-amber/30">
+                Demo Data
+              </span>
+            )}
             <button
               type="button"
               onClick={() => fetchTransactions(false)}
@@ -93,6 +99,14 @@ export const Transactions: React.FC = () => {
         </div>
       ) : error ? (
         <ErrorState message={error} onRetry={fetchTransactions} />
+      ) : transactions.length === 0 ? (
+        <div className="p-12 text-center bg-surface border border-border rounded-md shadow-fintech-card space-y-2">
+          <CheckCircle2 className="w-8 h-8 text-moss-green mx-auto" />
+          <h3 className="text-sm font-semibold text-graphite font-display">No transactions found.</h3>
+          <p className="text-xs text-warm-gray-500 max-w-sm mx-auto">
+            There are no recorded transactions or payment attempts in this workspace yet.
+          </p>
+        </div>
       ) : (
         <TransactionTable transactions={transactions} showFilters />
       )}

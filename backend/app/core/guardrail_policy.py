@@ -25,7 +25,9 @@ class GuardrailPolicy:
     MAX_AUTOMATIC_RETRIES: int = 2
     MAX_RECOVERY_ATTEMPTS: int = 3
     MAX_MESSAGES_PER_DAY: int = 1
-    HIGH_VALUE_THRESHOLD_INR: float = 10000.0
+    HUMAN_APPROVAL_THRESHOLD_INR: float = 10000.0    # Gated safety threshold requiring supervisor sign-off
+    URGENT_HIGH_VALUE_THRESHOLD_INR: float = 25000.0 # Urgency/risk tiering for high-priority routing
+    HIGH_VALUE_THRESHOLD_INR: float = 10000.0        # Backward compatibility alias for HUMAN_APPROVAL_THRESHOLD_INR
     MIN_RECOVERY_PROBABILITY: float = 0.20
     POLICY_VERSION: str = "2026.08-fintech-v1"
 
@@ -101,10 +103,10 @@ class GuardrailPolicy:
             ),
             PolicyRuleDefinition(
                 id="HIGH_VALUE_THRESHOLD",
-                name="High-Value Transaction Supervision",
+                name="Human Approval Supervision Threshold",
                 category="FINANCIAL",
                 threshold_display=">= ₹10,000 INR",
-                description="Diverts any transaction meeting or exceeding ₹10,000 to the Human Approval Queue before any recovery dispatch.",
+                description="Diverts any transaction meeting or exceeding the human approval threshold (₹10,000) to the Human Approval Queue before any recovery dispatch.",
                 action_on_breach="HUMAN_APPROVAL",
                 enabled=True
             ),
@@ -137,6 +139,8 @@ class GuardrailPolicy:
             "max_automatic_retries": self.MAX_AUTOMATIC_RETRIES,
             "max_recovery_attempts": self.MAX_RECOVERY_ATTEMPTS,
             "max_messages_per_day": self.MAX_MESSAGES_PER_DAY,
+            "human_approval_threshold_inr": self.HUMAN_APPROVAL_THRESHOLD_INR,
+            "urgent_high_value_threshold_inr": self.URGENT_HIGH_VALUE_THRESHOLD_INR,
             "high_value_threshold_inr": self.HIGH_VALUE_THRESHOLD_INR,
             "min_recovery_probability": self.MIN_RECOVERY_PROBABILITY,
             "total_rules": len(self._rules),

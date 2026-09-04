@@ -10,14 +10,14 @@ import {
 } from '../types'
 
 export const mockMetrics: MetricSummary = {
-  revenueAtRisk: 681400,
-  revenueRecovered: 459840,
-  recoveryRate: 67.48,
-  activeRecoveries: 184,
-  atRiskDeltaPercent: -4.2,
-  recoveredDeltaPercent: 18.6,
-  recoveryRateDeltaPercent: 5.3,
-  activeDeltaCount: 12
+  revenueAtRisk: 0,
+  revenueRecovered: 0,
+  recoveryRate: 0.0,
+  activeRecoveries: 0,
+  atRiskDeltaPercent: 0.0,
+  recoveredDeltaPercent: 0.0,
+  recoveryRateDeltaPercent: 0.0,
+  activeDeltaCount: 0
 }
 
 export const mockTrendData = [

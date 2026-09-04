@@ -2,8 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 from app.agents.gemini_agent import gemini_agent
 
-def test_gemini_explain_endpoint(client: TestClient):
-    response = client.post("/api/ai/explain/rc_98214")
+def test_gemini_explain_endpoint(auth_client):
+    response = auth_client.post("/api/ai/explain/rc_98214")
     assert response.status_code == 200
     data = response.json()
 
@@ -14,9 +14,9 @@ def test_gemini_explain_endpoint(client: TestClient):
     assert isinstance(data["operator_notes"], list)
     assert data["source"] in ["gemini-genai-live", "deterministic-fallback"]
 
-def test_gemini_message_multilingual_endpoints(client: TestClient):
+def test_gemini_message_multilingual_endpoints(auth_client):
     # Test English
-    res_en = client.post("/api/ai/message/rc_98214", json={"language": "EN"})
+    res_en = auth_client.post("/api/ai/message/rc_98214", json={"language": "EN"})
     assert res_en.status_code == 200
     data_en = res_en.json()
     assert data_en["language"] == "EN"
@@ -24,20 +24,20 @@ def test_gemini_message_multilingual_endpoints(client: TestClient):
     assert "message_body" in data_en
 
     # Test Hindi
-    res_hi = client.post("/api/ai/message/rc_98214", json={"language": "HI"})
+    res_hi = auth_client.post("/api/ai/message/rc_98214", json={"language": "HI"})
     assert res_hi.status_code == 200
     data_hi = res_hi.json()
     assert data_hi["language"] == "HI"
     assert len(data_hi["message_body"]) > 10
 
     # Test Hinglish
-    res_hinglish = client.post("/api/ai/message/rc_98214", json={"language": "HINGLISH"})
+    res_hinglish = auth_client.post("/api/ai/message/rc_98214", json={"language": "HINGLISH"})
     assert res_hinglish.status_code == 200
     data_hinglish = res_hinglish.json()
     assert data_hinglish["language"] == "HINGLISH"
 
     # Test Tamil
-    res_ta = client.post("/api/ai/message/rc_98214", json={"language": "TA"})
+    res_ta = auth_client.post("/api/ai/message/rc_98214", json={"language": "TA"})
     assert res_ta.status_code == 200
     data_ta = res_ta.json()
     assert data_ta["language"] == "TA"

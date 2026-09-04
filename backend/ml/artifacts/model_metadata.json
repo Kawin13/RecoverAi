@@ -1,9 +1,22 @@
 {
   "model_version": "1.0.0-production",
-  "trained_at": "2026-08-25T16:01:49.987045",
+  "trained_at": "2026-09-03T15:55:53.525916",
   "algorithm": "XGBoost Gradient Boosted Decision Trees",
   "framework": "xgboost 3.2.0 + scikit-learn",
+  "model_name": "XGBoost Gradient Boosted Decision Trees",
   "random_seed": 42,
+  "dataset": {
+    "type": "synthetic",
+    "records": 35000,
+    "disclosure": "Trained and evaluated on synthetic Indian digital payment records with statistical correlations. Not trained on merchant-proven real-world data."
+  },
+  "artifact_checksum": "691351b626216465741995cd118750f209f1a712d3deba7695d45fbc76c10923",
+  "artifact_checksums": {
+    "recovery_model": "691351b626216465741995cd118750f209f1a712d3deba7695d45fbc76c10923",
+    "recovery_preprocessor": "c33b91b258f6e3b777ca3507e7b91cd0a5d833372c433b7737dce03c4278a894",
+    "intervention_model": "0163fa954842502a355f01bf076829c9dfb4faaa350fd948e06c62c27e85e650",
+    "intervention_preprocessor": "f8a11723961caeb5e78542cadaaa6270497f804f11730d5dbdd41dd0c545e056"
+  },
   "features": {
     "categorical": [
       "payment_method",

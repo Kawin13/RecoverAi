@@ -7,8 +7,8 @@ class TransactionService:
     def __init__(self, db: Session):
         self.repo = TransactionRepository(db)
 
-    def get_transaction(self, transaction_id: str) -> Optional[Transaction]:
-        return self.repo.get_by_id(transaction_id)
+    def get_transaction(self, transaction_id: str, workspace_id: Optional[str] = None) -> Optional[Transaction]:
+        return self.repo.get_by_id(transaction_id, workspace_id=workspace_id)
 
     def list_transactions(
         self,
@@ -18,7 +18,8 @@ class TransactionService:
         status: Optional[str] = None,
         search: Optional[str] = None,
         sort_by: str = "created_at",
-        sort_order: str = "desc"
+        sort_order: str = "desc",
+        workspace_id: Optional[str] = None
     ) -> Tuple[List[Transaction], int]:
         return self.repo.list_transactions(
             page=page,
@@ -27,5 +28,6 @@ class TransactionService:
             status=status,
             search=search,
             sort_by=sort_by,
-            sort_order=sort_order
+            sort_order=sort_order,
+            workspace_id=workspace_id
         )

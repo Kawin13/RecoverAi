@@ -13,15 +13,26 @@ from app.models import (
     AuditLog,
     GuardrailEvent,
     RecoveryOutcome,
-    Profile
+    Profile,
+    Workspace,
+    WorkspaceMember,
+    DEFAULT_WORKSPACE_ID
 )
 from app.core.logging import logger
 
 def seed_database(db: Session):
-    # Ensure tables exist
-    Base.metadata.create_all(bind=engine)
-
     now = datetime.utcnow()
+
+    # Ensure default Workspace exists
+    default_ws = db.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
+    if not default_ws:
+        db.add(Workspace(
+            id=DEFAULT_WORKSPACE_ID,
+            name="RecoverAI Demo Workspace",
+            created_at=now,
+            updated_at=now
+        ))
+        db.commit()
 
     # Ensure default Admin Profile exists
     admin_prof = db.query(Profile).filter(Profile.id == "597289a7-e26e-415d-ab4d-fa587e32899a").first()
@@ -30,6 +41,21 @@ def seed_database(db: Session):
             id="597289a7-e26e-415d-ab4d-fa587e32899a",
             email="test.ops@recoverai.io",
             full_name="Revenue Ops Admin",
+            role="admin",
+            created_at=now,
+            updated_at=now
+        ))
+        db.commit()
+
+    admin_member = db.query(WorkspaceMember).filter(
+        WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+        WorkspaceMember.user_id == "597289a7-e26e-415d-ab4d-fa587e32899a"
+    ).first()
+    if not admin_member:
+        db.add(WorkspaceMember(
+            id="00000000-0000-0000-0000-000000000010",
+            workspace_id=DEFAULT_WORKSPACE_ID,
+            user_id="597289a7-e26e-415d-ab4d-fa587e32899a",
             role="admin",
             created_at=now,
             updated_at=now

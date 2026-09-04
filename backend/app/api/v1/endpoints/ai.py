@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 
 from app.database.session import get_db
+from app.core.auth import get_current_user
 from app.models import RecoveryCase, Transaction
 from app.agents.gemini_agent import gemini_agent
 from app.agents.decision_engine import decision_engine
@@ -11,15 +12,37 @@ from app.schemas.ai import AIExplanationResponse, AIMessageRequest, AIMessageRes
 router = APIRouter()
 
 @router.post("/explain/{recovery_id}", response_model=AIExplanationResponse, summary="Explain Autonomous Decision Rationale via LLM")
-def explain_recovery_case(recovery_id: str, db: Session = Depends(get_db)):
+def explain_recovery_case(
+    recovery_id: str,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Generates an executive decision rationale for merchant operators explaining why
     the specific recovery strategy was selected over other candidate actions.
     Uses Google Gemini with deterministic fallback templates.
     """
-    # Lookup recovery case or transaction
-    rc = db.query(RecoveryCase).filter(RecoveryCase.id == recovery_id).first()
-    tx = rc.transaction if rc else db.query(Transaction).filter(Transaction.id == recovery_id).first()
+    # Lookup recovery case or transaction with workspace isolation
+    ws_id = current_user.get("workspace_id")
+    rc_query = db.query(RecoveryCase).filter(RecoveryCase.id == recovery_id)
+    if ws_id is not None:
+        rc_query = rc_query.filter(RecoveryCase.workspace_id == ws_id)
+    rc = rc_query.first()
+
+    tx = None
+    if rc and rc.transaction:
+        tx = rc.transaction
+    else:
+        tx_query = db.query(Transaction).filter(Transaction.id == recovery_id)
+        if ws_id is not None:
+            tx_query = tx_query.filter(Transaction.workspace_id == ws_id)
+        tx = tx_query.first()
+
+    if not tx and not recovery_id.startswith("sim_"):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recovery case or transaction '{recovery_id}' not found in current workspace."
+        )
 
     if tx:
         cust = tx.customer
@@ -38,6 +61,7 @@ def explain_recovery_case(recovery_id: str, db: Session = Depends(get_db)):
             "customer_value": cust.tier if cust else "STANDARD"
         }
     else:
+        # Strictly for simulated runs
         tx_data = {
             "order_id": f"ORD-{recovery_id[-6:] if len(recovery_id)>=6 else '99821'}",
             "amount": 3500.0,
@@ -62,7 +86,8 @@ def explain_recovery_case(recovery_id: str, db: Session = Depends(get_db)):
 def generate_recovery_message(
     recovery_id: str,
     payload: Optional[AIMessageRequest] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Generates a localized, frictionless customer payment recovery notification in
@@ -70,8 +95,26 @@ def generate_recovery_message(
     """
     lang = payload.language if payload else "EN"
 
-    rc = db.query(RecoveryCase).filter(RecoveryCase.id == recovery_id).first()
-    tx = rc.transaction if rc else db.query(Transaction).filter(Transaction.id == recovery_id).first()
+    ws_id = current_user.get("workspace_id")
+    rc_query = db.query(RecoveryCase).filter(RecoveryCase.id == recovery_id)
+    if ws_id is not None:
+        rc_query = rc_query.filter(RecoveryCase.workspace_id == ws_id)
+    rc = rc_query.first()
+
+    tx = None
+    if rc and rc.transaction:
+        tx = rc.transaction
+    else:
+        tx_query = db.query(Transaction).filter(Transaction.id == recovery_id)
+        if ws_id is not None:
+            tx_query = tx_query.filter(Transaction.workspace_id == ws_id)
+        tx = tx_query.first()
+
+    if not tx and not recovery_id.startswith("sim_"):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recovery case or transaction '{recovery_id}' not found in current workspace."
+        )
 
     if tx:
         cust = tx.customer
@@ -89,6 +132,7 @@ def generate_recovery_message(
             "customer_name": cust.name if cust else "Customer"
         }
     else:
+        # Strictly for simulated runs
         tx_data = {
             "order_id": f"ORD-{recovery_id[-6:] if len(recovery_id)>=6 else '99821'}",
             "amount": 2500.0,

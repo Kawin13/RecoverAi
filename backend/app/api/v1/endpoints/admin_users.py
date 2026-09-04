@@ -1,14 +1,18 @@
 """
 RecoverAI - Admin User Management API Endpoints
-Provides secure listing, role promotions/demotions, and last-admin protections.
+Provides secure listing, role promotions/demotions, and atomic last-admin protections.
 """
 
 import json
 import uuid
+import threading
+import urllib.request
+import urllib.error
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -17,11 +21,17 @@ from app.models.audit_logs import AuditLog
 from app.core.auth import require_admin
 from app.core.events import event_broadcaster
 from app.core.logging import logger
+from app.core.config import settings
 
 router = APIRouter()
 
+# Global mutex lock to serialize admin demotions and prevent concurrency races
+_admin_role_mutex = threading.Lock()
+
+
 class UserRoleUpdateRequest(BaseModel):
     role: str = Field(..., description="Target role: 'admin' or 'operator'")
+
 
 class SafeUserResponse(BaseModel):
     id: str
@@ -32,7 +42,167 @@ class SafeUserResponse(BaseModel):
     role: str
     created_at: Optional[str] = None
     last_sign_in_at: Optional[str] = None
-    status: str = "Active"
+    status: Optional[str] = None
+
+
+def fetch_supabase_auth_users(db: Session) -> Dict[str, Dict[str, Any]]:
+    """
+    Retrieves real authentication records through trusted backend Supabase access.
+    Tries:
+    1. Direct PostgreSQL query on auth.users if available.
+    2. Supabase Admin REST API (GET /auth/v1/admin/users) with backend service secret.
+    Never exposes service secret to frontend.
+    Returns: Dict[user_id -> auth_user_dict]
+    """
+    auth_users: Dict[str, Dict[str, Any]] = {}
+
+    # Strategy 1: Direct PostgreSQL auth.users table query if in Postgres
+    if db.bind and db.bind.dialect.name == "postgresql":
+        try:
+            rows = db.execute(text(
+                "SELECT id::text, email, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, banned_until, confirmed_at "
+                "FROM auth.users"
+            )).fetchall()
+            for r in rows:
+                uid = str(r[0])
+                raw_app = r[3] if isinstance(r[3], dict) else (json.loads(r[3]) if r[3] else {})
+                raw_user = r[4] if isinstance(r[4], dict) else (json.loads(r[4]) if r[4] else {})
+                auth_users[uid] = {
+                    "id": uid,
+                    "email": r[1],
+                    "last_sign_in_at": r[2].isoformat() if r[2] else None,
+                    "app_metadata": raw_app,
+                    "user_metadata": raw_user,
+                    "banned_until": r[5].isoformat() if r[5] else None,
+                    "confirmed_at": r[6].isoformat() if r[6] else None
+                }
+            if auth_users:
+                return auth_users
+        except Exception as exc:
+            logger.debug(f"[AdminUsers] Direct auth.users query not available: {exc}")
+
+    # Strategy 2: Supabase Admin REST API using service role / secret key
+    secret_key = settings.SUPABASE_SECRET_KEY or settings.SUPABASE_SERVICE_ROLE_KEY
+    supabase_url = settings.SUPABASE_URL
+    if secret_key and supabase_url:
+        try:
+            url = f"{supabase_url.rstrip('/')}/auth/v1/admin/users?per_page=100"
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "apikey": secret_key,
+                    "Authorization": f"Bearer {secret_key}"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    users_list = data.get("users", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                    for u in users_list:
+                        if isinstance(u, dict) and "id" in u:
+                            auth_users[u["id"]] = u
+                    return auth_users
+        except Exception as exc:
+            logger.debug(f"[AdminUsers] Supabase Admin API fetch not available: {exc}")
+
+    return auth_users
+
+
+def extract_provider_from_metadata(auth_user: Optional[Dict[str, Any]]) -> str:
+    """
+    Extracts provider strictly from Supabase auth identity/provider metadata.
+    Never infers provider from email domain (e.g. '@gmail.com').
+    A Gmail address can use email/password -> returns 'Email'.
+    A Google OAuth user can use a non-gmail domain -> returns 'Google'.
+    """
+    if not auth_user:
+        return "Email"
+
+    app_meta = auth_user.get("app_metadata") or {}
+
+    # 1. Check app_metadata.provider
+    provider = app_meta.get("provider")
+
+    # 2. Check app_metadata.providers list
+    if not provider:
+        providers = app_meta.get("providers")
+        if providers and isinstance(providers, list) and len(providers) > 0:
+            provider = providers[0]
+
+    # 3. Check identities list
+    if not provider:
+        identities = auth_user.get("identities")
+        if identities and isinstance(identities, list) and len(identities) > 0:
+            provider = identities[0].get("provider")
+
+    if provider:
+        p_str = str(provider).strip().lower()
+        if p_str == "google":
+            return "Google"
+        elif p_str in ("email", "password"):
+            return "Email"
+        elif p_str == "github":
+            return "GitHub"
+        elif p_str == "azure":
+            return "Azure"
+        return str(provider).capitalize()
+
+    return "Email"
+
+
+def extract_last_sign_in_from_metadata(auth_user: Optional[Dict[str, Any]]) -> Optional[str]:
+    """
+    Retrieves actual auth.users.last_sign_in_at.
+    Never uses profile.updated_at. Returns None if absent.
+    """
+    if not auth_user:
+        return None
+    val = auth_user.get("last_sign_in_at")
+    if val:
+        if isinstance(val, datetime):
+            return val.isoformat()
+        return str(val)
+    return None
+
+
+def extract_status_from_metadata(auth_user: Optional[Dict[str, Any]]) -> Optional[str]:
+    """
+    Derives safe status from real account/auth state where available.
+    - Suspended if banned_until is set in future
+    - Unconfirmed if email is unconfirmed
+    - Active if confirmed and not banned
+    - None if no meaningful state exists (avoids hardcoding 'Active')
+    """
+    if not auth_user:
+        return None
+
+    # Check banned
+    banned_until = auth_user.get("banned_until")
+    if banned_until:
+        try:
+            if isinstance(banned_until, str):
+                b_dt = datetime.fromisoformat(banned_until.replace("Z", "+00:00"))
+            elif isinstance(banned_until, datetime):
+                b_dt = banned_until
+            else:
+                b_dt = None
+            if b_dt and b_dt.timestamp() > datetime.utcnow().timestamp():
+                return "Suspended"
+        except Exception:
+            return "Suspended"
+
+    # Check unconfirmed
+    if "confirmed_at" in auth_user and auth_user.get("confirmed_at") is None:
+        return "Unconfirmed"
+    if "email_confirmed_at" in auth_user and auth_user.get("email_confirmed_at") is None:
+        return "Unconfirmed"
+
+    # Active if confirmed or authenticated
+    if auth_user.get("confirmed_at") or auth_user.get("email_confirmed_at") or auth_user.get("last_sign_in_at") or auth_user.get("aud") == "authenticated":
+        return "Active"
+
+    return None
+
 
 @router.get("", response_model=List[SafeUserResponse], summary="List All Users with Roles (Admin Only)")
 @router.get("/", response_model=List[SafeUserResponse], include_in_schema=False)
@@ -45,7 +215,7 @@ def list_users(
     Accessible strictly to Administrators. Returns only browser-safe attributes.
     """
     profiles = db.query(Profile).order_by(Profile.created_at.desc()).all()
-    
+
     # If database has no profiles yet, auto-populate the current admin user
     if not profiles and admin_user:
         admin_profile = Profile(
@@ -61,28 +231,36 @@ def list_users(
         db.refresh(admin_profile)
         profiles = [admin_profile]
 
+    # Fetch trusted auth user records from Supabase
+    auth_users_map = fetch_supabase_auth_users(db)
+    # Ensure current admin user auth details are present
+    if admin_user and "id" in admin_user and admin_user["id"] not in auth_users_map:
+        auth_users_map[admin_user["id"]] = admin_user
+
     response_items = []
     for p in profiles:
-        # Determine authentication provider indicator
-        provider = "Email"
-        if p.email and ("gmail.com" in p.email.lower() or "google" in (p.avatar_url or "").lower()):
-            provider = "Google"
+        auth_user = auth_users_map.get(str(p.id))
+
+        provider = extract_provider_from_metadata(auth_user)
+        last_sign_in = extract_last_sign_in_from_metadata(auth_user)
+        user_status = extract_status_from_metadata(auth_user)
 
         response_items.append(
             SafeUserResponse(
-                id=p.id,
+                id=str(p.id),
                 full_name=p.full_name or (p.email.split("@")[0] if p.email else "User"),
                 email=p.email,
                 avatar_url=p.avatar_url,
                 provider=provider,
                 role=p.role or "operator",
-                created_at=p.created_at.isoformat() if p.created_at else datetime.utcnow().isoformat(),
-                last_sign_in_at=p.updated_at.isoformat() if p.updated_at else datetime.utcnow().isoformat(),
-                status="Active"
+                created_at=p.created_at.isoformat() if p.created_at else None,
+                last_sign_in_at=last_sign_in,
+                status=user_status
             )
         )
 
     return response_items
+
 
 @router.patch("/{user_id}/role", response_model=SafeUserResponse, summary="Change User Role (Admin Only)")
 def update_user_role(
@@ -93,7 +271,9 @@ def update_user_role(
 ):
     """
     Promotes or demotes a user between 'admin' and 'operator'.
-    Enforces Last Admin Protection: Rejects demotion if only one administrator remains.
+    Enforces Atomic Last Admin Protection:
+    Uses database-level advisory locking (PostgreSQL) and synchronization mutex
+    to ensure two simultaneous demotions can never result in zero admins.
     Logs immutable audit record for compliance.
     """
     new_role = payload.role.strip().lower()
@@ -103,31 +283,40 @@ def update_user_role(
             detail=f"Invalid role '{payload.role}'. Allowed roles are 'admin' and 'operator'."
         )
 
-    target_profile = db.query(Profile).filter(Profile.id == user_id).first()
-    if not target_profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID '{user_id}' not found."
-        )
+    # Database-level transactional / serialized critical section
+    with _admin_role_mutex:
+        # If running on PostgreSQL, acquire a transaction-level advisory lock
+        if db.bind and db.bind.dialect.name == "postgresql":
+            db.execute(text("SELECT pg_advisory_xact_lock(hashtext('recoverai_admin_role_mutex'))"))
 
-    previous_role = target_profile.role or "operator"
-
-    # LAST ADMIN PROTECTION:
-    # If the target is an admin and is being demoted to operator, verify that another admin exists.
-    if previous_role == "admin" and new_role == "operator":
-        admin_count = db.query(Profile).filter(Profile.role == "admin").count()
-        if admin_count <= 1:
+        target_profile = db.query(Profile).filter(Profile.id == user_id).first()
+        if not target_profile:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="RecoverAI must have at least one Administrator."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with ID '{user_id}' not found."
             )
 
-    # Apply role change
-    timestamp = datetime.utcnow()
-    target_profile.role = new_role
-    target_profile.updated_at = timestamp
-    db.commit()
-    db.refresh(target_profile)
+        previous_role = target_profile.role or "operator"
+
+        # ATOMIC LAST ADMIN PROTECTION:
+        # If target is currently admin and demoting to operator, verify count inside locked transaction
+        if previous_role == "admin" and new_role == "operator":
+            query = db.query(Profile).filter(Profile.role == "admin")
+            if db.bind and db.bind.dialect.name == "postgresql":
+                query = query.with_for_update()
+            admin_count = query.count()
+            if admin_count <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="RecoverAI must have at least one Administrator."
+                )
+
+        # Apply role change
+        timestamp = datetime.utcnow()
+        target_profile.role = new_role
+        target_profile.updated_at = timestamp
+        db.commit()
+        db.refresh(target_profile)
 
     # Format human-readable role labels
     role_labels = {
@@ -176,18 +365,24 @@ def update_user_role(
 
     logger.info(f"[RBAC] {admin_actor} changed role of {target_name} from {previous_role} to {new_role}")
 
-    provider = "Email"
-    if target_profile.email and ("gmail.com" in target_profile.email.lower() or "google" in (target_profile.avatar_url or "").lower()):
-        provider = "Google"
+    # Fetch auth user info for target
+    auth_users_map = fetch_supabase_auth_users(db)
+    auth_user = auth_users_map.get(str(target_profile.id))
+    if not auth_user and target_profile.id == admin_user.get("id"):
+        auth_user = admin_user
+
+    provider = extract_provider_from_metadata(auth_user)
+    last_sign_in = extract_last_sign_in_from_metadata(auth_user)
+    user_status = extract_status_from_metadata(auth_user)
 
     return SafeUserResponse(
-        id=target_profile.id,
+        id=str(target_profile.id),
         full_name=target_profile.full_name or (target_profile.email.split("@")[0] if target_profile.email else "User"),
         email=target_profile.email,
         avatar_url=target_profile.avatar_url,
         provider=provider,
         role=target_profile.role,
         created_at=target_profile.created_at.isoformat() if target_profile.created_at else timestamp.isoformat(),
-        last_sign_in_at=target_profile.updated_at.isoformat() if target_profile.updated_at else timestamp.isoformat(),
-        status="Active"
+        last_sign_in_at=last_sign_in,
+        status=user_status
     )

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.logging import logger
 from app.core.events import event_broadcaster
 from app.models import RecoveryCase, Transaction, AuditLog, PaymentLink, RecoveryAction
+from app.core.config import settings
 from app.services.razorpay_service import razorpay_service
 from app.services.notification_service import notification_service
 from app.agents.decision_engine import decision_engine
@@ -76,6 +77,7 @@ class RecoveryExecutor:
             # Persist PaymentLink record
             plink_record = PaymentLink(
                 id=f"pl_{uuid.uuid4().hex[:10]}",
+                workspace_id=case.workspace_id,
                 payment_link_id=link_res["payment_link_id"],
                 recovery_case_id=case.id,
                 short_url=link_res["short_url"],
@@ -109,7 +111,8 @@ class RecoveryExecutor:
 
         elif strategy == "UPI_SWITCH":
             # Recommend UPI & provide appropriate recovery checkout/payment journey
-            recovery_checkout_url = f"http://localhost:3000/demo-checkout?order_id={tx.order_id if tx else case.id}&method=UPI&recommendation=upi_switch&amount={amount}&recovery_case={case.id}"
+            base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+            recovery_checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id if tx else case.id}&method=UPI&recommendation=upi_switch&amount={amount}&recovery_case={case.id}"
 
             receipt = notification_service.send_recovery_notification(
                 recipient=cust_phone,
@@ -160,7 +163,7 @@ class RecoveryExecutor:
                         amount=amount,
                         failure_reason=case.failure_category,
                         preferred_language=lang,
-                        action_url=f"http://localhost:3000/demo-checkout?order_id={tx.order_id}"
+                        action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={tx.order_id}"
                     )
                     custom_msg = res.get("message")
                 except Exception as e:
@@ -200,6 +203,7 @@ class RecoveryExecutor:
         # Save action history in recovery_actions table
         rec_action = RecoveryAction(
             id=f"act_{uuid.uuid4().hex[:10]}",
+            workspace_id=case.workspace_id,
             recovery_case_id=case.id,
             strategy=strategy,
             channel=case.channel or "IN_APP",
@@ -249,6 +253,7 @@ class RecoveryStateMachine:
         # Audit record
         audit = AuditLog(
             id=f"aud_{uuid.uuid4().hex[:10]}",
+            workspace_id=case.workspace_id,
             recovery_case_id=case.id,
             transaction_id=case.transaction_id,
             actor=actor,
@@ -269,18 +274,23 @@ class RecoveryStateMachine:
         db.refresh(case)
 
         # Real-time SSE broadcast
-        event_broadcaster.broadcast_sync("RECOVERY_AGENT_TRANSITION", {
-            "case_id": case.id,
-            "transaction_id": case.transaction_id,
-            "prev_step": prev_step,
-            "current_step": next_step,
-            "strategy": case.selected_strategy,
-            "attempt_count": case.attempt_count,
-            "max_attempts": case.max_attempts,
-            "risk_amount": case.risk_amount,
-            "details": details,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        event_broadcaster.broadcast_sync(
+            "RECOVERY_AGENT_TRANSITION",
+            {
+                "case_id": case.id,
+                "transaction_id": case.transaction_id,
+                "prev_step": prev_step,
+                "current_step": next_step,
+                "strategy": case.selected_strategy,
+                "attempt_count": case.attempt_count,
+                "max_attempts": case.max_attempts,
+                "risk_amount": case.risk_amount,
+                "details": details,
+                "workspace_id": str(case.workspace_id),
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            workspace_id=case.workspace_id
+        )
 
         return case
 

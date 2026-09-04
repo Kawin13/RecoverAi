@@ -29,7 +29,12 @@ class ConfidenceInterval(BaseModel):
 class ModelMetadata(BaseModel):
     version: str
     algorithm: str
-    trained_at: str
+    trained_at: Optional[str] = None
+    model_name: Optional[str] = None
+    loaded: Optional[bool] = None
+    artifact_checksum: Optional[str] = None
+    scoring_mode: Optional[str] = None
+    dataset_type: Optional[str] = None
 
 class PredictionResponse(BaseModel):
     recovery_probability: float = Field(..., description="Overall recovery probability P(recovery)")

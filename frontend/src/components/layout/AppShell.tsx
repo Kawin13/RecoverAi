@@ -5,6 +5,7 @@ import { TopNavigation } from './TopNavigation'
 import { ErrorBoundary } from '../common/ErrorBoundary'
 import { useRealtime } from '../../lib/useRealtime'
 import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react'
+import { ENV } from '../../config/env'
 
 export const AppShell: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -22,6 +23,19 @@ export const AppShell: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
         <TopNavigation onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         
+        {/* Explicit Demo Mode Banner */}
+        {ENV.DEMO_MODE && (
+          <div className="bg-amber-500/10 text-amber-900 border-b border-amber-500/20 px-4 py-1.5 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-200 text-amber-900 border border-amber-300 font-mono">
+                Demo Data
+              </span>
+              <span>
+                <strong>Explicit Demo Mode Active:</strong> Operating with demonstration dataset. Real payment gateway and database state are not impacted.
+              </span>
+            </div>
+          </div>
+        )}
         {/* Network Disconnect & Fallback Banner */}
         {status === 'OFFLINE' && (
           <div className="bg-warm-gray-900 text-warm-gray-200 px-4 py-2 text-xs flex items-center justify-between border-b border-warm-gray-800">

@@ -29,6 +29,7 @@ import {
 } from 'recharts'
 import { Link } from 'react-router-dom'
 import { useRealtime } from '../lib/useRealtime'
+import { ENV } from '../config/env'
 
 export const Overview: React.FC = () => {
   const [timeRange, setTimeRange] = useState('7d')
@@ -45,7 +46,7 @@ export const Overview: React.FC = () => {
     }
     try {
       const [dashRes, txRes] = await Promise.all([
-        api.getDashboard(),
+        api.getDashboard(timeRange),
         api.getTransactions({ limit: 5 })
       ])
       setData(dashRes)
@@ -108,9 +109,27 @@ export const Overview: React.FC = () => {
       {/* Top Banner / Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-graphite tracking-tight font-display">
-            Autonomous Revenue Recovery
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-graphite tracking-tight font-display">
+              Autonomous Revenue Recovery
+            </h1>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase border tracking-wider shadow-xs ${
+              data.dataMode === 'SIMULATED DATA'
+                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                : (ENV.DEMO_MODE || data.dataMode === 'Demo Dataset')
+                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                data.dataMode === 'SIMULATED DATA'
+                  ? 'bg-purple-500'
+                  : (ENV.DEMO_MODE || data.dataMode === 'Demo Dataset')
+                  ? 'bg-amber-500'
+                  : 'bg-emerald-500'
+              }`} />
+              {ENV.DEMO_MODE ? 'Demo Data' : (data.dataMode || 'LIVE TEST DATA')}
+            </span>
+          </div>
           <p className="text-xs text-warm-gray-600 mt-1">
             Real-time failed payment diagnosis, recovery likelihood scoring, and ERV-optimized intervention workflows.
           </p>

@@ -1,5 +1,6 @@
 import time
 import json
+import uuid
 import urllib.request
 from typing import Optional, Dict, Any
 from fastapi import Request, HTTPException, status, Depends
@@ -10,6 +11,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.database.session import SessionLocal, get_db
 from app.models.profiles import Profile
+from app.models.workspaces import Workspace, WorkspaceMember, DEFAULT_WORKSPACE_ID
 
 
 security_scheme = HTTPBearer(auto_error=False)
@@ -73,8 +75,8 @@ def resolve_authoritative_role(
     try:
         profile = db.query(Profile).filter(Profile.id == user_id).first()
         if not profile:
-            # Designated initial system admin for demo / test environment
-            role_to_assign = "admin" if (user_id == "597289a7-e26e-415d-ab4d-fa587e32899a" or email == "test.ops@recoverai.io") else "operator"
+            # New users default strictly to 'operator'. The authoritative source is public.profiles.role.
+            role_to_assign = "operator"
             profile = Profile(
                 id=user_id,
                 email=email,
@@ -113,6 +115,73 @@ def resolve_authoritative_role(
         if owns_db:
             db.close()
 
+def resolve_user_workspace(
+    user_id: str,
+    requested_workspace_id: Optional[str] = None,
+    db: Optional[Session] = None
+) -> tuple[str, str]:
+    """
+    Resolves authoritative workspace membership for the user.
+    If requested_workspace_id is specified: verifies the user belongs to it;
+    raises 403 Forbidden if not.
+    If requested_workspace_id is None: returns user's primary workspace.
+    If user has no workspace membership yet: auto-provisions enrollment into DEFAULT_WORKSPACE_ID.
+    Returns: (workspace_id, member_role)
+    """
+    owns_db = False
+    if db is None:
+        db = SessionLocal()
+        owns_db = True
+
+    try:
+        if requested_workspace_id:
+            member = db.query(WorkspaceMember).filter(
+                WorkspaceMember.workspace_id == requested_workspace_id,
+                WorkspaceMember.user_id == user_id
+            ).first()
+            if not member:
+                logger.warning(f"[Tenant Isolation] Access denied: User '{user_id}' requested workspace '{requested_workspace_id}' but is not a member.")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You do not belong to the requested workspace."
+                )
+            return str(member.workspace_id), member.role
+
+        # Find primary workspace membership
+        member = db.query(WorkspaceMember).filter(WorkspaceMember.user_id == user_id).first()
+        if not member:
+            # Ensure default workspace exists
+            default_ws = db.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
+            if not default_ws:
+                default_ws = Workspace(
+                    id=DEFAULT_WORKSPACE_ID,
+                    name="RecoverAI Demo Workspace",
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.add(default_ws)
+                db.commit()
+
+            profile = db.query(Profile).filter(Profile.id == user_id).first()
+            user_role = profile.role if profile and profile.role in ("admin", "operator") else "operator"
+
+            member = WorkspaceMember(
+                id=str(uuid.uuid4()),
+                workspace_id=DEFAULT_WORKSPACE_ID,
+                user_id=user_id,
+                role=user_role,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(member)
+            db.commit()
+            db.refresh(member)
+
+        return str(member.workspace_id), member.role
+    finally:
+        if owns_db:
+            db.close()
+
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
@@ -120,7 +189,8 @@ async def get_current_user(
 ) -> Dict[str, Any]:
     """
     FastAPI dependency for authenticating user-facing API endpoints.
-    Validates Supabase session token and loads authoritative role from public.profiles.
+    Validates Supabase session token, loads authoritative role from public.profiles,
+    and enforces verified workspace isolation membership.
     """
     token = credentials.credentials if credentials else None
     
@@ -140,8 +210,16 @@ async def get_current_user(
                 avatar_url=avatar_url,
                 db=db
             )
+            requested_ws = request.headers.get("x-workspace-id") or request.query_params.get("workspace_id")
+            workspace_id, ws_role = resolve_user_workspace(
+                user_id=user_id,
+                requested_workspace_id=requested_ws,
+                db=db
+            )
             user["role"] = role
             user["profile"] = profile_data
+            user["workspace_id"] = workspace_id
+            user["workspace_role"] = ws_role
             return user
 
         # If token was explicitly provided but invalid/expired, reject with 401
@@ -150,28 +228,6 @@ async def get_current_user(
             detail="Invalid or expired session token. Please sign in again.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    # Sandbox / Demo fallback for local development & headless tests
-    if settings.DEBUG or settings.ENVIRONMENT == "development":
-        demo_header = request.headers.get("X-RecoverAI-Demo")
-        client_host = request.client.host if request.client else "127.0.0.1"
-        if demo_header == "active" or client_host in ("127.0.0.1", "localhost", "testclient"):
-            demo_user_id = "597289a7-e26e-415d-ab4d-fa587e32899a"
-            demo_email = "test.ops@recoverai.io"
-            role, profile_data = resolve_authoritative_role(
-                user_id=demo_user_id,
-                email=demo_email,
-                full_name="Revenue Ops Admin",
-                avatar_url=None,
-                db=db
-            )
-            return {
-                "id": demo_user_id,
-                "email": demo_email,
-                "role": role,
-                "profile": profile_data,
-                "user_metadata": {"full_name": "Revenue Ops Admin"}
-            }
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -227,8 +283,24 @@ async def get_optional_current_user(
                 full_name=(user.get("user_metadata") or {}).get("full_name"),
                 avatar_url=(user.get("user_metadata") or {}).get("avatar_url")
             )
+            requested_ws = request.headers.get("x-workspace-id") or request.query_params.get("workspace_id")
+            try:
+                workspace_id, ws_role = resolve_user_workspace(
+                    user_id=user.get("id"),
+                    requested_workspace_id=requested_ws
+                )
+                user["workspace_id"] = workspace_id
+                user["workspace_role"] = ws_role
+            except HTTPException:
+                pass
             user["role"] = role
             user["profile"] = profile_data
             return user
     return None
+
+def get_current_workspace_id(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> str:
+    """Helper dependency to extract current verified workspace_id."""
+    return str(current_user.get("workspace_id", DEFAULT_WORKSPACE_ID))
 

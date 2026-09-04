@@ -98,15 +98,15 @@ export interface Transaction {
   failureCategory: FailureCategory
   failureReason: string
   failureDiagnosis?: FailureDiagnosis
-  recoveryProbability: number // 0.0 to 1.0 (Overall Recoverability)
-  recommendedAction: RecoveryStrategy
+  recoveryProbability?: number | null // 0.0 to 1.0, or null if unanalyzed
+  recommendedAction?: RecoveryStrategy | string | null // Selected strategy, or null if unanalyzed
   selectedAction?: SelectedAction
   status: RecoveryStatus
   riskLevel: RiskLevel
   createdAt: string
   updatedAt: string
   recoveredAmount?: number
-  erv: number // Expected Recovery Value
+  erv?: number | null // Expected Recovery Value, or null if unanalyzed
   attemptsCount: number
 }
 

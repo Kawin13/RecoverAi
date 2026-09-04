@@ -46,7 +46,7 @@ def test_create_order_server_side(client, db_session):
     assert tx.amount == 4999.0
     assert tx.status == "PENDING"
 
-def test_verify_payment_signature_success(client, db_session):
+def test_verify_payment_signature_success(client, db_session, monkeypatch):
     # 1. Create initial order
     payload = {
         "product_id": "ecommerce_order",
@@ -66,6 +66,19 @@ def test_verify_payment_signature_success(client, db_session):
     message = f"{order_id}|{payment_id}".encode("utf-8")
     secret = settings.RAZORPAY_KEY_SECRET.encode("utf-8")
     valid_signature = hmac.new(secret, message, hashlib.sha256).hexdigest()
+
+    # Mock gateway returning captured payment details for this test payment
+    from app.services.razorpay_service import razorpay_service
+    def _mock_fetch(pid):
+        return {
+            "id": pid,
+            "status": "captured",
+            "order_id": order_id,
+            "amount": 149900,
+            "currency": "INR",
+            "method": "card"
+        }
+    monkeypatch.setattr(razorpay_service, "fetch_payment_details", _mock_fetch)
 
     verify_payload = {
         "razorpay_order_id": order_id,

@@ -147,9 +147,9 @@ def test_unique_reference_id_generation():
         assert ref1.startswith("rcov_")
         assert ref2.startswith("rcov_")
 
-def test_database_persistence_of_exact_short_url(client, db_session):
+def test_database_persistence_of_exact_short_url(auth_client, db_session):
     """Verifies that the endpoint persists the exact short_url without any modifications or fake paths."""
-    order_res = client.post("/api/payments/order", json={
+    order_res = auth_client.post("/api/payments/order", json={
         "product_id": "prod_pl_test",
         "product_name": "Test Recovery Item",
         "amount": 1200.0,
@@ -187,7 +187,7 @@ def test_database_persistence_of_exact_short_url(client, db_session):
     }
 
     with patch("app.api.v1.endpoints.recovery_executor.razorpay_service.create_payment_link", return_value=mock_link_res):
-        res = client.post(f"/api/recovery/workflows/{case.id}/payment-link", json={"is_live_demo": True})
+        res = auth_client.post(f"/api/recovery/workflows/{case.id}/payment-link", json={"is_live_demo": True})
         assert res.status_code == 200
         data = res.json()
         assert data["short_url"] == exact_rzp_url

@@ -56,3 +56,26 @@ export function formatTimeAgo(timestamp: string | Date): string {
   const days = Math.floor(hours / 24)
   return `${days}d ago`
 }
+
+/**
+ * Canonical terminal states that must be excluded from active at-risk operations.
+ * Matches backend: SUCCESS, CAPTURED, RECOVERED, CLOSED, CANCELLED, STOPPED, FAILED_TERMINAL.
+ */
+export const TERMINAL_STATES = new Set<string>([
+  'SUCCESS',
+  'CAPTURED',
+  'RECOVERED',
+  'CLOSED',
+  'CANCELLED',
+  'STOPPED',
+  'FAILED_TERMINAL'
+])
+
+export function isTerminalState(status?: string | null): boolean {
+  if (!status) return false
+  return TERMINAL_STATES.has(status.toUpperCase())
+}
+
+export function isActiveCase(status?: string | null): boolean {
+  return !isTerminalState(status)
+}

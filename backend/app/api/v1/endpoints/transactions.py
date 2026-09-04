@@ -20,6 +20,7 @@ def list_transactions(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
+    ws_id = current_user.get("workspace_id")
     service = TransactionService(db)
     items, total = service.list_transactions(
         page=page,
@@ -28,7 +29,8 @@ def list_transactions(
         status=status,
         search=search,
         sort_by=sort_by,
-        sort_order=sort_order
+        sort_order=sort_order,
+        workspace_id=ws_id
     )
 
     total_pages = (total + limit - 1) // limit if total > 0 else 1
@@ -47,8 +49,9 @@ def get_transaction(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
+    ws_id = current_user.get("workspace_id")
     service = TransactionService(db)
-    tx = service.get_transaction(id)
+    tx = service.get_transaction(id, workspace_id=ws_id)
     if not tx:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

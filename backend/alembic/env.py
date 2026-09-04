@@ -20,7 +20,10 @@ from app.models import (
     AgentDecision,
     AuditLog,
     GuardrailEvent,
-    RecoveryOutcome
+    RecoveryOutcome,
+    WebhookEvent,
+    PaymentLink,
+    Profile
 )
 
 config = context.config
@@ -30,13 +33,28 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+def get_url() -> str:
+    url = config.get_main_option("sqlalchemy.url")
+    if not url or "driver://user:pass" in url:
+        url = settings.get_effective_database_url()
+    return url
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "foreign_key_constraint" and name == "fk_profiles_auth_users":
+        return False
+    return True
+
 def run_migrations_offline() -> None:
-    url = settings.get_effective_database_url()
+    url = get_url()
+    version_table_schema = config.get_main_option("version_table_schema")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        version_table_schema=version_table_schema,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -44,7 +62,9 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = settings.get_effective_database_url()
+    url = get_url()
+    configuration["sqlalchemy.url"] = url
+    version_table_schema = config.get_main_option("version_table_schema")
 
     connectable = engine_from_config(
         configuration,
@@ -54,7 +74,11 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            version_table_schema=version_table_schema,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

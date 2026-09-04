@@ -10,14 +10,14 @@ def _setup_users_and_case(db_session):
     s = uuid.uuid4().hex[:8]
     # Setup Admin Profile
     admin_prof = Profile(
-        id=f"usr_admin_{s}",
+        id=str(uuid.uuid4()),
         email=f"admin_{s}@recoverai.io",
         full_name=f"Admin User {s}",
         role="admin"
     )
     # Setup Operator Profile
     operator_prof = Profile(
-        id=f"usr_operator_{s}",
+        id=str(uuid.uuid4()),
         email=f"operator_{s}@recoverai.io",
         full_name=f"Operator User {s}",
         role="operator"
@@ -140,7 +140,7 @@ def test_last_admin_protection(client, db_session, monkeypatch):
     # Ensure only 1 admin exists
     db_session.query(Profile).filter(Profile.role == "admin").delete()
     solo_admin = Profile(
-        id=f"usr_solo_admin_{s}",
+        id=str(uuid.uuid4()),
         email=f"soloadmin_{s}@recoverai.io",
         full_name=f"Solo Admin {s}",
         role="admin"

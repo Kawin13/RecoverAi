@@ -64,7 +64,7 @@ def test_checkout_session_lifecycle_transitions(client, db_session):
     assert t4.json()["status"] == "COMPLETED"
     assert t4.json()["completed_at"] is not None
 
-def test_abandonment_detection_timeout(client, db_session):
+def test_abandonment_detection_timeout(auth_client, db_session):
     # Create an inactive session 45 seconds old
     cust = Customer(id="cust_abn_timeout", name="Timeout Tester", email="timeout@example.com", tier="STANDARD")
     old_time = datetime.utcnow() - timedelta(seconds=45)
@@ -83,7 +83,7 @@ def test_abandonment_detection_timeout(client, db_session):
     db_session.commit()
 
     # Call scanner with timeout_seconds=15
-    res = client.post("/api/checkout/check-abandoned?timeout_seconds=15")
+    res = auth_client.post("/api/checkout/check-abandoned?timeout_seconds=15")
     assert res.status_code == 200
     data = res.json()
     assert data["abandoned_count"] >= 1
@@ -139,8 +139,8 @@ def test_abandonment_strategy_selection(client, db_session):
     assert metrics_hi["selected_strategy"] == "PAYMENT_LINK"
     assert metrics_hi["channel"] == "SMS_SIMULATION"
 
-def test_abandonment_funnel_metrics(client, db_session):
-    res = client.get("/api/checkout/funnel")
+def test_abandonment_funnel_metrics(auth_client, db_session):
+    res = auth_client.get("/api/checkout/funnel")
     assert res.status_code == 200
     data = res.json()
     assert "total_sessions" in data
@@ -160,8 +160,8 @@ def test_abandonment_funnel_metrics(client, db_session):
         "Recovered"
     ]
 
-def test_abandonment_cases_list_api(client, db_session):
-    res = client.get("/api/checkout/cases")
+def test_abandonment_cases_list_api(auth_client, db_session):
+    res = auth_client.get("/api/checkout/cases")
     assert res.status_code == 200
     data = res.json()
     assert isinstance(data, list)

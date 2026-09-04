@@ -39,10 +39,14 @@ class RazorpayService:
         notes: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
-        Creates a Razorpay order server-side.
-        Attempts real gateway API call if configured; falls back to sandbox order simulation
-        if credentials are unconfigured or during mock test sessions.
+        Creates a genuine Razorpay order server-side via POST /v1/orders.
+        Strictly fails closed: if Razorpay API fails or is unreachable, does NOT
+        generate a fake order_* fallback. Raises RuntimeError with safe message.
         """
+        if not self.is_configured:
+            logger.error("Razorpay order creation aborted: Gateway credentials are not configured.")
+            raise RuntimeError("Payment service temporarily unavailable.")
+
         receipt = receipt or f"rcpt_{int(time.time())}_{uuid.uuid4().hex[:6]}"
         payload = {
             "amount": amount_paise,
@@ -51,40 +55,30 @@ class RazorpayService:
             "notes": notes or {}
         }
 
-        if self.is_configured:
-            try:
-                with httpx.Client(timeout=10.0) as client:
-                    resp = client.post(
-                        f"{RAZORPAY_API_BASE}/orders",
-                        auth=(self.key_id, self.key_secret),
-                        json=payload
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(
+                    f"{RAZORPAY_API_BASE}/orders",
+                    auth=(self.key_id, self.key_secret),
+                    json=payload
+                )
+                if resp.status_code in (200, 201):
+                    order_data = resp.json()
+                    logger.info(f"Razorpay order successfully created via Gateway API: {order_data.get('id')}")
+                    return order_data
+                else:
+                    logger.error(
+                        f"Razorpay API rejected order creation with status {resp.status_code}: {resp.text}"
                     )
-                    if resp.status_code in (200, 201):
-                        logger.info(f"Razorpay order successfully created via Gateway API: {resp.json().get('id')}")
-                        return resp.json()
-                    else:
-                        logger.warning(
-                            f"Razorpay API responded with status {resp.status_code}: {resp.text}. "
-                            "Using local order generation for continuity."
-                        )
-            except Exception as exc:
-                logger.error(f"Failed to communicate with Razorpay API: {exc}. Using fallback order.")
-
-        # Fallback / Sandbox order ID (format: order_<14_chars>)
-        fallback_order_id = f"order_{uuid.uuid4().hex[:14]}"
-        return {
-            "id": fallback_order_id,
-            "entity": "order",
-            "amount": amount_paise,
-            "amount_paid": 0,
-            "amount_due": amount_paise,
-            "currency": currency,
-            "receipt": receipt,
-            "status": "created",
-            "attempts": 0,
-            "notes": notes or {},
-            "created_at": int(time.time())
-        }
+                    raise RuntimeError("Payment service temporarily unavailable.")
+        except httpx.HTTPError as exc:
+            logger.error(f"Failed to communicate with Razorpay API during order creation: {exc}")
+            raise RuntimeError("Payment service temporarily unavailable.")
+        except RuntimeError:
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error communicating with Razorpay API: {exc}")
+            raise RuntimeError("Payment service temporarily unavailable.")
 
     def verify_payment_signature(
         self,
@@ -95,9 +89,14 @@ class RazorpayService:
         """
         Cryptographically verifies the Razorpay payment signature using HMAC SHA-256.
         Formula: HMAC-SHA256(order_id + "|" + payment_id, secret) == signature
+        Uses constant-time comparison (hmac.compare_digest) to prevent timing attacks.
         """
         if not self.key_secret:
             logger.error("Signature verification failed: RAZORPAY_KEY_SECRET is not configured.")
+            return False
+
+        if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
+            logger.warning("Signature verification rejected: Missing required identifier or signature.")
             return False
 
         message = f"{razorpay_order_id}|{razorpay_payment_id}".encode("utf-8")
@@ -112,8 +111,7 @@ class RazorpayService:
         is_valid = hmac.compare_digest(generated_signature, razorpay_signature)
         if not is_valid:
             logger.warning(
-                f"Signature verification mismatch for Order {razorpay_order_id} & Payment {razorpay_payment_id}. "
-                f"Expected HMAC: {generated_signature[:8]}..., Provided: {razorpay_signature[:8]}..."
+                f"Signature verification mismatch for Order {razorpay_order_id} & Payment {razorpay_payment_id}."
             )
         else:
             logger.info(f"Payment signature verified successfully for Order {razorpay_order_id}")
@@ -122,30 +120,48 @@ class RazorpayService:
 
     def fetch_payment_details(self, razorpay_payment_id: str) -> Dict[str, Any]:
         """
-        Fetches payment attributes directly from Razorpay (method, status, bank/vpa).
-        Falls back to sanitized defaults if API is unreachable.
+        Fetches payment attributes directly from Razorpay (GET /v1/payments/{id}).
+        Strictly fails closed: if Razorpay API is unreachable or returns error,
+        it does NOT fabricate status='captured'. Returns status='unverified' so
+        the caller rejects unverified payments.
         """
-        if self.is_configured and not razorpay_payment_id.startswith("pay_sim_"):
-            try:
-                with httpx.Client(timeout=8.0) as client:
-                    resp = client.get(
-                        f"{RAZORPAY_API_BASE}/payments/{razorpay_payment_id}",
-                        auth=(self.key_id, self.key_secret)
-                    )
-                    if resp.status_code == 200:
-                        return resp.json()
-                    logger.warning(f"Fetch payment {razorpay_payment_id} returned {resp.status_code}: {resp.text}")
-            except Exception as e:
-                logger.error(f"Error fetching payment details from Razorpay: {e}")
+        if not self.is_configured:
+            logger.error(f"Cannot fetch payment {razorpay_payment_id}: Razorpay credentials unconfigured.")
+            return {
+                "id": razorpay_payment_id,
+                "status": "unverified",
+                "error": "Gateway credentials unconfigured",
+                "amount": 0,
+                "currency": "INR"
+            }
 
-        # Default fallback
-        return {
-            "id": razorpay_payment_id,
-            "status": "captured",
-            "method": "Card",
-            "amount": 0,
-            "currency": "INR"
-        }
+        try:
+            with httpx.Client(timeout=8.0) as client:
+                resp = client.get(
+                    f"{RAZORPAY_API_BASE}/payments/{razorpay_payment_id}",
+                    auth=(self.key_id, self.key_secret)
+                )
+                if resp.status_code == 200:
+                    return resp.json()
+                logger.warning(
+                    f"Fetch payment {razorpay_payment_id} returned HTTP {resp.status_code}: {resp.text}"
+                )
+                return {
+                    "id": razorpay_payment_id,
+                    "status": "unverified",
+                    "error": f"Gateway returned status {resp.status_code}",
+                    "amount": 0,
+                    "currency": "INR"
+                }
+        except Exception as e:
+            logger.error(f"Error fetching payment details from Razorpay: {e}")
+            return {
+                "id": razorpay_payment_id,
+                "status": "unverified",
+                "error": str(e),
+                "amount": 0,
+                "currency": "INR"
+            }
 
     def verify_webhook_signature(
         self,
@@ -280,7 +296,8 @@ class RazorpayService:
 
         # Explicit local simulation fallback (only when is_live_demo is False)
         fallback_id = f"demo_plink_{uuid.uuid4().hex[:10]}"
-        fallback_url = f"http://localhost:3000/demo-checkout?payment_link_id={fallback_id}&amount={round(amount_paise / 100.0, 2)}"
+        base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+        fallback_url = f"{base_url}/demo-checkout?payment_link_id={fallback_id}&amount={round(amount_paise / 100.0, 2)}"
         logger.info(f"Generated local demo Payment Link: {fallback_id} -> {fallback_url}")
         return {
             "success": True,

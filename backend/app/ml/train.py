@@ -266,12 +266,35 @@ def save_artifacts(rec_model, rec_preprocessor, rec_metrics,
     joblib.dump(int_model, int_model_path)
     joblib.dump(int_preprocessor, int_prep_path)
 
+    import hashlib
+    def get_file_sha256(filepath):
+        h = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    rec_hash = get_file_sha256(rec_model_path)
+
     metadata = {
         "model_version": "1.0.0-production",
         "trained_at": datetime.utcnow().isoformat(),
         "algorithm": "XGBoost Gradient Boosted Decision Trees",
         "framework": "xgboost 3.2.0 + scikit-learn",
+        "model_name": "XGBoost Gradient Boosted Decision Trees",
         "random_seed": 42,
+        "dataset": {
+            "type": "synthetic",
+            "records": 35000,
+            "disclosure": "Trained and evaluated on synthetic Indian digital payment records with statistical correlations. Not trained on merchant-proven real-world data."
+        },
+        "artifact_checksum": rec_hash,
+        "artifact_checksums": {
+            "recovery_model": rec_hash,
+            "recovery_preprocessor": get_file_sha256(rec_prep_path),
+            "intervention_model": get_file_sha256(int_model_path),
+            "intervention_preprocessor": get_file_sha256(int_prep_path)
+        },
         "features": {
             "categorical": CATEGORICAL_FEATURES,
             "numerical": NUMERICAL_FEATURES,

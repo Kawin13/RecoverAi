@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends, Body, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 
 from app.database.session import get_db
+from app.core.auth import get_current_user
 from app.models import Transaction, RecoveryCase, AgentDecision, AuditLog
 from app.agents.decision_engine import decision_engine
 from app.agents.evaluator import strategy_evaluator
@@ -19,16 +20,34 @@ router = APIRouter()
 def analyze_recovery_decision(
     transaction_id: str,
     override: Optional[RecoveryAnalysisOverride] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Executes full decision intelligence: Failure diagnosis, ML propensity estimation,
     ERV minor unit calculation, guardrail filtering, and factual evidence synthesis.
     Updates the transaction's recovery case and records an AgentDecision in the database.
     """
-    tx = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    ws_id = current_user.get("workspace_id")
+    tx_query = db.query(Transaction).filter(Transaction.id == transaction_id)
+    if ws_id is not None:
+        tx_query = tx_query.filter(Transaction.workspace_id == ws_id)
+    tx = tx_query.first()
     
-    # Extract data from DB transaction or use dynamic defaults
+    has_override = bool(
+        override and any(
+            getattr(override, field, None) is not None
+            for field in ["amount", "payment_method", "failure_reason", "attempt_count"]
+        )
+    )
+
+    if not tx and not transaction_id.startswith("sim_") and not has_override:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction '{transaction_id}' not found in current workspace."
+        )
+
+    # Extract data from DB transaction or use simulation parameters
     if tx:
         cust = tx.customer
         latest_attempt = tx.payment_attempts[0] if tx.payment_attempts else None
@@ -46,7 +65,7 @@ def analyze_recovery_decision(
             "customer_tenure_days": 180
         }
     else:
-        # Dynamic fallback data if simulated ID
+        # Dynamic fallback data strictly for simulated IDs or overrides
         tx_data = {
             "transaction_id": transaction_id,
             "amount": 3500.0,
@@ -82,6 +101,7 @@ def analyze_recovery_decision(
         # Save AgentDecision record
         new_dec = AgentDecision(
             id=f"dec_{int(hash(transaction_id) % 1000000)}",
+            workspace_id=tx.workspace_id,
             recovery_case_id=rc.id,
             model_name="XGBoost+ERV-Deterministic",
             input_features=str(tx_data),
@@ -95,14 +115,25 @@ def analyze_recovery_decision(
     return decision_result
 
 @router.get("/{id}/strategies", response_model=List[StrategyComparisonItem], summary="Get Strategy Evaluation Ranking for Case/Transaction")
-def get_recovery_strategies(id: str, db: Session = Depends(get_db)):
+def get_recovery_strategies(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Returns the real-time ranked comparison of all candidate recovery strategies for a transaction or case.
     """
-    tx = db.query(Transaction).filter((Transaction.id == id) | (Transaction.order_id == id)).first()
+    ws_id = current_user.get("workspace_id")
+    tx_q = db.query(Transaction).filter((Transaction.id == id) | (Transaction.order_id == id))
+    if ws_id is not None:
+        tx_q = tx_q.filter(Transaction.workspace_id == ws_id)
+    tx = tx_q.first()
     if not tx:
         # Check recovery case
-        rc = db.query(RecoveryCase).filter(RecoveryCase.id == id).first()
+        rc_q = db.query(RecoveryCase).filter(RecoveryCase.id == id)
+        if ws_id is not None:
+            rc_q = rc_q.filter(RecoveryCase.workspace_id == ws_id)
+        rc = rc_q.first()
         if rc:
             tx = rc.transaction
 

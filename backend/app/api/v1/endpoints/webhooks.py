@@ -168,6 +168,35 @@ async def razorpay_webhook_receiver(
 
     # 6. Event Handling Logic
     if event_type in ("payment.captured", "order.paid", "payment_link.paid"):
+        # Validate expected amount if transaction is present
+        if tx and amount_paise:
+            expected_paise = int(round(tx.amount * 100))
+            if amount_paise != expected_paise:
+                logger.warning(
+                    f"Webhook amount mismatch for Tx {tx.id}: Expected {expected_paise} paise, received {amount_paise} paise."
+                )
+                # Fail closed on amount mismatch
+                db.add(
+                    AuditLog(
+                        id=f"aud_{uuid.uuid4().hex[:10]}",
+                        workspace_id=tx.workspace_id,
+                        transaction_id=tx.id,
+                        actor="RAZORPAY_WEBHOOK_SECURITY",
+                        action_type="AMOUNT_MISMATCH_REJECTED",
+                        target_resource=tx.id,
+                        details=f"Webhook {event_type} amount mismatch. Expected {expected_paise} paise, got {amount_paise} paise. Ignored.",
+                        created_at=datetime.utcnow()
+                    )
+                )
+                db.commit()
+                return {
+                    "status": "amount_mismatch_ignored",
+                    "event_id": event_id,
+                    "message": "Payment amount does not match transaction."
+                }
+
+        ws_id = tx.workspace_id if tx else (case.workspace_id if case else (plink_record.workspace_id if plink_record else None))
+
         if plink_record:
             plink_record.status = "paid"
             plink_record.updated_at = datetime.utcnow()
@@ -184,6 +213,7 @@ async def razorpay_webhook_receiver(
             if not outcome:
                 outcome = RecoveryOutcome(
                     id=f"out_{uuid.uuid4().hex[:10]}",
+                    workspace_id=ws_id,
                     recovery_case_id=case.id,
                     recovered_amount=recovered_val,
                     payment_method_used=normalized_method,
@@ -206,6 +236,7 @@ async def razorpay_webhook_receiver(
             # Record payment attempt
             attempt = PaymentAttempt(
                 id=f"pa_{uuid.uuid4().hex[:10]}",
+                workspace_id=ws_id,
                 transaction_id=tx.id,
                 attempt_number=len(tx.payment_attempts) + 1,
                 gateway="Razorpay",
@@ -220,6 +251,7 @@ async def razorpay_webhook_receiver(
         db.add(
             AuditLog(
                 id=f"aud_{uuid.uuid4().hex[:10]}",
+                workspace_id=ws_id,
                 transaction_id=tx.id if tx else (case.transaction_id if case else None),
                 recovery_case_id=case.id if case else (tx.recovery_case.id if tx and tx.recovery_case else None),
                 actor="RAZORPAY_WEBHOOK",
@@ -317,6 +349,7 @@ async def razorpay_webhook_receiver(
             # Record payment attempt
             attempt = PaymentAttempt(
                 id=f"pa_{uuid.uuid4().hex[:10]}",
+                workspace_id=tx.workspace_id,
                 transaction_id=tx.id,
                 attempt_number=len(tx.payment_attempts) + 1,
                 gateway="Razorpay",
@@ -334,6 +367,7 @@ async def razorpay_webhook_receiver(
             if not tx.recovery_case:
                 case = RecoveryCase(
                     id=f"case_{uuid.uuid4().hex[:8]}",
+                    workspace_id=tx.workspace_id,
                     transaction_id=tx.id,
                     risk_amount=tx.amount,
                     failure_category=error_reason,
@@ -351,6 +385,7 @@ async def razorpay_webhook_receiver(
             db.add(
                 AuditLog(
                     id=f"aud_{uuid.uuid4().hex[:10]}",
+                    workspace_id=tx.workspace_id,
                     transaction_id=tx.id,
                     recovery_case_id=tx.recovery_case.id if tx.recovery_case else None,
                     actor="RAZORPAY_WEBHOOK",

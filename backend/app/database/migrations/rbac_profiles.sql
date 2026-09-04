@@ -5,7 +5,7 @@
 
 -- 1. Create public.profiles table
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id VARCHAR(64) PRIMARY KEY,
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT,
     email TEXT,
     avatar_url TEXT,
@@ -25,7 +25,7 @@ CREATE POLICY "Users can view own profile"
     ON public.profiles
     FOR SELECT
     TO authenticated
-    USING (auth.uid()::text = id::text);
+    USING (auth.uid() = id);
 
 -- 4. RLS Policy: Users can update their own profile (display fields only)
 DROP POLICY IF EXISTS "Users can update own profile display fields" ON public.profiles;
@@ -33,8 +33,8 @@ CREATE POLICY "Users can update own profile display fields"
     ON public.profiles
     FOR UPDATE
     TO authenticated
-    USING (auth.uid()::text = id::text)
-    WITH CHECK (auth.uid()::text = id::text);
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
 
 
 -- 5. Trigger Function to protect role from direct browser updates

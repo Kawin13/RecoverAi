@@ -18,13 +18,12 @@ import {
   mockAuditLogs
 } from '../data/mockData'
 import { supabase } from '../lib/supabase'
+import { ENV } from '../config/env'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8000` : 'http://127.0.0.1:8000')
+export const API_BASE_URL = ENV.API_BASE_URL
 
 export async function getAuthHeaders(contentType: string = 'application/json'): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {
-    'X-RecoverAI-Demo': 'active'
-  }
+  const headers: Record<string, string> = {}
   if (contentType) {
     headers['Content-Type'] = contentType
   }
@@ -76,6 +75,8 @@ export interface DashboardData {
   paymentBreakdown: PaymentBreakdownItem[]
   failureReasons: FailureReasonItem[]
   recentActivities: AgentActivity[]
+  dataMode?: string
+  workspaceId?: string
 }
 
 export interface TransactionListResponse {
@@ -206,158 +207,13 @@ export const api = {
         body: JSON.stringify({})
       })
       if (res.ok) {
-        return res.json()
+        return await res.json()
       }
     } catch (e) {
-      console.warn(`API analyzeRecovery(${transactionId}) unreachable:`, e)
+      console.warn(`API analyzeRecovery(${transactionId}) error:`, e)
     }
 
-    // Calibrated deterministic client fallback
-    return {
-      transaction_id: transactionId,
-      selected_action: 'UPI_SWITCH',
-      action_code: 'UPI_SWITCH',
-      display_name: 'UPI Switch',
-      customer_cta: 'Pay with UPI',
-      canonical_action: {
-        action_code: 'UPI_SWITCH',
-        display_name: 'UPI Switch',
-        customer_cta: 'Pay with UPI',
-        execution_handler: 'execute_upi_switch'
-      },
-      recovery_probability: 0.88,
-      expected_recovery_value: 3978.0,
-      erv_paise: 397800,
-      cost: 4.0,
-      friction_penalty: 3.0,
-      diagnosis: {
-        failure_reason_code: 'BANK_GATEWAY_TIMEOUT',
-        failure_reason: 'BANK_GATEWAY_TIMEOUT',
-        failure_category: 'TEMPORARY',
-        taxonomy: 'TEMPORARY',
-        failure_source: 'GATEWAY',
-        human_readable_reason: 'Temporary bank gateway timeout',
-        confidence: 0.98,
-        raw_gateway_code: 'UPI_TIMEOUT',
-        is_transient: true,
-        is_retryable_same_instrument: true,
-        requires_customer_switch: false,
-        is_risk_blocked: false,
-        attempt_number: 1,
-        description: 'Transient bank switch or gateway timeout detected. Dynamic UPI switch recommended.'
-      },
-      strategies_comparison: [
-        {
-          action: 'UPI_SWITCH',
-          action_code: 'UPI_SWITCH',
-          display_name: 'UPI Switch',
-          customer_cta: 'Pay with UPI',
-          probability: 0.88,
-          expected_recovery_value: 3978.0,
-          erv_paise: 397800,
-          cost: 4.0,
-          friction_penalty: 3.0,
-          risk_penalty: 0.0,
-          allowed: true,
-          rank: 1
-        },
-        {
-          action: 'PAYMENT_LINK',
-          action_code: 'PAYMENT_LINK',
-          display_name: '1-Click Paylink',
-          customer_cta: 'Open Payment Link',
-          probability: 0.82,
-          expected_recovery_value: 3680.0,
-          erv_paise: 368000,
-          cost: 5.0,
-          friction_penalty: 6.0,
-          risk_penalty: 0.0,
-          allowed: true,
-          rank: 2
-        },
-        {
-          action: 'RETRY_LATER',
-          action_code: 'RETRY_LATER',
-          display_name: 'Timed Retry',
-          customer_cta: 'Retry Later',
-          probability: 0.74,
-          expected_recovery_value: 3315.0,
-          erv_paise: 331500,
-          cost: 2.5,
-          friction_penalty: 2.0,
-          risk_penalty: 0.0,
-          allowed: true,
-          rank: 3
-        },
-        {
-          action: 'PERSONALIZED_REMINDER',
-          action_code: 'PERSONALIZED_REMINDER',
-          display_name: 'Personalized Reminder',
-          customer_cta: 'Complete Payment',
-          probability: 0.70,
-          expected_recovery_value: 3120.0,
-          erv_paise: 312000,
-          cost: 8.0,
-          friction_penalty: 12.0,
-          risk_penalty: 0.0,
-          allowed: true,
-          rank: 4
-        },
-        {
-          action: 'HUMAN_ESCALATION',
-          action_code: 'HUMAN_ESCALATION',
-          display_name: 'Concierge Escalation',
-          customer_cta: 'Support Will Contact You',
-          probability: 0.75,
-          expected_recovery_value: 3300.0,
-          erv_paise: 330000,
-          cost: 45.0,
-          friction_penalty: 25.0,
-          risk_penalty: 0.0,
-          allowed: true,
-          rank: 5
-        },
-        {
-          action: 'RETRY_NOW',
-          action_code: 'RETRY_NOW',
-          display_name: 'Immediate Retry',
-          customer_cta: 'Retry Payment',
-          probability: 0.25,
-          expected_recovery_value: 1120.0,
-          erv_paise: 112000,
-          cost: 2.0,
-          friction_penalty: 1.0,
-          risk_penalty: 0.0,
-          allowed: true,
-          rank: 6
-        },
-        {
-          action: 'NO_ACTION',
-          action_code: 'NO_ACTION',
-          display_name: 'No Action',
-          customer_cta: 'none',
-          probability: 0.0,
-          expected_recovery_value: 0.0,
-          erv_paise: 0,
-          cost: 0.0,
-          friction_penalty: 0.0,
-          risk_penalty: 0.0,
-          allowed: true,
-          rank: 7
-        }
-      ],
-      evidence: [
-        'Initial payment attempt dropped on UPI rail.',
-        'Customer has 15/16 (94%) historical successful transactions (Preferred rail: UPI).',
-        'Immediate retry probability is only 25.0% due to switch downtime / instrument decline physics.',
-        'UPI Switch yields highest Expected Recovery Value of ₹3,978.00 with 88.0% recovery probability.'
-      ],
-      decision_metadata: {
-        engine_version: '2.0.0-production',
-        rules_evaluated: 5,
-        model: 'Likelihood Scoring + ERV Engine'
-      }
-    }
+    throw new Error('Recovery recommendation temporarily unavailable.')
   },
 
   async fetchAIExplanation(recoveryId: string): Promise<AIExplanationData> {
@@ -367,27 +223,13 @@ export const api = {
         headers: { 'Content-Type': 'application/json' }
       })
       if (res.ok) {
-        return res.json()
+        return await res.json()
       }
     } catch (e) {
-      console.warn(`API fetchAIExplanation(${recoveryId}) unreachable:`, e)
+      console.warn(`API fetchAIExplanation(${recoveryId}) error:`, e)
     }
 
-    return {
-      recovery_id: recoveryId,
-      selected_action: 'UPI_SWITCH',
-      display_name: 'UPI Switch',
-      summary: 'The engine selected UPI Switch due to high historical customer affinity (94%) and degraded primary bank switches.',
-      operator_notes: [
-        'Immediate same-rail retry would encounter active gateway switch timeout.',
-        'Dynamic UPI deep link will route transaction to customer secondary app.',
-        'ERV is maximized with minimal customer friction penalty.'
-      ],
-      customer_risk_profile: 'Low',
-      source: 'deterministic-fallback',
-      model: 'rule-template-engine',
-      generated_at: new Date().toISOString()
-    }
+    throw new Error('AI explanation temporarily unavailable.')
   },
 
   async fetchAIMessage(recoveryId: string, language: string = 'EN'): Promise<AIMessageData> {
@@ -398,61 +240,18 @@ export const api = {
         body: JSON.stringify({ language })
       })
       if (res.ok) {
-        return res.json()
+        return await res.json()
       }
     } catch (e) {
-      console.warn(`API fetchAIMessage(${recoveryId}, ${language}) unreachable:`, e)
+      console.warn(`API fetchAIMessage(${recoveryId}, ${language}) error:`, e)
     }
 
-    const messages: Record<string, AIMessageData> = {
-      HI: {
-        recovery_id: recoveryId,
-        language: 'HI',
-        headline: 'UPI से भुगतान पूरा करें',
-        message_body: 'नमस्ते, आपका भुगतान पूरा नहीं हो सका। नीचे दिए गए सुरक्षित लिंक से UPI द्वारा तुरंत भुगतान पूरा करें।',
-        call_to_action: 'UPI से भुगतान करें',
-        channel_recommended: 'WhatsApp',
-        source: 'deterministic-fallback',
-        model: 'rule-template-engine'
-      },
-      HINGLISH: {
-        recovery_id: recoveryId,
-        language: 'HINGLISH',
-        headline: 'Complete Payment via UPI',
-        message_body: 'Hi! Aapka payment complete nahi ho paya. Worry mat kijiye, neeche diye link se 1-click me UPI switch karke complete karein.',
-        call_to_action: 'Pay with UPI',
-        channel_recommended: 'WhatsApp / SMS',
-        source: 'deterministic-fallback',
-        model: 'rule-template-engine'
-      },
-      TA: {
-        recovery_id: recoveryId,
-        language: 'TA',
-        headline: 'UPI மூலம் பணம் செலுத்துங்கள்',
-        message_body: 'வணக்கம், உங்கள் பரிவர்த்தனை நிறைவடையவில்லை. கீழே உள்ள இணைப்பைப் பயன்படுத்தி UPI மூலம் உடனடியாக முடிக்கவும்.',
-        call_to_action: 'UPI மூலம் பணம் செலுத்துங்கள்',
-        channel_recommended: 'WhatsApp',
-        source: 'deterministic-fallback',
-        model: 'rule-template-engine'
-      },
-      EN: {
-        recovery_id: recoveryId,
-        language: 'EN',
-        headline: 'Continue your payment via UPI',
-        message_body: 'Hi, your payment could not be completed. You can securely continue using UPI through the recovery link below.',
-        call_to_action: 'Pay with UPI',
-        channel_recommended: 'WhatsApp / SMS',
-        source: 'deterministic-fallback',
-        model: 'rule-template-engine'
-      }
-    }
-
-    return messages[language] || messages.EN
+    throw new Error('AI message temporarily unavailable.')
   },
 
-  async getDashboard(): Promise<DashboardData> {
+  async getDashboard(timeRange = '7d'): Promise<DashboardData> {
     try {
-      const res = await authFetch(`${API_BASE_URL}/api/dashboard`)
+      const res = await authFetch(`${API_BASE_URL}/api/dashboard?time_range=${timeRange}`)
       if (res.ok) {
         const raw = await res.json()
         return {
@@ -466,7 +265,7 @@ export const api = {
             recoveryRateDeltaPercent: raw.metrics.recovery_rate_delta_percent,
             activeDeltaCount: raw.metrics.active_delta_count,
           },
-          trendData: raw.trend_data || mockTrendData,
+          trendData: raw.trend_data || (ENV.DEMO_MODE ? mockTrendData : []),
           strategyPerformance: raw.strategy_performance?.map((s: any) => ({
             strategy: s.strategy,
             strategyKey: s.strategy_key,
@@ -475,14 +274,14 @@ export const api = {
             recoveryRate: s.recovery_rate,
             recoveredAmount: s.recovered_amount,
             avgRecoveryTimeMinutes: s.avg_recovery_time_minutes
-          })) || mockStrategyPerformance,
+          })) || (ENV.DEMO_MODE ? mockStrategyPerformance : []),
           paymentBreakdown: raw.payment_breakdown?.map((p: any) => ({
             method: p.method,
             volume: p.volume,
             recoveredAmount: p.recovered_amount,
             lossAmount: p.loss_amount,
             recoveryRate: p.recovery_rate
-          })) || mockPaymentBreakdown,
+          })) || (ENV.DEMO_MODE ? mockPaymentBreakdown : []),
           failureReasons: raw.failure_reasons?.map((f: any) => ({
             category: f.category,
             label: f.label,
@@ -490,7 +289,7 @@ export const api = {
             totalAmount: f.total_amount,
             recoveredAmount: f.recovered_amount,
             recoveryRate: f.recovery_rate
-          })) || mockFailureReasons,
+          })) || (ENV.DEMO_MODE ? mockFailureReasons : []),
           recentActivities: raw.recent_activities?.map((a: any) => ({
             id: a.id,
             timestamp: a.timestamp,
@@ -501,21 +300,28 @@ export const api = {
             status: a.status,
             erv: a.erv,
             explanation: a.explanation
-          })) || mockAgentActivities
+          })) || (ENV.DEMO_MODE ? mockAgentActivities : []),
+          dataMode: raw.data_mode || (ENV.DEMO_MODE ? 'Demo Dataset' : 'LIVE DATA'),
+          workspaceId: raw.workspace_id
         }
       }
     } catch (e) {
-      console.warn('API getDashboard unreachable, falling back to local dataset:', e)
+      console.warn('API getDashboard error:', e)
     }
 
-    return {
-      metrics: mockMetrics,
-      trendData: mockTrendData,
-      strategyPerformance: mockStrategyPerformance,
-      paymentBreakdown: mockPaymentBreakdown,
-      failureReasons: mockFailureReasons,
-      recentActivities: mockAgentActivities
+    if (ENV.DEMO_MODE) {
+      return {
+        metrics: mockMetrics,
+        trendData: mockTrendData,
+        strategyPerformance: mockStrategyPerformance,
+        paymentBreakdown: mockPaymentBreakdown,
+        failureReasons: mockFailureReasons,
+        recentActivities: mockAgentActivities,
+        dataMode: 'Demo Dataset'
+      }
     }
+
+    throw new Error('Unable to load dashboard data. Please check your connection and try again.')
   },
 
   async getTransactions(params: {
@@ -536,7 +342,7 @@ export const api = {
       const res = await authFetch(`${API_BASE_URL}/api/transactions?${query.toString()}`)
       if (res.ok) {
         const raw = await res.json()
-        const items: Transaction[] = raw.items.map((t: any) => ({
+        const items: Transaction[] = (raw.items || []).map((t: any) => ({
           id: t.id,
           orderId: t.order_id,
           customer: {
@@ -550,42 +356,52 @@ export const api = {
           amount: t.amount,
           currency: t.currency,
           method: t.method,
-          failureCategory: t.recovery_case?.failure_category || (t.payment_attempts?.[0]?.error_category || 'AUTHENTICATION_FAILED'),
-          failureReason: t.payment_attempts?.[0]?.error_description || (t.recovery_case?.failure_category ? t.recovery_case.failure_category.replace(/_/g, ' ') : 'Payment dropped during processing'),
-          recoveryProbability: t.recovery_case?.recovery_probability || 0.75,
-          recommendedAction: t.recovery_case?.selected_strategy || 'UPI_SWITCH',
+          failureCategory: t.recovery_case?.failure_category || (t.payment_attempts?.[0]?.error_category || 'UNKNOWN'),
+          failureReason: t.payment_attempts?.[0]?.error_description || (t.recovery_case?.failure_category ? t.recovery_case.failure_category.replace(/_/g, ' ') : (t.error_description || 'Payment dropped during processing')),
+          recoveryProbability: t.recovery_case?.recovery_probability !== undefined && t.recovery_case?.recovery_probability !== null
+            ? t.recovery_case.recovery_probability
+            : (t.recovery_probability !== undefined && t.recovery_probability !== null ? t.recovery_probability : null),
+          recommendedAction: t.recovery_case?.selected_strategy || t.selected_strategy || null,
           status: t.recovery_case?.status || t.status,
           riskLevel: (t.customer?.tier === 'VIP' || t.customer?.tier === 'ENTERPRISE' || t.amount >= 25000) ? 'HIGH' : t.amount >= 10000 ? 'MEDIUM' : 'LOW',
           createdAt: t.created_at,
           updatedAt: t.updated_at,
-          erv: t.recovery_case?.expected_recovery_value || t.amount * 0.75,
+          erv: t.recovery_case?.expected_recovery_value !== undefined && t.recovery_case?.expected_recovery_value !== null
+            ? t.recovery_case.expected_recovery_value
+            : (t.expected_recovery_value !== undefined && t.expected_recovery_value !== null
+              ? t.expected_recovery_value
+              : (t.recovery_case?.recovery_probability ? t.amount * t.recovery_case.recovery_probability : null)),
           attemptsCount: t.payment_attempts?.length || 1
         }))
 
         return {
           items,
-          total: raw.total,
-          page: raw.page,
-          limit: raw.limit,
-          totalPages: raw.total_pages
+          total: raw.total ?? items.length,
+          page: raw.page || 1,
+          limit: raw.limit || 20,
+          totalPages: raw.total_pages ?? Math.ceil(items.length / 20)
         }
       }
     } catch (e) {
-      console.warn('API getTransactions unreachable, falling back to local dataset:', e)
+      console.warn('API getTransactions error:', e)
     }
 
-    return {
-      items: mockTransactions,
-      total: mockTransactions.length,
-      page: 1,
-      limit: 20,
-      totalPages: 1
+    if (ENV.DEMO_MODE) {
+      return {
+        items: mockTransactions,
+        total: mockTransactions.length,
+        page: 1,
+        limit: 20,
+        totalPages: 1
+      }
     }
+
+    throw new Error('Unable to load transactions. Please check your connection and try again.')
   },
 
   async getTransaction(id: string): Promise<Transaction | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/transactions/${id}`)
+      const res = await authFetch(`${API_BASE_URL}/api/transactions/${id}`)
       if (res.ok) {
         const t = await res.json()
         return {
@@ -602,22 +418,36 @@ export const api = {
           amount: t.amount,
           currency: t.currency,
           method: t.method,
-          failureCategory: t.recovery_case?.failure_category || 'AUTHENTICATION_FAILED',
-          failureReason: t.payment_attempts?.[0]?.error_description || 'Payment dropped during processing',
-          recoveryProbability: t.recovery_case?.recovery_probability || 0.75,
-          recommendedAction: t.recovery_case?.selected_strategy || 'SMART_PAYLINK_1CLICK',
-          status: t.status,
-          riskLevel: t.amount > 50000 ? 'HIGH' : t.amount > 20000 ? 'MEDIUM' : 'LOW',
+          failureCategory: t.recovery_case?.failure_category || (t.payment_attempts?.[0]?.error_category || 'UNKNOWN'),
+          failureReason: t.payment_attempts?.[0]?.error_description || (t.recovery_case?.failure_category ? t.recovery_case.failure_category.replace(/_/g, ' ') : (t.error_description || 'Payment dropped during processing')),
+          recoveryProbability: t.recovery_case?.recovery_probability !== undefined && t.recovery_case?.recovery_probability !== null
+            ? t.recovery_case.recovery_probability
+            : (t.recovery_probability !== undefined && t.recovery_probability !== null ? t.recovery_probability : null),
+          recommendedAction: t.recovery_case?.selected_strategy || t.selected_strategy || null,
+          status: t.recovery_case?.status || t.status,
+          riskLevel: (t.customer?.tier === 'VIP' || t.customer?.tier === 'ENTERPRISE' || t.amount >= 25000) ? 'HIGH' : t.amount >= 10000 ? 'MEDIUM' : 'LOW',
           createdAt: t.created_at,
           updatedAt: t.updated_at,
-          erv: t.recovery_case?.expected_recovery_value || t.amount * 0.8,
+          erv: t.recovery_case?.expected_recovery_value !== undefined && t.recovery_case?.expected_recovery_value !== null
+            ? t.recovery_case.expected_recovery_value
+            : (t.expected_recovery_value !== undefined && t.expected_recovery_value !== null
+              ? t.expected_recovery_value
+              : (t.recovery_case?.recovery_probability ? t.amount * t.recovery_case.recovery_probability : null)),
           attemptsCount: t.payment_attempts?.length || 1
         }
       }
+      if (res.status === 404) {
+        return null
+      }
     } catch (e) {
-      console.warn(`API getTransaction(${id}) unreachable, looking in local fallback:`, e)
+      console.warn(`API getTransaction(${id}) error:`, e)
     }
-    return mockTransactions.find(t => t.id === id || t.orderId === id) || null
+
+    if (ENV.DEMO_MODE) {
+      return mockTransactions.find(t => t.id === id || t.orderId === id) || null
+    }
+
+    return null
   },
 
   async getAuditTrail(transactionId?: string): Promise<AuditLogEntry[]> {
@@ -625,7 +455,7 @@ export const api = {
       const url = transactionId
         ? `${API_BASE_URL}/api/audit/${transactionId}`
         : `${API_BASE_URL}/api/audit`
-      const res = await fetch(url)
+      const res = await authFetch(url)
       if (res.ok) {
         const raw = await res.json()
         const items = Array.isArray(raw) ? raw : (raw.items || [])
@@ -640,9 +470,14 @@ export const api = {
         }))
       }
     } catch (e) {
-      console.warn('API getAuditTrail unreachable, falling back to local dataset:', e)
+      console.warn('API getAuditTrail error:', e)
     }
-    return mockAuditLogs
+
+    if (ENV.DEMO_MODE) {
+      return mockAuditLogs
+    }
+
+    throw new Error('Unable to load audit logs. Please check your connection and try again.')
   },
 
   // ============================================================================
@@ -658,9 +493,9 @@ export const api = {
       console.warn('API getPaymentConfig failed, returning fallback:', e)
     }
     return {
-      key_id: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_recoverai998',
+      key_id: ENV.RAZORPAY_KEY_ID || '',
       is_test_mode: true,
-      is_configured: false,
+      is_configured: ENV.isRazorpayConfigured,
       merchant_name: 'RecoverAI Demo Store'
     }
   },
@@ -708,7 +543,7 @@ export const api = {
   // Phase 9: Recovery Executor & State Machine Workflows
   // ============================================================================
   async getWorkflows(limit: number = 50): Promise<WorkflowListResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows?limit=${limit}`)
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/workflows?limit=${limit}`)
     if (!res.ok) {
       throw new Error('Failed to fetch recovery workflows')
     }
@@ -716,7 +551,7 @@ export const api = {
   },
 
   async getWorkflow(caseId: string): Promise<WorkflowCase> {
-    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}`)
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}`)
     if (!res.ok) {
       throw new Error(`Failed to fetch workflow ${caseId}`)
     }
@@ -724,7 +559,7 @@ export const api = {
   },
 
   async advanceWorkflowStep(caseId: string, isLiveDemo: boolean = true): Promise<{ status: string; case: WorkflowCase; step_result: any }> {
-    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/step`, {
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/step`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_live_demo: isLiveDemo })
@@ -737,7 +572,7 @@ export const api = {
   },
 
   async executeWorkflow(caseId: string, isLiveDemo: boolean = true): Promise<{ status: string; case: WorkflowCase; steps_taken: any[] }> {
-    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/execute`, {
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_live_demo: isLiveDemo })
@@ -750,7 +585,7 @@ export const api = {
   },
 
   async generatePaymentLink(caseId: string, isLiveDemo: boolean = true): Promise<PaymentLinkItem> {
-    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/payment-link`, {
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/payment-link`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_live_demo: isLiveDemo })
@@ -763,7 +598,7 @@ export const api = {
   },
 
   async simulateWorkflowOutcome(caseId: string, outcome: 'RECOVERED' | 'FAILED'): Promise<{ status: string; case: WorkflowCase }> {
-    const res = await fetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/simulate-outcome`, {
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/simulate-outcome`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ outcome })
@@ -776,10 +611,10 @@ export const api = {
   },
 
   async getNotifications(caseId?: string, limit: number = 20): Promise<NotificationReceiptItem[]> {
-    const url = caseId 
+    const url = caseId
       ? `${API_BASE_URL}/api/recovery/notifications?case_id=${caseId}&limit=${limit}`
       : `${API_BASE_URL}/api/recovery/notifications?limit=${limit}`
-    const res = await fetch(url)
+    const res = await authFetch(url)
     if (!res.ok) {
       return []
     }
@@ -790,7 +625,7 @@ export const api = {
   // Phase 10: Fintech Guardrails & Human Approval Governance
   // ============================================================================
   async getGuardrailPolicies(): Promise<GuardrailPoliciesResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/guardrails/policies`)
+    const res = await authFetch(`${API_BASE_URL}/api/guardrails/policies`)
     if (!res.ok) {
       throw new Error('Failed to fetch central guardrail policies')
     }
@@ -798,7 +633,7 @@ export const api = {
   },
 
   async getApprovalQueue(): Promise<HumanApprovalQueueItem[]> {
-    const res = await fetch(`${API_BASE_URL}/api/guardrails/approval-queue`)
+    const res = await authFetch(`${API_BASE_URL}/api/guardrails/approval-queue`)
     if (!res.ok) {
       throw new Error('Failed to fetch human approval queue')
     }
@@ -823,7 +658,7 @@ export const api = {
 
 
   async getWhyStoppedForensics(caseId: string): Promise<WhyStoppedForensicResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/guardrails/forensics/${caseId}`)
+    const res = await authFetch(`${API_BASE_URL}/api/guardrails/forensics/${caseId}`)
     if (!res.ok) {
       throw new Error(`Failed to fetch forensic diagnosis for case ${caseId}`)
     }
@@ -831,7 +666,7 @@ export const api = {
   },
 
   async getGuardrailEvents(limit: number = 50): Promise<GuardrailEventItem[]> {
-    const res = await fetch(`${API_BASE_URL}/api/guardrails/events?limit=${limit}`)
+    const res = await authFetch(`${API_BASE_URL}/api/guardrails/events?limit=${limit}`)
     if (!res.ok) {
       return []
     }
@@ -858,7 +693,7 @@ export const api = {
     const url = status && status !== 'ALL'
       ? `${API_BASE_URL}/api/v1/checkout/sessions?status=${status}&limit=${limit}`
       : `${API_BASE_URL}/api/v1/checkout/sessions?limit=${limit}`
-    const res = await fetch(url)
+    const res = await authFetch(url)
     if (!res.ok) return []
     return await res.json()
   },
@@ -888,7 +723,7 @@ export const api = {
   },
 
   async checkTimedOutSessions(timeoutSeconds: number = 15): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/check-abandoned?timeout_seconds=${timeoutSeconds}`, {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/check-abandoned?timeout_seconds=${timeoutSeconds}`, {
       method: 'POST'
     })
     if (!res.ok) return { abandoned_count: 0 }
@@ -896,7 +731,7 @@ export const api = {
   },
 
   async getAbandonmentFunnel(): Promise<AbandonmentFunnelResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/funnel`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/funnel`)
     if (!res.ok) {
       throw new Error('Failed to fetch abandonment funnel metrics')
     }
@@ -904,16 +739,31 @@ export const api = {
   },
 
   async getAbandonmentCases(limit: number = 50): Promise<AbandonmentCaseItem[]> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/cases?limit=${limit}`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/cases?limit=${limit}`)
     if (!res.ok) return []
     return await res.json()
   },
 
   async runBatchSimulation(controls: SimulationControls): Promise<BatchSimulationResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/simulation/run`, {
+    const payload = {
+      num_transactions: controls.num_transactions,
+      merchant_category: controls.merchant_category,
+      payment_methods_dist: {
+        UPI: controls.payment_methods_dist.UPI,
+        CARD: controls.payment_methods_dist.CARD,
+        NET_BANKING: controls.payment_methods_dist.NET_BANKING,
+        WALLET: controls.payment_methods_dist.WALLET ?? 0.05
+      },
+      failure_rate: controls.failure_rate,
+      abandonment_rate: controls.abandonment_rate,
+      average_order_value: controls.average_order_value,
+      seed: controls.seed,
+      ...(controls.preset_name ? { preset_name: controls.preset_name } : {})
+    }
+    const res = await authFetch(`${API_BASE_URL}/api/v1/simulation/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(controls)
+      body: JSON.stringify(payload)
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
@@ -923,7 +773,7 @@ export const api = {
   },
 
   async getSimulationPresets(): Promise<SimulationPreset[]> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/simulation/presets`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/simulation/presets`)
     if (!res.ok) {
       throw new Error('Failed to fetch simulation presets')
     }
@@ -931,7 +781,7 @@ export const api = {
   },
 
   async getSimulationMethodology(): Promise<MethodologyDoc> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/simulation/methodology`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/simulation/methodology`)
     if (!res.ok) {
       throw new Error('Failed to fetch simulation methodology')
     }
@@ -948,7 +798,7 @@ export const api = {
     if (filters.strategy && filters.strategy !== 'ALL') params.append('strategy', filters.strategy)
     if (filters.status && filters.status !== 'ALL') params.append('status', filters.status)
 
-    const res = await fetch(`${API_BASE_URL}/api/v1/analytics?${params.toString()}`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/analytics?${params.toString()}`)
     if (!res.ok) {
       throw new Error('Failed to fetch financial analytics')
     }
@@ -962,7 +812,7 @@ export const api = {
     if (params.strategy && params.strategy !== 'ALL') q.append('strategy', params.strategy)
     if (params.limit) q.append('limit', params.limit.toString())
 
-    const res = await fetch(`${API_BASE_URL}/api/v1/audit/cases?${q.toString()}`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/audit/cases?${q.toString()}`)
     if (!res.ok) {
       throw new Error('Failed to fetch auditable cases')
     }
@@ -970,7 +820,7 @@ export const api = {
   },
 
   async getCaseChronology(id: string): Promise<CaseAuditTimelineResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/audit/case/${id}/chronology`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/audit/case/${id}/chronology`)
     if (!res.ok) {
       throw new Error('Failed to fetch case audit chronology')
     }
@@ -1542,6 +1392,8 @@ export interface AnalyticsResponse {
   filter_options: FilterOptions
   applied_filters: AnalyticsFilters
   evaluated_at: string
+  data_mode?: string
+  workspace_id?: string
 }
 
 export interface AuditChronologyItem {
@@ -1607,8 +1459,8 @@ export interface AdminUser {
   provider: string
   role: 'admin' | 'operator'
   created_at?: string
-  last_sign_in_at?: string
-  status: string
+  last_sign_in_at?: string | null
+  status?: string | null
 }
 
 export const adminApi = {

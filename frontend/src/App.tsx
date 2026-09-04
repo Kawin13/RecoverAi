@@ -25,9 +25,15 @@ import { Abandonment } from './pages/Abandonment'
 import { NotFound } from './pages/NotFound'
 import { RealtimeProvider } from './lib/useRealtime'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
-
+import { ENV } from './config/env'
+import { ConfigurationErrorScreen } from './components/ConfigurationErrorScreen'
 
 export const App: React.FC = () => {
+  // If production environment variables are missing, fail safely with actionable diagnostic screen
+  if (ENV.hasConfigErrors) {
+    return <ConfigurationErrorScreen errors={ENV.configErrors} />
+  }
+
   return (
     <ErrorBoundary fallbackTitle="RecoverAI Application Exception Guard">
       <AuthProvider>

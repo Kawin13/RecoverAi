@@ -10,18 +10,22 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
+
+    # Explicit local development / test flag
+    USE_SQLITE: bool = False
 
     # CORS Config
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
     ]
+    # Frontend Public URL (Used for generating recovery links, abandonment links, checkout redirects)
+    FRONTEND_PUBLIC_URL: str = "http://localhost:3000"
 
     # Database
-    DATABASE_URL: str = "sqlite:///./recoverai.db"
+    DATABASE_URL: str = ""
     SQLITE_FALLBACK_URL: str = "sqlite:///./recoverai.db"
 
     # Supabase Credentials
@@ -31,7 +35,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     SUPABASE_JWKS_URL: str = ""
 
-    # Payment Gateway
+    # Payment Gateway (Razorpay Test Mode)
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""
@@ -49,11 +53,28 @@ class Settings(BaseSettings):
 
     def get_effective_database_url(self) -> str:
         """
-        Returns a valid database URL. If Postgres password placeholder is present or invalid,
-        returns sqlite fallback for reliable local development and testing.
+        Returns the appropriate database URL based on environment.
+        In production: strictly enforces PostgreSQL; raises RuntimeError if missing, placeholder, or SQLite.
+        In development/testing: permits SQLite only when explicitly requested via USE_SQLITE or sqlite URL.
         """
-        url = self.DATABASE_URL
-        if not url or "[YOUR-PASSWORD]" in url or "password_here" in url:
+        is_prod = str(self.ENVIRONMENT).lower() == "production"
+        url = self.DATABASE_URL or ""
+
+        if is_prod:
+            if not url or url.startswith("sqlite"):
+                raise RuntimeError(
+                    "Production configuration error: DATABASE_URL must be a valid PostgreSQL connection string. "
+                    "Silent SQLite fallback is strictly prohibited in production."
+                )
+            if "[YOUR-PASSWORD]" in url or "password_here" in url:
+                raise RuntimeError(
+                    "Production configuration error: DATABASE_URL contains placeholder password. "
+                    "A valid PostgreSQL connection string is required."
+                )
+            return url
+
+        # Development / Testing
+        if self.USE_SQLITE or not url or "[YOUR-PASSWORD]" in url or "password_here" in url:
             return self.SQLITE_FALLBACK_URL
         return url
 

@@ -53,8 +53,8 @@ def test_health_check_database_temporarily_unavailable_failure_injection(client)
 # 2. DATABASE PAGINATION, SEARCH, AND FILTERS
 # =========================================================================
 
-def test_transactions_pagination_and_boundaries(client):
-    res1 = client.get("/api/transactions?page=1&limit=5")
+def test_transactions_pagination_and_boundaries(auth_client):
+    res1 = auth_client.get("/api/transactions?page=1&limit=5")
     assert res1.status_code == 200
     data1 = res1.json()
     assert "items" in data1
@@ -64,19 +64,19 @@ def test_transactions_pagination_and_boundaries(client):
     assert len(data1["items"]) <= 5
 
     # Out of bounds page should gracefully return empty items list
-    res_high = client.get("/api/transactions?page=9999&limit=20")
+    res_high = auth_client.get("/api/transactions?page=9999&limit=20")
     assert res_high.status_code == 200
     data_high = res_high.json()
     assert data_high["items"] == []
     assert data_high["page"] == 9999
 
-def test_transactions_filters_and_search(client):
-    res_method = client.get("/api/transactions?method=UPI&limit=10")
+def test_transactions_filters_and_search(auth_client):
+    res_method = auth_client.get("/api/transactions?method=UPI&limit=10")
     assert res_method.status_code == 200
     for item in res_method.json()["items"]:
         assert item["method"].upper() == "UPI"
 
-    res_status = client.get("/api/transactions?status=FAILED&limit=10")
+    res_status = auth_client.get("/api/transactions?status=FAILED&limit=10")
     assert res_status.status_code == 200
     for item in res_status.json()["items"]:
         assert item["status"].upper() == "FAILED"
@@ -217,15 +217,12 @@ def test_guardrail_denial_high_value_supervisor_routing(db_session):
 def test_razorpay_order_creation_request_fails_graceful_fallback():
     """
     FAILURE INJECTION: Razorpay Gateway API throws connection error or 500.
-    RazorpayService must fall back to local sandbox order creation without crashing.
+    RazorpayService must fail closed with RuntimeError and never generate a fake order.
     """
     svc = RazorpayService(key_id="rzp_test_mock", key_secret="rzp_secret_mock")
     with patch("httpx.Client.post", side_effect=Exception("Gateway Connection Timeout")):
-        order = svc.create_order(amount_paise=50000, currency="INR")
-        assert order is not None
-        assert order["id"].startswith("order_")
-        assert order["amount"] == 50000
-        assert order["status"] == "created"
+        with pytest.raises(RuntimeError, match="Payment service temporarily unavailable"):
+            svc.create_order(amount_paise=50000, currency="INR")
 
 def test_razorpay_payment_link_creation_failure_fallback():
     """

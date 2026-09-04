@@ -112,7 +112,25 @@ export const Analytics: React.FC = () => {
         title="Financial Operations & Revenue Analytics Console"
         subtitle="Real-time recovery metrics, operational velocity, and cohort attribution across payment rails and strategies"
         actions={
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2.5 text-xs">
+            {data?.data_mode && (
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase border tracking-wider shadow-xs ${
+                data.data_mode === 'SIMULATED DATA'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : data.data_mode === 'Demo Dataset'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                  data.data_mode === 'SIMULATED DATA'
+                    ? 'bg-purple-500'
+                    : data.data_mode === 'Demo Dataset'
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+                }`} />
+                {data.data_mode}
+              </span>
+            )}
             <button
               type="button"
               onClick={() => fetchAnalytics(false)}
@@ -139,14 +157,14 @@ export const Analytics: React.FC = () => {
           <div className="flex items-center gap-1 bg-warm-gray-100 p-1 rounded-sm border border-border/80">
             <button
               type="button"
-              onClick={() => setTimeRange('today')}
+              onClick={() => setTimeRange('24h')}
               className={`px-3 py-1 text-xs font-medium rounded-xs transition-colors ${
-                timeRange === 'today'
+                timeRange === '24h' || timeRange === 'today'
                   ? 'bg-burnt-orange text-white shadow-xs'
                   : 'text-warm-gray-600 hover:text-graphite'
               }`}
             >
-              Today
+              24H
             </button>
             <button
               type="button"

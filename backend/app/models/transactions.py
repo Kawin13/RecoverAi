@@ -1,12 +1,14 @@
 from datetime import datetime
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
 from app.database.base import Base
+from app.models.workspaces import DEFAULT_WORKSPACE_ID
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(String(64), primary_key=True, index=True)
+    workspace_id = Column(Uuid(as_uuid=False), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, default=DEFAULT_WORKSPACE_ID, index=True)
     order_id = Column(String(64), nullable=False, index=True)
     customer_id = Column(String(64), ForeignKey("customers.id"), nullable=False, index=True)
     amount = Column(Float, nullable=False)

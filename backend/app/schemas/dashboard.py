@@ -59,3 +59,5 @@ class DashboardResponse(BaseModel):
     payment_breakdown: List[PaymentBreakdown]
     failure_reasons: List[FailureReasonBreakdown]
     recent_activities: List[RecentAgentActivity]
+    data_mode: str = "LIVE TEST DATA"
+    workspace_id: Optional[str] = None

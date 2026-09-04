@@ -34,9 +34,7 @@ def seed_representative_subset(n_samples: int = 75):
         print(f"Error: {csv_path} not found. Run generate_synthetic_data.py first.")
         return
 
-    # Ensure tables exist
-    Base.metadata.create_all(bind=engine)
-
+    # Note: Schema is managed authoritatively via Alembic migrations.
     df = pd.read_csv(csv_path)
     sample_df = df.sample(n=n_samples, random_state=42).copy()
 

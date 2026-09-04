@@ -37,12 +37,14 @@ class DecisionConfig:
     }
 
     # -------------------------------------------------------------------------
-    # Guardrail Thresholds & Hard Limits
+    # Guardrail & Operational Thresholds
     # -------------------------------------------------------------------------
     MAX_ATTEMPTS_BEFORE_SUPPRESSION: int = 4
     COOLING_DOWN_PERIOD_MINUTES: int = 15
     MIN_PROBABILITY_THRESHOLD: float = 0.08
-    HIGH_VALUE_THRESHOLD_INR: float = 25000.0
+    URGENT_HIGH_VALUE_THRESHOLD_INR: float = 25000.0  # Critical risk tiering & urgent operations
+    HUMAN_APPROVAL_THRESHOLD_INR: float = 10000.0     # Guardrail requiring human supervisor sign-off
+    HIGH_VALUE_THRESHOLD_INR: float = 25000.0         # Backward compatibility alias (Urgent threshold)
     MAX_CUSTOMER_DUNNING_FREQUENCY_HOURS: int = 24
 
     @classmethod

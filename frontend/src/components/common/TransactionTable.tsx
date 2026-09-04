@@ -26,7 +26,8 @@ import {
   Check,
   Globe,
   Info,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react'
 
 interface TransactionTableProps {
@@ -46,6 +47,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
   
   const [analysis, setAnalysis] = useState<RecoveryAnalysisResponse | null>(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [aiExplanation, setAiExplanation] = useState<AIExplanationData | null>(null)
   const [aiMessage, setAiMessage] = useState<AIMessageData | null>(null)
   const [selectedLang, setSelectedLang] = useState<string>('EN')
@@ -98,6 +100,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   const handleRowClick = async (tx: Transaction) => {
     setSelectedTx(tx)
     setAnalysis(null)
+    setAnalysisError(null)
     setAiExplanation(null)
     setAiMessage(null)
     setLoadingAnalysis(true)
@@ -105,16 +108,24 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     if (onSelectTransaction) onSelectTransaction(tx)
 
     try {
-      const [resAnalysis, resExpl, resMsg] = await Promise.all([
+      const [resAnalysis, resExpl, resMsg] = await Promise.allSettled([
         api.analyzeRecovery(tx.id),
         api.fetchAIExplanation(tx.id),
         api.fetchAIMessage(tx.id, selectedLang)
       ])
-      setAnalysis(resAnalysis)
-      setAiExplanation(resExpl)
-      setAiMessage(resMsg)
-    } catch (e) {
-      console.error('Failed to load recovery decision analysis:', e)
+      if (resAnalysis.status === 'fulfilled') {
+        setAnalysis(resAnalysis.value)
+      } else {
+        setAnalysisError('Recovery recommendation temporarily unavailable.')
+      }
+      if (resExpl.status === 'fulfilled') {
+        setAiExplanation(resExpl.value)
+      }
+      if (resMsg.status === 'fulfilled') {
+        setAiMessage(resMsg.value)
+      }
+    } catch {
+      setAnalysisError('Recovery recommendation temporarily unavailable.')
     } finally {
       setLoadingAnalysis(false)
     }
@@ -141,8 +152,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   }
 
-  const selectedStrategyKey = analysis?.selected_action || selectedTx?.recommendedAction || 'UPI_SWITCH'
-  const selectedStrategyDisplayName = analysis?.display_name || getStrategyLabel(selectedStrategyKey)
+  const selectedStrategyKey = analysis?.selected_action || (analysisError ? '' : (selectedTx?.recommendedAction || ''))
+  const selectedStrategyDisplayName = analysis?.display_name || (selectedStrategyKey ? getStrategyLabel(selectedStrategyKey) : 'Temporarily Unavailable')
 
   return (
     <div className="bg-surface rounded-md border border-border overflow-hidden shadow-fintech-card">
@@ -289,10 +300,16 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
                   {/* Recommended Action */}
                   <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] font-medium bg-warm-gray-100 text-warm-gray-800 border border-border">
-                      <Sparkles className="w-3 h-3 text-burnt-orange" />
-                      {getStrategyLabel(tx.recommendedAction)}
-                    </span>
+                    {tx.recommendedAction ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] font-medium bg-warm-gray-100 text-warm-gray-800 border border-border">
+                        <Sparkles className="w-3 h-3 text-burnt-orange" />
+                        {getStrategyLabel(tx.recommendedAction)}
+                      </span>
+                    ) : (
+                      <span className="text-warm-gray-400 text-xs italic">
+                        Pending Analysis
+                      </span>
+                    )}
                   </td>
 
                   {/* Status */}
@@ -365,14 +382,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     <MoneyValue amount={selectedTx.amount} />
                   </div>
                   <span className="text-[10px] text-warm-gray-400 font-mono mt-0.5 block">
-                    Recovery Likelihood: {(selectedTx.recoveryProbability * 100).toFixed(1)}%
+                    {analysis ? `Recovery Likelihood: ${(analysis.recovery_probability * 100).toFixed(1)}%` : selectedTx.recoveryProbability != null && !analysisError ? `Recovery Likelihood: ${(selectedTx.recoveryProbability * 100).toFixed(1)}%` : 'Recovery Likelihood: Unavailable'}
                   </span>
                 </div>
 
                 <div className="bg-moss-green-subtle p-3.5 rounded-sm border border-moss-green/20">
                   <span className="text-[11px] text-moss-green-dark uppercase tracking-wider block">Expected Recovery (ERV)</span>
                   <div className="text-lg font-bold text-moss-green mt-1 font-mono">
-                    <MoneyValue amount={analysis ? analysis.expected_recovery_value : selectedTx.erv} />
+                    <MoneyValue amount={analysis ? analysis.expected_recovery_value : (analysisError ? 0 : (selectedTx.erv || 0))} />
                   </div>
                   <span className="text-[10px] text-moss-green-dark/80 font-mono mt-0.5 block">
                     Net Yield after cost/friction
@@ -382,37 +399,72 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 <div className="bg-warm-gray-50 p-3.5 rounded-sm border border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-warm-gray-500 uppercase tracking-wider block">Strategy Success</span>
-                    <span className="px-1.5 py-0.2 rounded-xs text-[9px] font-semibold bg-burnt-orange-light text-burnt-orange-dark">
-                      {selectedStrategyDisplayName}
+                    <span className={`px-1.5 py-0.2 rounded-xs text-[9px] font-semibold ${
+                      analysis ? 'bg-burnt-orange-light text-burnt-orange-dark' : 'bg-warm-gray-200 text-warm-gray-600'
+                    }`}>
+                      {analysis ? selectedStrategyDisplayName : analysisError ? 'Unavailable' : (selectedStrategyDisplayName || 'Pending')}
                     </span>
                   </div>
                   <div className="text-lg font-bold text-graphite mt-1 font-mono">
-                    {((analysis ? analysis.recovery_probability : selectedTx.recoveryProbability) * 100).toFixed(1)}%
+                    {analysis ? `${(analysis.recovery_probability * 100).toFixed(1)}%` : '—'}
                   </div>
                   <span className="text-[10px] text-warm-gray-400 font-mono mt-0.5 block">
-                    Likelihood ({selectedStrategyDisplayName})
+                    {analysisError ? 'Recovery recommendation temporarily unavailable.' : analysis ? `Likelihood (${selectedStrategyDisplayName})` : 'Analysis pending'}
                   </span>
                 </div>
               </div>
 
               {/* Canonical Failure Diagnosis Card */}
-              {((analysis && analysis.diagnosis) || selectedTx) && (
+              {analysisError ? (
                 <div className="p-3.5 bg-surface border border-border rounded-sm space-y-1.5 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-graphite uppercase text-[11px] tracking-wider text-warm-gray-500 flex items-center gap-1.5">
                       <span>Failure Diagnosis</span>
-                      {(analysis?.diagnosis?.human_readable_reason || selectedTx?.failureReason) && (
+                    </span>
+                    <span className="px-2 py-0.5 rounded-xs text-[10px] font-mono text-warm-gray-600 bg-warm-gray-100 border border-border">
+                      {selectedTx.failureCategory && selectedTx.failureCategory !== 'UNKNOWN' ? selectedTx.failureCategory : 'UNAVAILABLE'}
+                    </span>
+                  </div>
+                  <p className="text-warm-gray-600 leading-relaxed font-sans text-[11px]">
+                    Recovery recommendation temporarily unavailable. Detailed failure diagnosis could not be retrieved from the engine.
+                  </p>
+                </div>
+              ) : analysis?.diagnosis ? (
+                <div className="p-3.5 bg-surface border border-border rounded-sm space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-graphite uppercase text-[11px] tracking-wider text-warm-gray-500 flex items-center gap-1.5">
+                      <span>Failure Diagnosis</span>
+                      {analysis.diagnosis.human_readable_reason && (
                         <span className="text-graphite font-normal text-xs">
-                          — {analysis?.diagnosis?.human_readable_reason || selectedTx?.failureReason}
+                          — {analysis.diagnosis.human_readable_reason}
                         </span>
                       )}
                     </span>
                     <span className="px-2 py-0.5 rounded-xs text-[10px] font-mono font-semibold bg-burnt-orange-light text-burnt-orange-dark border border-burnt-orange/30">
-                      {analysis?.diagnosis?.taxonomy || analysis?.diagnosis?.failure_category || selectedTx?.failureCategory}
+                      {analysis.diagnosis.taxonomy || analysis.diagnosis.failure_category}
                     </span>
                   </div>
                   <p className="text-warm-gray-700 leading-relaxed font-sans">
-                    {analysis?.diagnosis?.description || selectedTx?.failureReason || 'Transient payment processing issue diagnosed.'}
+                    {analysis.diagnosis.description || 'Payment processing issue diagnosed.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-surface border border-border rounded-sm space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-graphite uppercase text-[11px] tracking-wider text-warm-gray-500 flex items-center gap-1.5">
+                      <span>Failure Diagnosis</span>
+                      {selectedTx.failureReason && (
+                        <span className="text-graphite font-normal text-xs">
+                          — {selectedTx.failureReason}
+                        </span>
+                      )}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-xs text-[10px] font-mono text-warm-gray-600 bg-warm-gray-100 border border-border">
+                      {selectedTx.failureCategory || 'UNKNOWN'}
+                    </span>
+                  </div>
+                  <p className="text-warm-gray-600 leading-relaxed font-sans text-[11px]">
+                    {selectedTx.failureReason || 'Awaiting recovery engine diagnosis...'}
                   </p>
                 </div>
               )}
@@ -429,7 +481,15 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                   </span>
                 </div>
 
-                {loadingAnalysis ? (
+                {analysisError ? (
+                  <div className="p-6 bg-warm-gray-50 rounded border border-border text-center space-y-2">
+                    <AlertCircle className="w-5 h-5 text-burnt-orange mx-auto" />
+                    <p className="text-xs font-semibold text-graphite">Recovery recommendation temporarily unavailable.</p>
+                    <p className="text-[11px] text-warm-gray-500 max-w-sm mx-auto">
+                      Could not retrieve algorithmic strategy rankings or ML scoring from the recovery engine.
+                    </p>
+                  </div>
+                ) : loadingAnalysis ? (
                   <div className="p-6 bg-warm-gray-50 rounded border border-border text-center space-y-2">
                     <Loader2 className="w-5 h-5 text-burnt-orange animate-spin mx-auto" />
                     <p className="text-xs text-warm-gray-600">Simulating candidate recovery actions...</p>
@@ -570,7 +630,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     </div>
                   </div>
 
-                  {aiMessage && (
+                  {aiMessage ? (
                     <div className="p-3.5 bg-dark-surface text-surface rounded-sm border border-warm-gray-700 shadow-sm space-y-2 font-mono text-[11px]">
                       <div className="flex items-center justify-between border-b border-warm-gray-700 pb-2">
                         <span className="text-moss-green font-semibold">{aiMessage.headline}</span>
@@ -601,6 +661,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         <span>Action CTA: <strong className="text-surface font-semibold">{aiMessage.call_to_action}</strong></span>
                         <span className="text-burnt-orange-light">Channel: {aiMessage.channel_recommended}</span>
                       </div>
+                    </div>
+                  ) : !loadingAnalysis && (
+                    <div className="p-3 bg-warm-gray-50 rounded-sm border border-border text-center text-xs text-warm-gray-500">
+                      Customer message template temporarily unavailable.
                     </div>
                   )}
                 </div>

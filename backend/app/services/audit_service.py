@@ -36,9 +36,12 @@ class AuditService:
         self,
         actor: Optional[str] = None,
         search: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
+        workspace_id: Optional[str] = None
     ) -> List[AuditLog]:
         query = self.db.query(AuditLog)
+        if workspace_id is not None:
+            query = query.filter(AuditLog.workspace_id == workspace_id)
         if actor and actor != "ALL":
             query = query.filter(AuditLog.actor == actor)
         if search:
@@ -50,23 +53,25 @@ class AuditService:
             ))
         return query.order_by(desc(AuditLog.created_at)).limit(limit).all()
 
-    def get_transaction_audit(self, transaction_id: str) -> List[AuditLog]:
-        return (
-            self.db.query(AuditLog)
-            .filter(AuditLog.transaction_id == transaction_id)
-            .order_by(desc(AuditLog.created_at))
-            .all()
-        )
+    def get_transaction_audit(self, transaction_id: str, workspace_id: Optional[str] = None) -> List[AuditLog]:
+        query = self.db.query(AuditLog).filter(AuditLog.transaction_id == transaction_id)
+        if workspace_id is not None:
+            query = query.filter(AuditLog.workspace_id == workspace_id)
+        return query.order_by(desc(AuditLog.created_at)).all()
 
     def list_auditable_cases(
         self,
         search: Optional[str] = None,
         status: Optional[str] = None,
         strategy: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
+        workspace_id: Optional[str] = None
     ) -> CaseAuditListResponse:
         query = self.db.query(RecoveryCase).join(Transaction, RecoveryCase.transaction_id == Transaction.id).join(Customer, Transaction.customer_id == Customer.id)
         
+        if workspace_id is not None:
+            query = query.filter(RecoveryCase.workspace_id == workspace_id)
+
         if search:
             query = query.filter(or_(
                 RecoveryCase.id.ilike(f"%{search}%"),
@@ -105,21 +110,27 @@ class AuditService:
 
         return CaseAuditListResponse(items=items, total=len(items))
 
-    def get_case_chronology(self, case_or_tx_id: str) -> CaseAuditTimelineResponse:
+    def get_case_chronology(self, case_or_tx_id: str, workspace_id: Optional[str] = None) -> CaseAuditTimelineResponse:
         """
         Reconstructs the full 13-stage chronological audit decision history for a case.
         Guarantees that no raw cards, CVVs, or gateway secret keys are exposed.
         """
         # Lookup case by case_id or transaction_id
-        case = self.db.query(RecoveryCase).filter(
+        case_query = self.db.query(RecoveryCase).filter(
             or_(RecoveryCase.id == case_or_tx_id, RecoveryCase.transaction_id == case_or_tx_id)
-        ).first()
+        )
+        if workspace_id is not None:
+            case_query = case_query.filter(RecoveryCase.workspace_id == workspace_id)
+        case = case_query.first()
 
         now = datetime.utcnow()
 
         if not case:
-            # Fallback realistic synthesized case for simulation or demo IDs
-            return self._synthesize_sample_case_chronology(case_or_tx_id)
+            if case_or_tx_id.startswith("demo_") or case_or_tx_id.startswith("sim_"):
+                # Fallback realistic synthesized case for simulation or demo IDs
+                return self._synthesize_sample_case_chronology(case_or_tx_id)
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Audit case not found")
 
         tx = case.transaction
         cust = tx.customer if tx else None

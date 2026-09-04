@@ -19,7 +19,13 @@ try:
     )
     logger.info(f"Database engine initialized with target: {db_url.split('@')[-1] if '@' in db_url else db_url}")
 except Exception as e:
-    logger.warning(f"Failed to initialize primary database engine ({e}). Falling back to SQLite.")
+    if str(settings.ENVIRONMENT).lower() == "production":
+        logger.critical(f"FATAL: Failed to connect to production database ({e}). SQLite fallback is forbidden.")
+        raise RuntimeError(
+            f"FATAL: Failed to connect to production database ({e}). "
+            f"SQLite fallback is strictly prohibited in production."
+        )
+    logger.warning(f"Failed to initialize primary database engine ({e}). Falling back to SQLite for development.")
     engine = create_engine(
         settings.SQLITE_FALLBACK_URL,
         echo=False,

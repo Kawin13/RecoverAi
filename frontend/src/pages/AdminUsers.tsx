@@ -80,6 +80,8 @@ export const AdminUsers: React.FC = () => {
     return { total, admins, operators }
   }, [users])
 
+  const hasStatusColumn = useMemo(() => users.some((u) => !!u.status), [users])
+
   const handleOpenRoleModal = (targetUser: AdminUser, newRole: 'admin' | 'operator') => {
     setSelectedUserForRoleChange(targetUser)
     setTargetRole(newRole)
@@ -111,8 +113,8 @@ export const AdminUsers: React.FC = () => {
     }
   }
 
-  const formatDate = (isoString?: string) => {
-    if (!isoString) return 'Active'
+  const formatDate = (isoString?: string | null) => {
+    if (!isoString) return '—'
     try {
       return new Date(isoString).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -298,21 +300,21 @@ export const AdminUsers: React.FC = () => {
                 <th className="py-3 px-4">Assigned Role</th>
                 <th className="py-3 px-4">Created Date</th>
                 <th className="py-3 px-4">Last Sign In</th>
-                <th className="py-3 px-4">Status</th>
+                {hasStatusColumn && <th className="py-3 px-4">Status</th>}
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-warm-gray-500">
+                  <td colSpan={hasStatusColumn ? 7 : 6} className="py-12 text-center text-warm-gray-500">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto text-burnt-orange mb-2" />
                     <span>Loading workspace user directory...</span>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-warm-gray-500">
+                  <td colSpan={hasStatusColumn ? 7 : 6} className="py-10 text-center text-warm-gray-500">
                     <Users className="w-8 h-8 text-warm-gray-400 mx-auto mb-2 opacity-60" />
                     <p className="font-semibold text-graphite">No users found</p>
                     <p className="text-xs text-warm-gray-400 mt-0.5">
@@ -374,8 +376,10 @@ export const AdminUsers: React.FC = () => {
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-warm-gray-100 border border-border rounded-sm text-[11px] font-medium text-warm-gray-700">
                           {item.provider === 'Google' ? (
                             <span className="font-semibold text-burnt-orange">Google OAuth</span>
-                          ) : (
+                          ) : item.provider === 'Email' ? (
                             <span className="font-mono text-warm-gray-600">Email & Password</span>
+                          ) : (
+                            <span className="font-medium text-warm-gray-700">{item.provider}</span>
                           )}
                         </span>
                       </td>
@@ -405,16 +409,32 @@ export const AdminUsers: React.FC = () => {
 
                       {/* Last Sign In */}
                       <td className="py-3 px-4 font-mono text-[11px] text-warm-gray-600">
-                        {formatDate(item.last_sign_in_at)}
+                        {item.last_sign_in_at ? formatDate(item.last_sign_in_at) : 'Never'}
                       </td>
 
-                      {/* Status */}
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-moss-green-light text-moss-green-dark border border-moss-green/20 text-[10px] font-semibold font-mono">
-                          <span className="w-1.5 h-1.5 rounded-full bg-moss-green animate-pulse" />
-                          Active
-                        </span>
-                      </td>
+                      {/* Status (rendered conditionally only when real status exists) */}
+                      {hasStatusColumn && (
+                        <td className="py-3 px-4">
+                          {item.status === 'Active' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-moss-green-light text-moss-green-dark border border-moss-green/20 text-[10px] font-semibold font-mono">
+                              <span className="w-1.5 h-1.5 rounded-full bg-moss-green animate-pulse" />
+                              Active
+                            </span>
+                          ) : item.status === 'Suspended' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-brick-red-light text-brick-red-dark border border-brick-red/20 text-[10px] font-semibold font-mono">
+                              <span className="w-1.5 h-1.5 rounded-full bg-brick-red" />
+                              Suspended
+                            </span>
+                          ) : item.status === 'Unconfirmed' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold font-mono">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Unconfirmed
+                            </span>
+                          ) : (
+                            <span className="text-warm-gray-400 font-mono text-[11px]">—</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Actions */}
                       <td className="py-3 px-4 text-right">

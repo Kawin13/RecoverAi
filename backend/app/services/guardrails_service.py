@@ -125,10 +125,10 @@ class GuardrailsService:
             )
 
         # ---------------------------------------------------------------------
-        # Rule 5: HIGH VALUE (>= ₹10,000) -> HUMAN APPROVAL
+        # Rule 5: HUMAN APPROVAL THRESHOLD (>= ₹10,000) -> HUMAN APPROVAL
         # ---------------------------------------------------------------------
-        if amount >= self.policy.HIGH_VALUE_THRESHOLD_INR:
-            reason = f"High-value order (₹{amount:,.2f} >= ₹{self.policy.HIGH_VALUE_THRESHOLD_INR:,.2f}) requires human supervisor sign-off before intervention dispatch."
+        if amount >= self.policy.HUMAN_APPROVAL_THRESHOLD_INR:
+            reason = f"High-value order (₹{amount:,.2f} >= ₹{self.policy.HUMAN_APPROVAL_THRESHOLD_INR:,.2f} Human Approval Threshold) requires human supervisor sign-off before intervention dispatch."
             self._record_breach(case, "HIGH_VALUE_THRESHOLD", f"₹{amount:,.2f}", "HUMAN_APPROVAL", reason, db)
             return GuardrailDecision(
                 allowed=True,
@@ -137,7 +137,7 @@ class GuardrailsService:
                 human_readable_reason=reason,
                 policy_version=self.policy.POLICY_VERSION,
                 suggested_action="HUMAN_APPROVAL",
-                rule_details={"rule": "HIGH_VALUE_THRESHOLD", "amount": amount, "threshold": self.policy.HIGH_VALUE_THRESHOLD_INR}
+                rule_details={"rule": "HIGH_VALUE_THRESHOLD", "amount": amount, "threshold": self.policy.HUMAN_APPROVAL_THRESHOLD_INR}
             )
 
         # ---------------------------------------------------------------------
@@ -157,7 +157,8 @@ class GuardrailsService:
             )
 
         # ---------------------------------------------------------------------
-        # Additional Explicit Approval Checks (Manual Escalation / Policy Override)
+        # Additional Explicit Approval Checks (Manual Escalation / Policy Override / Guardrail Events)
+        # Cases below human approval threshold (< ₹10,000) ONLY require approval if an explicit guardrail applies.
         # ---------------------------------------------------------------------
         if case.current_step == "MANUAL_ESCALATION" or (case.execution_payload and "MANUAL_ESCALATION" in str(case.execution_payload)) or failure_cat == "MANUAL_ESCALATION":
             return GuardrailDecision(
@@ -178,6 +179,28 @@ class GuardrailsService:
                 policy_version=self.policy.POLICY_VERSION,
                 suggested_action="HUMAN_APPROVAL",
                 rule_details={"rule": "POLICY_OVERRIDE"}
+            )
+
+        # Explicit Guardrail breach event check requiring approval
+        recent_approval_event = (
+            db.query(GuardrailEvent)
+            .filter(
+                GuardrailEvent.recovery_case_id == case.id,
+                GuardrailEvent.action_taken.in_(["HUMAN_APPROVAL", "REQUIRE_MANUAL_APPROVAL"])
+            )
+            .order_by(GuardrailEvent.triggered_at.desc())
+            .first()
+        )
+        if recent_approval_event:
+            reason = f"Explicit Guardrail Requirement ({recent_approval_event.rule_name}): {recent_approval_event.details or 'Supervisor sign-off required by guardrail policy.'}"
+            return GuardrailDecision(
+                allowed=True,
+                requires_approval=True,
+                reason_code=recent_approval_event.rule_name,
+                human_readable_reason=reason,
+                policy_version=self.policy.POLICY_VERSION,
+                suggested_action="HUMAN_APPROVAL",
+                rule_details={"rule": recent_approval_event.rule_name, "threshold": recent_approval_event.threshold_breached}
             )
 
         # ---------------------------------------------------------------------
@@ -251,6 +274,7 @@ class GuardrailsService:
         # Log to AuditLog: who approved, timestamp, original recommendation, final decision
         audit = AuditLog(
             id=f"aud_appr_{uuid.uuid4().hex[:8]}",
+            workspace_id=case.workspace_id,
             recovery_case_id=case.id,
             transaction_id=case.transaction_id,
             actor=f"OPERATOR:{operator_name}",
@@ -272,22 +296,32 @@ class GuardrailsService:
         db.refresh(case)
 
         # Emit real-time events
-        event_broadcaster.broadcast_sync("HUMAN_APPROVAL_DECISION", {
-            "case_id": case.id,
-            "operator": operator_name,
-            "decision": norm_decision,
-            "original_strategy": orig_strategy,
-            "amount": case.risk_amount,
-            "timestamp": timestamp.isoformat()
-        })
-        event_broadcaster.broadcast_sync("RECOVERY_AGENT_TRANSITION", {
-            "case_id": case.id,
-            "prev_step": prev_step,
-            "current_step": final_step,
-            "strategy": case.selected_strategy,
-            "details": details,
-            "timestamp": timestamp.isoformat()
-        })
+        event_broadcaster.broadcast_sync(
+            "HUMAN_APPROVAL_DECISION",
+            {
+                "case_id": case.id,
+                "operator": operator_name,
+                "decision": norm_decision,
+                "original_strategy": orig_strategy,
+                "amount": case.risk_amount,
+                "workspace_id": str(case.workspace_id),
+                "timestamp": timestamp.isoformat()
+            },
+            workspace_id=case.workspace_id
+        )
+        event_broadcaster.broadcast_sync(
+            "RECOVERY_AGENT_TRANSITION",
+            {
+                "case_id": case.id,
+                "prev_step": prev_step,
+                "current_step": final_step,
+                "strategy": case.selected_strategy,
+                "details": details,
+                "workspace_id": str(case.workspace_id),
+                "timestamp": timestamp.isoformat()
+            },
+            workspace_id=case.workspace_id
+        )
 
         logger.info(f"Human Approval processed for Case {case.id} by {operator_name}: {norm_decision}")
         return {
@@ -310,6 +344,7 @@ class GuardrailsService:
     ):
         event = GuardrailEvent(
             id=f"gr_{uuid.uuid4().hex[:10]}",
+            workspace_id=case.workspace_id,
             recovery_case_id=case.id,
             rule_name=rule_name,
             threshold_breached=threshold,

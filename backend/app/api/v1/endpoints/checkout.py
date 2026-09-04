@@ -3,11 +3,12 @@ RecoverAI - Pre-Payment Checkout Session & Abandonment Recovery Endpoints
 Provides checkout session tracking, abandonment timeout processing, and funnel metrics.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 
 from app.database.session import get_db
+from app.core.auth import get_current_user
 from app.models import CheckoutSession, Customer, RecoveryCase, Transaction
 from app.services.abandonment_service import abandonment_service
 from app.schemas.checkout_sessions import (
@@ -52,10 +53,14 @@ def create_checkout_session(
 def list_checkout_sessions(
     status: Optional[str] = None,
     limit: int = Query(50, le=200),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Lists recent checkout sessions with optional status filtering."""
+    ws_id = current_user.get("workspace_id")
     query = db.query(CheckoutSession).options(joinedload(CheckoutSession.customer))
+    if ws_id is not None:
+        query = query.filter(CheckoutSession.workspace_id == ws_id)
     if status and status.upper() != "ALL":
         query = query.filter(CheckoutSession.status == status.upper())
 
@@ -169,7 +174,8 @@ def abandon_checkout_session(
 @router.post("/check-abandoned", summary="Scan Timed-Out Checkout Sessions")
 def check_timed_out_sessions(
     timeout_seconds: int = Query(15, ge=1, le=86400),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Scans active sessions exceeding inactivity timeout and transitions them to ABANDONED.
@@ -185,7 +191,8 @@ def check_timed_out_sessions(
 
 @router.get("/funnel", response_model=AbandonmentFunnelResponse, summary="Get Abandonment Funnel Metrics")
 def get_abandonment_funnel(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Returns the 5-stage pre-payment abandonment funnel metrics and conversion rates."""
     return abandonment_service.get_funnel_metrics(db)
@@ -193,17 +200,20 @@ def get_abandonment_funnel(
 @router.get("/cases", summary="List Pre-Payment Abandonment Cases")
 def list_abandonment_cases(
     limit: int = Query(50, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Returns detailed abandonment cases created from dropped checkout sessions."""
-    cases = (
+    ws_id = current_user.get("workspace_id")
+    query = (
         db.query(RecoveryCase)
         .options(joinedload(RecoveryCase.transaction).joinedload(Transaction.customer))
         .filter(RecoveryCase.failure_category == "ABANDONMENT")
-        .order_by(RecoveryCase.created_at.desc())
-        .limit(limit)
-        .all()
     )
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+
+    cases = query.order_by(RecoveryCase.created_at.desc()).limit(limit).all()
 
     results = []
     for c in cases:

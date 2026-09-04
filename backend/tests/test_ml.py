@@ -1,15 +1,15 @@
 import pytest
 from fastapi.testclient import TestClient
 
-def test_ml_model_info(client: TestClient):
-    response = client.get("/api/ml/model-info")
+def test_ml_model_info(auth_client):
+    response = auth_client.get("/api/ml/model-info")
     assert response.status_code == 200
     data = response.json()
     assert "algorithm" in data
     assert "model_version" in data
     assert "metrics" in data
 
-def test_ml_predict_upi_timeout(client: TestClient):
+def test_ml_predict_upi_timeout(auth_client):
     payload = {
         "amount": 2500.0,
         "payment_method": "UPI",
@@ -22,7 +22,7 @@ def test_ml_predict_upi_timeout(client: TestClient):
         "customer_value": "GROWTH",
         "bank": "State Bank of India"
     }
-    response = client.post("/api/ml/predict", json=payload)
+    response = auth_client.post("/api/ml/predict", json=payload)
     assert response.status_code == 200
     data = response.json()
     
@@ -37,7 +37,7 @@ def test_ml_predict_upi_timeout(client: TestClient):
     assert data["action_probabilities"]["UPI_SWITCH"] > 0.60
     assert data["expected_recovery_value"] > 0
 
-def test_ml_predict_expired_card(client: TestClient):
+def test_ml_predict_expired_card(auth_client):
     payload = {
         "amount": 4200.0,
         "payment_method": "CARD",
@@ -50,7 +50,7 @@ def test_ml_predict_expired_card(client: TestClient):
         "customer_value": "STANDARD",
         "bank": "HDFC Bank"
     }
-    response = client.post("/api/ml/predict", json=payload)
+    response = auth_client.post("/api/ml/predict", json=payload)
     assert response.status_code == 200
     data = response.json()
 
@@ -59,7 +59,7 @@ def test_ml_predict_expired_card(client: TestClient):
     # Payment link for alternate payment / updated card should be much higher
     assert data["action_probabilities"]["PAYMENT_LINK"] > data["action_probabilities"]["RETRY_NOW"]
 
-def test_ml_attempt_count_fatigue(client: TestClient):
+def test_ml_attempt_count_fatigue(auth_client):
     payload_attempt1 = {
         "amount": 5000.0,
         "payment_method": "UPI",
@@ -81,8 +81,8 @@ def test_ml_attempt_count_fatigue(client: TestClient):
         "customer_value": "STANDARD"
     }
 
-    res1 = client.post("/api/ml/predict", json=payload_attempt1)
-    res4 = client.post("/api/ml/predict", json=payload_attempt4)
+    res1 = auth_client.post("/api/ml/predict", json=payload_attempt1)
+    res4 = auth_client.post("/api/ml/predict", json=payload_attempt4)
 
     assert res1.status_code == 200
     assert res4.status_code == 200
@@ -93,7 +93,7 @@ def test_ml_attempt_count_fatigue(client: TestClient):
     # Attempt 1 must have higher recovery propensity than attempt 4
     assert prob1 > prob4
 
-def test_ml_vip_high_value(client: TestClient):
+def test_ml_vip_high_value(auth_client):
     payload = {
         "amount": 85000.0,
         "payment_method": "NET_BANKING",
@@ -106,7 +106,7 @@ def test_ml_vip_high_value(client: TestClient):
         "customer_value": "VIP",
         "bank": "ICICI Bank"
     }
-    response = client.post("/api/ml/predict", json=payload)
+    response = auth_client.post("/api/ml/predict", json=payload)
     assert response.status_code == 200
     data = response.json()
 

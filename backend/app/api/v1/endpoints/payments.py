@@ -35,7 +35,7 @@ def get_payment_config():
     Strictly exposes only the public Test Key ID. The Key Secret is NEVER revealed.
     """
     return PaymentConfigResponse(
-        key_id=settings.RAZORPAY_KEY_ID or "rzp_test_recoverai998",
+        key_id=settings.RAZORPAY_KEY_ID or "",
         is_test_mode=True,
         is_configured=razorpay_service.is_configured,
         merchant_name="RecoverAI Demo Store"
@@ -68,18 +68,26 @@ def create_payment_order(
     # 2. Calculate minor currency units (paise)
     amount_paise = int(round(request.amount * 100))
 
-    # 3. Create Order via Razorpay
+    # 3. Create Order via Razorpay (Fails closed: no fake orders)
     notes = {
         "product_id": request.product_id,
         "product_name": request.product_name,
         "merchant": "RecoverAI Demo Store",
         "customer_email": request.customer_email
     }
-    rzp_order = razorpay_service.create_order(
-        amount_paise=amount_paise,
-        currency=request.currency,
-        notes=notes
-    )
+    try:
+        rzp_order = razorpay_service.create_order(
+            amount_paise=amount_paise,
+            currency=request.currency,
+            notes=notes
+        )
+    except Exception as exc:
+        logger.error(f"Razorpay order creation failed: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payment service temporarily unavailable."
+        )
+
     razorpay_order_id = rzp_order.get("id")
 
     # 4. Persist Transaction in PENDING state
@@ -115,6 +123,7 @@ def create_payment_order(
     # 6. Audit Trail entry
     audit_entry = AuditLog(
         id=f"aud_{uuid.uuid4().hex[:10]}",
+        workspace_id=transaction.workspace_id,
         transaction_id=tx_id,
         actor="DEMO_STORE",
         action_type="ORDER_CREATED",
@@ -134,7 +143,7 @@ def create_payment_order(
         amount=amount_paise,
         amount_in_rupees=request.amount,
         currency=request.currency,
-        key_id=settings.RAZORPAY_KEY_ID or "rzp_test_recoverai998",
+        key_id=settings.RAZORPAY_KEY_ID or "",
         product_name=request.product_name,
         customer={
             "name": request.customer_name,
@@ -149,54 +158,127 @@ def verify_payment(
     db: Session = Depends(get_db)
 ):
     """
-    Validates Razorpay payment signature server-side using HMAC SHA-256.
-    Never trusts client response alone. On cryptographic confirmation, updates
-    transaction status to SUCCESS and captures payment metadata.
+    Cryptographically and logically verifies Razorpay payment before marking successful.
+    Validates:
+      1. HMAC SHA-256 signature
+      2. Exact relational match of Transaction ID & Order ID (No OR queries)
+      3. Payment ID format
+      4. Live Gateway status == 'captured' (fail closed on unverified/fetch error)
+      5. Order ID matching in Gateway record
+      6. Exact amount in paise
+      7. Currency matching
     """
-    # 1. Cryptographic HMAC SHA-256 verification
+    # 1. Cryptographic HMAC SHA-256 signature verification
     is_valid = razorpay_service.verify_payment_signature(
         razorpay_order_id=request.razorpay_order_id,
         razorpay_payment_id=request.razorpay_payment_id,
         razorpay_signature=request.razorpay_signature
     )
 
-    # 2. Retrieve Transaction record
+    # 2. Exact Relational Match: MUST match BOTH Transaction.id AND Transaction.razorpay_order_id
     tx = (
         db.query(Transaction)
         .filter(
-            (Transaction.id == request.transaction_id) |
-            (Transaction.razorpay_order_id == request.razorpay_order_id)
+            Transaction.id == request.transaction_id,
+            (Transaction.razorpay_order_id == request.razorpay_order_id) | (Transaction.order_id == request.razorpay_order_id)
         )
         .first()
     )
 
-    if not tx:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Transaction not found for Order ID '{request.razorpay_order_id}'."
-        )
-
     if not is_valid:
-        # Record tamper audit
-        db.add(
-            AuditLog(
-                id=f"aud_{uuid.uuid4().hex[:10]}",
-                transaction_id=tx.id,
-                actor="GATEWAY_SECURITY_CHECK",
-                action_type="SIGNATURE_VERIFICATION_FAILED",
-                target_resource=tx.id,
-                details=f"Payment signature verification failed for Payment ID {request.razorpay_payment_id}. Potential forgery.",
-                created_at=datetime.utcnow()
+        if tx:
+            db.add(
+                AuditLog(
+                    id=f"aud_{uuid.uuid4().hex[:10]}",
+                    workspace_id=tx.workspace_id,
+                    transaction_id=tx.id,
+                    actor="GATEWAY_SECURITY_CHECK",
+                    action_type="SIGNATURE_VERIFICATION_FAILED",
+                    target_resource=tx.id,
+                    details=f"Payment signature verification failed for Payment ID {request.razorpay_payment_id}. Potential forgery.",
+                    created_at=datetime.utcnow()
+                )
             )
-        )
-        db.commit()
+            db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Payment signature verification failed. HMAC SHA-256 signature does not match."
         )
 
-    # 3. Retrieve payment details from gateway
+    if not tx:
+        # Check if transaction exists under a different order or vice versa
+        tx_by_id = db.query(Transaction).filter(Transaction.id == request.transaction_id).first()
+        tx_by_order = db.query(Transaction).filter(
+            (Transaction.razorpay_order_id == request.razorpay_order_id) | (Transaction.order_id == request.razorpay_order_id)
+        ).first()
+
+        if tx_by_id or tx_by_order:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Transaction ID and Order ID mismatch. The transaction being verified must match all expected identifiers."
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction not found for Transaction ID '{request.transaction_id}' and Order ID '{request.razorpay_order_id}'."
+        )
+
+    # 3. Payment ID Format Validation
+    if not request.razorpay_payment_id or not request.razorpay_payment_id.startswith("pay_"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payment_id format. Expected identifier starting with 'pay_'."
+        )
+
+    # 4. Gateway Payment Details Retrieval (Fail Closed)
     payment_info = razorpay_service.fetch_payment_details(request.razorpay_payment_id)
+    payment_status = payment_info.get("status")
+
+    if payment_status != "captured":
+        logger.warning(
+            f"Payment verification rejected: Payment {request.razorpay_payment_id} has status '{payment_status}' (expected 'captured')."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment verification failed: Payment status is '{payment_status}'. Only captured payments can be verified."
+        )
+
+    # 5. Order ID Verification in Gateway Record
+    gateway_order_id = payment_info.get("order_id")
+    if gateway_order_id and gateway_order_id != request.razorpay_order_id:
+        logger.warning(
+            f"Gateway order mismatch: Expected '{request.razorpay_order_id}', gateway reported '{gateway_order_id}'."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Gateway order mismatch: Payment belongs to order '{gateway_order_id}', not '{request.razorpay_order_id}'."
+        )
+
+    # 6. Exact Amount Verification (in paise)
+    expected_amount_paise = int(round(tx.amount * 100))
+    gateway_amount_paise = payment_info.get("amount")
+    if gateway_amount_paise is not None and gateway_amount_paise != expected_amount_paise:
+        logger.warning(
+            f"Payment amount mismatch for Tx {tx.id}: Expected {expected_amount_paise} paise (₹{tx.amount:,.2f}), gateway recorded {gateway_amount_paise} paise."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment amount mismatch: Expected {expected_amount_paise} paise (₹{tx.amount:,.2f}), but gateway recorded {gateway_amount_paise} paise."
+        )
+
+    # 7. Currency Verification
+    expected_currency = (tx.currency or "INR").upper()
+    gateway_currency = (payment_info.get("currency") or "INR").upper()
+    if gateway_currency != expected_currency:
+        logger.warning(
+            f"Payment currency mismatch for Tx {tx.id}: Expected {expected_currency}, gateway recorded {gateway_currency}."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment currency mismatch: Expected {expected_currency}, but gateway recorded {gateway_currency}."
+        )
+
+    # 8. Idempotency Check: if already processed as SUCCESS, return safely
     raw_method = payment_info.get("method", "Card")
     method_map = {
         "card": "Card",
@@ -207,16 +289,31 @@ def verify_payment(
     }
     normalized_method = method_map.get(raw_method.lower(), raw_method.capitalize())
 
-    # 4. Update Transaction
+    if tx.status == "SUCCESS":
+        return VerifyPaymentResponse(
+            success=True,
+            signature_valid=True,
+            transaction_id=tx.id,
+            razorpay_order_id=request.razorpay_order_id,
+            razorpay_payment_id=request.razorpay_payment_id,
+            amount=tx.amount,
+            method=tx.method or normalized_method,
+            status="SUCCESS",
+            verified_at=tx.updated_at or datetime.utcnow(),
+            message="Payment was already successfully verified (idempotent response)."
+        )
+
+    # 9. All 7 Checks Passed: Mark Transaction SUCCESS & Persist Operational Records
     tx.status = "SUCCESS"
     tx.razorpay_payment_id = request.razorpay_payment_id
     tx.razorpay_signature = request.razorpay_signature
     tx.method = normalized_method
     tx.updated_at = datetime.utcnow()
 
-    # 5. Record successful payment attempt
+    # Record successful payment attempt
     attempt = PaymentAttempt(
         id=f"pa_{uuid.uuid4().hex[:10]}",
+        workspace_id=tx.workspace_id,
         transaction_id=tx.id,
         attempt_number=len(tx.payment_attempts) + 1,
         gateway="Razorpay",
@@ -227,15 +324,16 @@ def verify_payment(
     )
     db.add(attempt)
 
-    # 6. Update associated CheckoutSession if exists
+    # Update associated CheckoutSession if exists
     cs = db.query(CheckoutSession).filter(CheckoutSession.order_id == tx.order_id).first()
     if cs:
         cs.dropped_at_step = "COMPLETED"
         cs.is_recovered = True
 
-    # 7. Audit Trail log
+    # Audit Trail log
     audit_entry = AuditLog(
         id=f"aud_{uuid.uuid4().hex[:10]}",
+        workspace_id=tx.workspace_id,
         transaction_id=tx.id,
         actor="HMAC_SHA256_VERIFIER",
         action_type="PAYMENT_VERIFIED",
@@ -271,20 +369,30 @@ def record_payment_failure(
     """
     Registers a failed payment attempt (e.g. simulated failure, bank decline, user drop-off)
     and automatically routes the case into RecoverAI's Autonomous Recovery Pipeline.
+    Enforces exact transaction and order matching.
     """
     tx = (
         db.query(Transaction)
         .filter(
-            (Transaction.id == request.transaction_id) |
-            (Transaction.order_id == request.order_id)
+            Transaction.id == request.transaction_id,
+            (Transaction.order_id == request.order_id) | (Transaction.razorpay_order_id == request.order_id)
         )
         .first()
     )
 
     if not tx:
+        tx_by_id = db.query(Transaction).filter(Transaction.id == request.transaction_id).first()
+        tx_by_order = db.query(Transaction).filter(
+            (Transaction.order_id == request.order_id) | (Transaction.razorpay_order_id == request.order_id)
+        ).first()
+        if tx_by_id or tx_by_order:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Transaction ID and Order ID mismatch. Failure reporting requires exact matching identifiers."
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Transaction with ID '{request.transaction_id}' was not found."
+            detail=f"Transaction not found for ID '{request.transaction_id}' and Order '{request.order_id}'."
         )
 
     # 1. Update Transaction status
@@ -296,6 +404,7 @@ def record_payment_failure(
     # 2. Record failed payment attempt
     attempt = PaymentAttempt(
         id=f"pa_{uuid.uuid4().hex[:10]}",
+        workspace_id=tx.workspace_id,
         transaction_id=tx.id,
         attempt_number=len(tx.payment_attempts) + 1,
         gateway="Razorpay",
@@ -314,6 +423,7 @@ def record_payment_failure(
     if not recovery_case:
         recovery_case = RecoveryCase(
             id=f"case_{uuid.uuid4().hex[:8]}",
+            workspace_id=tx.workspace_id,
             transaction_id=tx.id,
             risk_amount=tx.amount,
             failure_category=request.error_category or "GATEWAY_ERROR",
@@ -331,6 +441,7 @@ def record_payment_failure(
     db.add(
         AuditLog(
             id=f"aud_{uuid.uuid4().hex[:10]}",
+            workspace_id=tx.workspace_id,
             transaction_id=tx.id,
             recovery_case_id=recovery_case.id,
             actor="GATEWAY_EVENT_LISTENER",

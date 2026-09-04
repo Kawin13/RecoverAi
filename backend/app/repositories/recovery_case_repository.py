@@ -4,13 +4,14 @@ from sqlalchemy import or_, desc, asc
 from app.models.recovery_cases import RecoveryCase
 from app.models.transactions import Transaction
 from app.models.customers import Customer
+from app.core.guardrail_policy import guardrail_policy
 
 class RecoveryCaseRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_id(self, case_id: str) -> Optional[RecoveryCase]:
-        return (
+    def get_by_id(self, case_id: str, workspace_id: Optional[str] = None) -> Optional[RecoveryCase]:
+        query = (
             self.db.query(RecoveryCase)
             .options(
                 joinedload(RecoveryCase.transaction).joinedload(Transaction.customer),
@@ -19,8 +20,10 @@ class RecoveryCaseRepository:
                 joinedload(RecoveryCase.recovery_outcome)
             )
             .filter(RecoveryCase.id == case_id)
-            .first()
         )
+        if workspace_id is not None:
+            query = query.filter(RecoveryCase.workspace_id == workspace_id)
+        return query.first()
 
     def list_cases(
         self,
@@ -29,7 +32,8 @@ class RecoveryCaseRepository:
         status: Optional[str] = None,
         failure_category: Optional[str] = None,
         search: Optional[str] = None,
-        min_erv: Optional[float] = None
+        min_erv: Optional[float] = None,
+        workspace_id: Optional[str] = None
     ) -> Tuple[List[RecoveryCase], int]:
         query = (
             self.db.query(RecoveryCase)
@@ -42,6 +46,9 @@ class RecoveryCaseRepository:
                 joinedload(RecoveryCase.recovery_outcome)
             )
         )
+
+        if workspace_id is not None:
+            query = query.filter(RecoveryCase.workspace_id == workspace_id)
 
         if status and status != "ALL":
             query = query.filter(RecoveryCase.status == status)
@@ -69,12 +76,12 @@ class RecoveryCaseRepository:
 
         return items, total
 
-    def get_queue_counts(self) -> Dict[str, int]:
+    def get_queue_counts(self, workspace_id: Optional[str] = None) -> Dict[str, int]:
         """
         Computes exact canonical active at-risk queue counts from database.
         Ensures all subset queues are strictly <= all_at_risk.
         """
-        active_cases = (
+        query = (
             self.db.query(RecoveryCase)
             .join(Transaction, RecoveryCase.transaction_id == Transaction.id)
             .join(Customer, Transaction.customer_id == Customer.id)
@@ -82,14 +89,19 @@ class RecoveryCaseRepository:
             .filter(RecoveryCase.status != "RECOVERED")
             .filter(RecoveryCase.status != "SUCCESS")
             .filter(RecoveryCase.status != "STOPPED")
-            .all()
         )
+        if workspace_id is not None:
+            query = query.filter(RecoveryCase.workspace_id == workspace_id)
+        active_cases = query.all()
 
         all_at_risk = len(active_cases)
 
         high_value_urgent = sum(
             1 for rc in active_cases
-            if (rc.risk_amount >= 25000.0 or (rc.transaction and rc.transaction.amount >= 25000.0))
+            if (
+                rc.risk_amount >= guardrail_policy.URGENT_HIGH_VALUE_THRESHOLD_INR
+                or (rc.transaction and rc.transaction.amount >= guardrail_policy.URGENT_HIGH_VALUE_THRESHOLD_INR)
+            )
         )
 
         vip_enterprise = sum(

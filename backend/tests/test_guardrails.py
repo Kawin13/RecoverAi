@@ -125,7 +125,7 @@ def test_rule_low_probability_triggers_no_action(client, db_session):
     assert decision.reason_code == "LOW_RECOVERY_PROBABILITY"
     assert decision.suggested_action == "NO_ACTION"
 
-def test_human_approval_queue_and_decisions(client, db_session):
+def test_human_approval_queue_and_decisions(auth_client, db_session):
     case = _setup_case(
         db_session,
         suffix="appr_flow",
@@ -135,7 +135,7 @@ def test_human_approval_queue_and_decisions(client, db_session):
     )
 
     # 1. Verify case appears in approval queue API
-    q_res = client.get("/api/guardrails/approval-queue")
+    q_res = auth_client.get("/api/guardrails/approval-queue")
     assert q_res.status_code == 200
     q_items = q_res.json()
     matched = next((i for i in q_items if i["case_id"] == case.id), None)
@@ -149,7 +149,7 @@ def test_human_approval_queue_and_decisions(client, db_session):
         "operator_name": "Supervisor Sarah",
         "operator_notes": "Verified VIP account relationship. High-ticket recovery permitted."
     }
-    dec_res = client.post(f"/api/guardrails/approval-queue/{case.id}/decision", json=decision_payload)
+    dec_res = auth_client.post(f"/api/guardrails/approval-queue/{case.id}/decision", json=decision_payload)
     assert dec_res.status_code == 200
     assert dec_res.json()["approval_record"]["final_decision"] == "APPROVE"
 
@@ -169,14 +169,14 @@ def test_human_approval_queue_and_decisions(client, db_session):
     assert meta["final_decision"] == "APPROVE"
     assert meta["amount"] == 18500.0
 
-def test_operator_reject_flow(client, db_session):
+def test_operator_reject_flow(auth_client, db_session):
     case = _setup_case(
         db_session,
         suffix="rej",
         amount=12000.0,
         status="PENDING_APPROVAL"
     )
-    res = client.post(f"/api/guardrails/approval-queue/{case.id}/decision", json={
+    res = auth_client.post(f"/api/guardrails/approval-queue/{case.id}/decision", json={
         "decision": "REJECT",
         "operator_name": "Risk Officer Mark",
         "operator_notes": "Suspicious transaction frequency"
@@ -203,7 +203,7 @@ def test_guardrails_execute_before_external_actions(client, db_session):
     pl = db_session.query(PaymentLink).filter(PaymentLink.recovery_case_id == case.id).first()
     assert pl is None
 
-def test_why_stopped_forensic_endpoint(client, db_session):
+def test_why_stopped_forensic_endpoint(auth_client, db_session):
     case = _setup_case(
         db_session,
         suffix="forensic",
@@ -212,7 +212,7 @@ def test_why_stopped_forensic_endpoint(client, db_session):
         status="STOPPED"
     )
 
-    res = client.get(f"/api/guardrails/forensics/{case.id}")
+    res = auth_client.get(f"/api/guardrails/forensics/{case.id}")
     assert res.status_code == 200
     data = res.json()
     assert data["case_id"] == case.id
@@ -220,8 +220,8 @@ def test_why_stopped_forensic_endpoint(client, db_session):
     assert data["reason_code"] == "RISK_FRAUD_FLAG"
     assert data["policy_version"] == guardrail_policy.POLICY_VERSION
 
-def test_central_policies_endpoint(client):
-    res = client.get("/api/guardrails/policies")
+def test_central_policies_endpoint(auth_client):
+    res = auth_client.get("/api/guardrails/policies")
     assert res.status_code == 200
     data = res.json()
     assert "policy_version" in data

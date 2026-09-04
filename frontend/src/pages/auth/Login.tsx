@@ -75,12 +75,6 @@ export const Login: React.FC = () => {
     }
   }
 
-  const fillTestCredentials = () => {
-    setEmail('test.ops@recoverai.io')
-    setPassword('RecoverAiPass2026!')
-    setErrorMessage(null)
-  }
-
   return (
     <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-graphite antialiased font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -229,20 +223,6 @@ export const Login: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Test Account Helper */}
-          <div className="pt-2 border-t border-border">
-            <div className="flex items-center justify-between text-[11px] text-warm-gray-500 font-mono">
-              <span>Test Account Ready</span>
-              <button
-                type="button"
-                onClick={fillTestCredentials}
-                className="text-burnt-orange font-medium hover:underline"
-              >
-                Auto-fill test credentials
-              </button>
-            </div>
-          </div>
 
           <div className="pt-1 text-center text-xs text-warm-gray-600">
             <span>Don't have a merchant workspace? </span>

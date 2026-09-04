@@ -108,7 +108,18 @@ export const Simulation: React.FC = () => {
   const handleSelectPreset = (preset: SimulationPreset) => {
     setActivePresetId(preset.id)
     setControls({
-      ...preset.controls,
+      num_transactions: preset.controls.num_transactions,
+      merchant_category: preset.controls.merchant_category,
+      payment_methods_dist: {
+        UPI: preset.controls.payment_methods_dist.UPI,
+        CARD: preset.controls.payment_methods_dist.CARD,
+        NET_BANKING: preset.controls.payment_methods_dist.NET_BANKING,
+        WALLET: preset.controls.payment_methods_dist.WALLET ?? 0.05
+      },
+      failure_rate: preset.controls.failure_rate,
+      abandonment_rate: preset.controls.abandonment_rate,
+      average_order_value: preset.controls.average_order_value,
+      seed: preset.controls.seed,
       preset_name: preset.name
     })
   }
@@ -119,7 +130,22 @@ export const Simulation: React.FC = () => {
     setError(null)
     const startTime = performance.now()
     try {
-      const response = await api.runBatchSimulation(simControls)
+      const sanitizedControls: SimulationControls = {
+        num_transactions: Number(simControls.num_transactions) || 250,
+        merchant_category: simControls.merchant_category || 'E-Commerce & Retail',
+        payment_methods_dist: {
+          UPI: Number(simControls.payment_methods_dist.UPI) || 0.65,
+          CARD: Number(simControls.payment_methods_dist.CARD) || 0.20,
+          NET_BANKING: Number(simControls.payment_methods_dist.NET_BANKING) || 0.10,
+          WALLET: Number(simControls.payment_methods_dist.WALLET ?? 0.05)
+        },
+        failure_rate: Number(simControls.failure_rate) || 0.20,
+        abandonment_rate: Number(simControls.abandonment_rate) || 0.25,
+        average_order_value: Number(simControls.average_order_value) || 2500.0,
+        seed: Number(simControls.seed) || 42,
+        preset_name: simControls.preset_name
+      }
+      const response = await api.runBatchSimulation(sanitizedControls)
       setSimulationData(response)
       setExecutionTimeMs(Math.round(performance.now() - startTime))
     } catch (err: any) {
@@ -343,7 +369,14 @@ export const Simulation: React.FC = () => {
               badge: 'High Volume',
               controls: {
                 ...controls,
-                payment_methods_dist: { UPI: 0.2, CARD: 0.65, NET_BANKING: 0.15 }
+                num_transactions: 500,
+                merchant_category: 'E-Commerce & Retail',
+                payment_methods_dist: { UPI: 0.65, CARD: 0.20, NET_BANKING: 0.10, WALLET: 0.05 },
+                failure_rate: 0.22,
+                abandonment_rate: 0.30,
+                average_order_value: 2400.0,
+                seed: 42,
+                preset_name: 'E-commerce Sale Day'
               }
             },
             {
@@ -353,35 +386,48 @@ export const Simulation: React.FC = () => {
               badge: 'High AOV',
               controls: {
                 ...controls,
-                payment_methods_dist: { UPI: 0.2, CARD: 0.65, NET_BANKING: 0.15 }
+                num_transactions: 300,
+                merchant_category: 'SaaS & Cloud Services',
+                payment_methods_dist: { UPI: 0.20, CARD: 0.70, NET_BANKING: 0.10, WALLET: 0.00 },
+                failure_rate: 0.18,
+                abandonment_rate: 0.08,
+                average_order_value: 8500.0,
+                seed: 101,
+                preset_name: 'SaaS Subscription Cycle'
               }
             },
             {
-              id: 'flash_sale_spike',
-              name: 'Flash Drop Outage',
-              description: 'High concurrency timeout scenario with gateway switch failover.',
-              badge: 'Stress Test',
+              id: 'food_delivery_peak',
+              name: 'Food Delivery Peak Hour',
+              description: 'Dinner rush with rapid checkout velocity, 85% UPI share, high switch sensitivity.',
+              badge: 'Fast Pace',
               controls: {
                 ...controls,
-                volume: 500,
-                failure_distribution: {
-                  AUTHENTICATION_FAILED: 0.15,
-                  INSUFFICIENT_FUNDS: 0.10,
-                  BANK_TIMEOUT: 0.45,
-                  GATEWAY_ERROR: 0.20,
-                  FRAUD_BLOCKED: 0.05,
-                  CARD_EXPIRED: 0.05
-                }
+                num_transactions: 750,
+                merchant_category: 'Quick Commerce & Food',
+                payment_methods_dist: { UPI: 0.85, CARD: 0.08, NET_BANKING: 0.04, WALLET: 0.03 },
+                failure_rate: 0.14,
+                abandonment_rate: 0.18,
+                average_order_value: 480.0,
+                seed: 777,
+                preset_name: 'Food Delivery Peak Hour'
               }
             },
             {
-              id: 'upi_heavy_retail',
-              name: 'UPI Quick Commerce',
-              description: 'Micro-transactions with 80% UPI share and high customer sensitivity to app drop-offs.',
-              badge: 'Fast Intent',
+              id: 'travel_spike',
+              name: 'Travel Booking Spike',
+              description: 'Holiday booking peak with high basket sizes, OTP auth timeouts, and bank limits.',
+              badge: 'Enterprise',
               controls: {
                 ...controls,
-                payment_methods_dist: { UPI: 0.8, CARD: 0.1, NET_BANKING: 0.1 }
+                num_transactions: 200,
+                merchant_category: 'Travel & Hospitality',
+                payment_methods_dist: { UPI: 0.25, CARD: 0.45, NET_BANKING: 0.30, WALLET: 0.00 },
+                failure_rate: 0.26,
+                abandonment_rate: 0.35,
+                average_order_value: 18500.0,
+                seed: 999,
+                preset_name: 'Travel Booking Spike'
               }
             }
           ]).map((preset) => (
@@ -540,7 +586,7 @@ export const Simulation: React.FC = () => {
 
           {/* Payment Method Distribution */}
           <div className="space-y-1">
-            <label className="font-medium text-warm-gray-600">Payment Rails Mix (UPI / Card / NetBanking)</label>
+            <label className="font-medium text-warm-gray-600">Payment Rails Mix (UPI / Card / NetBanking / Wallet)</label>
             <div className="flex gap-2">
               <div className="flex-1 bg-warm-gray-50 border border-border rounded-sm px-2 py-1 flex items-center justify-between text-[11px] font-mono">
                 <span className="text-warm-gray-500">UPI:</span>
@@ -553,6 +599,10 @@ export const Simulation: React.FC = () => {
               <div className="flex-1 bg-warm-gray-50 border border-border rounded-sm px-2 py-1 flex items-center justify-between text-[11px] font-mono">
                 <span className="text-warm-gray-500">NB:</span>
                 <span className="font-bold">{Math.round(controls.payment_methods_dist.NET_BANKING * 100)}%</span>
+              </div>
+              <div className="flex-1 bg-warm-gray-50 border border-border rounded-sm px-2 py-1 flex items-center justify-between text-[11px] font-mono">
+                <span className="text-warm-gray-500">Wallet:</span>
+                <span className="font-bold">{Math.round((controls.payment_methods_dist.WALLET ?? 0.05) * 100)}%</span>
               </div>
             </div>
           </div>

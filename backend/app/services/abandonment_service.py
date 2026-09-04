@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.core.events import event_broadcaster
 from app.services.notification_service import notification_service
@@ -317,7 +318,7 @@ class AbandonmentService:
             strategy=metrics["selected_strategy"],
             customer_name=customer.name,
             amount=session.cart_amount,
-            action_url=f"http://localhost:3000/demo-checkout?order_id={session.order_id}&recover=true",
+            action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={session.order_id}&recover=true",
             language="en",
             recovery_case_id=case.id
         )

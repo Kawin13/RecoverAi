@@ -11,7 +11,7 @@ from app.database.session import get_db
 from app.models import RecoveryCase, Transaction, GuardrailEvent, AuditLog
 from app.core.guardrail_policy import guardrail_policy
 from app.services.guardrails_service import guardrails_service
-from app.core.auth import require_admin
+from app.core.auth import get_current_user, require_admin
 from app.schemas.guardrails import (
     GuardrailPoliciesResponse,
     HumanApprovalQueueItem,
@@ -23,7 +23,9 @@ router = APIRouter()
 
 
 @router.get("/policies", response_model=GuardrailPoliciesResponse, summary="Get Central Guardrail Policies")
-def get_policies():
+def get_policies(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """Returns the central fintech guardrail policy rules, threshold values, descriptions, and statuses."""
     rules = guardrail_policy.get_rules()
     summary = guardrail_policy.get_summary()
@@ -35,22 +37,26 @@ def get_policies():
 
 @router.get("/approval-queue", response_model=List[HumanApprovalQueueItem], summary="Get Human Approval Queue")
 def get_approval_queue(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Returns high-value or gated cases requiring human supervisor sign-off before intervention dispatch.
     A case enters and remains in this queue ONLY when an explicit guardrail sets requires_approval = True.
     Transactions below ₹10,000 without explicit approval triggers are automatically unblocked and cleared.
     """
-    cases = (
+    ws_id = current_user.get("workspace_id")
+    query = (
         db.query(RecoveryCase)
         .options(
             joinedload(RecoveryCase.transaction).joinedload(Transaction.customer)
         )
-        .filter(RecoveryCase.status.in_(["PENDING_APPROVAL", "IN_PROGRESS", "ATTEMPTING", "DETECTED", "ACTION_SCHEDULED"]))
-        .order_by(RecoveryCase.created_at.desc())
-        .all()
+        .filter(RecoveryCase.status.in_(["PENDING_APPROVAL", "IN_PROGRESS", "ATTEMPTING", "DETECTED", "ACTION_SCHEDULED", "MANUAL_ESCALATION", "POLICY_OVERRIDE"]))
     )
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+
+    cases = query.order_by(RecoveryCase.created_at.desc()).all()
 
     items = []
     for c in cases:
@@ -111,7 +117,11 @@ def submit_approval_decision(
     Strictly restricted to Administrators with require_admin().
     Monetary amounts cannot be altered. Logs operator identity and audit details.
     """
-    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    admin_ws = admin_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if admin_ws is not None:
+        query = query.filter(RecoveryCase.workspace_id == admin_ws)
+    case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
 
@@ -132,13 +142,18 @@ def submit_approval_decision(
 @router.get("/forensics/{case_id}", response_model=WhyStoppedForensicResponse, summary="'Why Was This Stopped?' Forensic Inspection")
 def get_why_stopped_forensics(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Forensic deep-dive explaining why an autonomous recovery case was halted, blocked, or suppressed.
     Synthesizes guardrail rule breaches, fraud markers, opt-out status, and audit history.
     """
-    case = db.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    ws_id = current_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+    case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
 
@@ -152,13 +167,11 @@ def get_why_stopped_forensics(
     is_fraud = case.failure_category in guardrail_policy.RISK_TAXONOMIES or "FRAUD" in case.failure_category.upper()
 
     # Load audit records
-    audits = (
-        db.query(AuditLog)
-        .filter(AuditLog.recovery_case_id == case.id)
-        .order_by(AuditLog.created_at.desc())
-        .limit(10)
-        .all()
-    )
+    audit_q = db.query(AuditLog).filter(AuditLog.recovery_case_id == case.id)
+    if ws_id is not None:
+        audit_q = audit_q.filter(AuditLog.workspace_id == ws_id)
+    audits = audit_q.order_by(AuditLog.created_at.desc()).limit(10).all()
+
     audit_list = [
         {
             "id": a.id,
@@ -193,10 +206,15 @@ def get_why_stopped_forensics(
 @router.get("/events", summary="Get Recent Guardrail Events")
 def get_guardrail_events(
     limit: int = 50,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Returns recent guardrail breach events logged during decision evaluation."""
-    events = db.query(GuardrailEvent).order_by(GuardrailEvent.triggered_at.desc()).limit(limit).all()
+    ws_id = current_user.get("workspace_id")
+    query = db.query(GuardrailEvent)
+    if ws_id is not None:
+        query = query.filter(GuardrailEvent.workspace_id == ws_id)
+    events = query.order_by(GuardrailEvent.triggered_at.desc()).limit(limit).all()
     return [
         {
             "id": e.id,

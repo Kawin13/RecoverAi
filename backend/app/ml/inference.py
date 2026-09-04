@@ -1,10 +1,15 @@
 import os
 import json
 import joblib
+import hashlib
+import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from app.core.config import settings
+
+logger = logging.getLogger("recoverai.ml")
 
 class MLInferenceEngine:
     def __init__(self):
@@ -16,6 +21,7 @@ class MLInferenceEngine:
         self.int_model = None
         self.int_preprocessor = None
         self.metadata = {}
+        self.artifact_checksum: Optional[str] = None
 
         self.candidate_actions = [
             "RETRY_NOW",
@@ -39,6 +45,16 @@ class MLInferenceEngine:
 
         self._load_artifacts()
 
+    @property
+    def is_loaded(self) -> bool:
+        """Returns True if genuine XGBoost models and preprocessors are loaded in memory."""
+        return bool(
+            self.rec_model is not None and
+            self.rec_preprocessor is not None and
+            self.int_model is not None and
+            self.int_preprocessor is not None
+        )
+
     def _load_artifacts(self):
         rec_model_path = os.path.join(self.artifacts_dir, "recovery_model.joblib")
         rec_prep_path = os.path.join(self.artifacts_dir, "recovery_preprocessor.joblib")
@@ -50,32 +66,87 @@ class MLInferenceEngine:
             try:
                 self.rec_model = joblib.load(rec_model_path)
                 self.rec_preprocessor = joblib.load(rec_prep_path)
+                # Compute SHA-256 checksum of the primary model artifact
+                h = hashlib.sha256()
+                with open(rec_model_path, "rb") as f:
+                    for chunk in iter(lambda: f.read(65536), b""):
+                        h.update(chunk)
+                self.artifact_checksum = h.hexdigest()
+                logger.info(f"Loaded XGBoost recovery model. Checksum: {self.artifact_checksum[:12]}...")
             except Exception as e:
-                print(f"Warning: Could not load recovery model: {e}")
+                logger.error(f"Failed to load recovery model artifact: {e}")
+                self.rec_model = None
+                self.rec_preprocessor = None
 
         if os.path.exists(int_model_path) and os.path.exists(int_prep_path):
             try:
                 self.int_model = joblib.load(int_model_path)
                 self.int_preprocessor = joblib.load(int_prep_path)
+                logger.info("Loaded XGBoost intervention model artifacts.")
             except Exception as e:
-                print(f"Warning: Could not load intervention model: {e}")
+                logger.error(f"Failed to load intervention model artifact: {e}")
+                self.int_model = None
+                self.int_preprocessor = None
 
         if os.path.exists(meta_path):
             try:
-                with open(meta_path, "r") as f:
+                with open(meta_path, "r", encoding="utf-8") as f:
                     self.metadata = json.load(f)
             except Exception as e:
-                print(f"Warning: Could not load metadata: {e}")
+                logger.warning(f"Could not load metadata from {meta_path}: {e}")
 
     def get_metadata(self) -> Dict[str, Any]:
-        return self.metadata or {
-            "model_version": "1.0.0-fallback",
-            "algorithm": "XGBoost Gradient Boosted Trees",
-            "features": 18,
-            "status": "active"
-        }
+        """
+        Returns internal model metadata, architecture details, and dataset disclosure.
+        Honest labeling: Never labels fallback heuristics as 'XGBoost'.
+        """
+        if self.is_loaded:
+            return {
+                "model_name": "XGBoost Gradient Boosted Decision Trees",
+                "model_version": self.metadata.get("model_version", "1.0.0-production"),
+                "algorithm": "XGBoost Gradient Boosted Decision Trees",
+                "framework": self.metadata.get("framework", "xgboost 3.2.0 + scikit-learn"),
+                "loaded": True,
+                "scoring_mode": "ML_MODEL",
+                "artifact_checksum": self.artifact_checksum or self.metadata.get("artifact_checksum"),
+                "trained_at": self.metadata.get("trained_at"),
+                "dataset": {
+                    "type": "synthetic",
+                    "records": 35000,
+                    "disclosure": "Trained and evaluated on synthetic Indian digital payment records with statistical correlations. Not trained on merchant-proven real-world data."
+                },
+                "features": self.metadata.get("features", {"total_count": 18}),
+                "candidate_actions": self.candidate_actions,
+                "metrics": self.metadata.get("metrics", {}),
+                "status": "active"
+            }
+        else:
+            return {
+                "model_name": "Deterministic Fallback Heuristic",
+                "model_version": "1.0.0-fallback",
+                "algorithm": "Rule-Based Deterministic Scoring",
+                "loaded": False,
+                "scoring_mode": "Deterministic Fallback",
+                "artifact_checksum": None,
+                "dataset": {
+                    "type": "synthetic",
+                    "disclosure": "Fallback heuristic rules. No ML model artifacts loaded."
+                },
+                "features": {"total_count": 18},
+                "candidate_actions": self.candidate_actions,
+                "status": "fallback"
+            }
 
     def predict(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Infers recovery propensity P(recovery) and action-conditioned ERV.
+        Fails closed in production if ML model artifacts are missing.
+        """
+        # Production fail-closed check
+        if getattr(settings, "ENVIRONMENT", "development") == "production" and not self.is_loaded:
+            logger.error("Production ML inference rejected: ML model artifacts unavailable.")
+            raise RuntimeError("ML model unavailable")
+
         amount = float(data.get("amount") or 2500.0)
         payment_method = str(data.get("payment_method") or "UPI").upper()
         bank = str(data.get("bank") or "HDFC Bank")
@@ -128,7 +199,12 @@ class MLInferenceEngine:
             X_proc = self.rec_preprocessor.transform(df_single)
             overall_prob = float(self.rec_model.predict_proba(X_proc)[0, 1])
         else:
-            logit = 0.5 + (0.4 if cust_tier in ["VIP", "ENTERPRISE"] else 0.0) - (attempt_count - 1) * 0.4
+            # Deterministic fallback scoring: calibrated for customer tier, track record & attempt fatigue
+            tier_boost = 0.75 if cust_tier in ["VIP", "ENTERPRISE"] else (0.25 if cust_tier == "GROWTH" else 0.0)
+            success_boost = min(0.35, max(0.0, prev_success * 0.015))
+            failure_penalty = min(0.40, prev_failure * 0.05)
+            fatigue_penalty = (attempt_count - 1) * 0.40
+            logit = 0.5 + tier_boost + success_boost - failure_penalty - fatigue_penalty
             overall_prob = 1.0 / (1.0 + np.exp(-logit))
 
         overall_prob = round(float(np.clip(overall_prob, 0.05, 0.98)), 4)
@@ -153,10 +229,12 @@ class MLInferenceEngine:
 
             # Apply domain-specific physical constraints & boundary rules
             if act == "RETRY_NOW":
-                if failure_reason in ["EXPIRED_CARD", "INVALID_CARD", "MANDATE_CANCELLED"]:
-                    prob = min(prob * 0.05, 0.05)  # Retrying an expired instrument immediately fails
+                if failure_reason in ["EXPIRED_CARD", "INVALID_CARD", "MANDATE_CANCELLED", "INSUFFICIENT_FUNDS"]:
+                    # Physical constraint: Retrying an expired card or an account with insufficient funds
+                    # immediately fails because bank balances do not replenish instantaneously.
+                    prob = min(prob * 0.05, 0.05)
                 elif failure_reason in ["UPI_TIMEOUT", "BANK_SERVER_DOWN"]:
-                    prob = min(prob * 0.35, 0.30)  # Bank switch is down; immediate retry hits same wall
+                    prob = min(prob * 0.35, 0.30)
                 elif attempt_count >= 3:
                     prob = prob * 0.40
 
@@ -167,13 +245,14 @@ class MLInferenceEngine:
                     prob = min(prob * 1.15, 0.88)
 
             elif act == "UPI_SWITCH":
-                if failure_reason in ["UPI_TIMEOUT", "BANK_SERVER_DOWN", "UPI_PIN_FAILED"]:
+                if failure_reason in ["UPI_TIMEOUT", "BANK_SERVER_DOWN", "UPI_PIN_FAILED", "INSUFFICIENT_FUNDS"]:
                     prob = min(prob * 1.25, 0.94)
                 elif pref_method == "UPI":
                     prob = min(prob * 1.15, 0.92)
 
             elif act == "PAYMENT_LINK":
-                if failure_category in ["AUTHENTICATION", "INVALID_INSTRUMENT"] or failure_reason == "OTP_FAILED":
+                if failure_category in ["AUTHENTICATION", "INVALID_INSTRUMENT"] or failure_reason in ["OTP_FAILED", "INSUFFICIENT_FUNDS"]:
+                    # Payment link allows customer to use an alternate funding source, card, or UPI app
                     prob = min(prob * 1.20, 0.92)
 
             elif act == "PERSONALIZED_REMINDER":
@@ -204,6 +283,10 @@ class MLInferenceEngine:
         prob_lower = round(max(0.0, overall_prob - uncertainty_margin), 4)
         prob_upper = round(min(1.0, overall_prob + uncertainty_margin), 4)
 
+        scoring_mode = "ML_MODEL" if self.is_loaded else "Deterministic Fallback"
+        model_name = "XGBoost Gradient Boosted Decision Trees" if self.is_loaded else "Deterministic Fallback Heuristic"
+        algorithm = "XGBoost Gradient Boosted Decision Trees" if self.is_loaded else "Rule-Based Deterministic Scoring"
+
         return {
             "recovery_probability": overall_prob,
             "confidence_interval": {
@@ -216,19 +299,28 @@ class MLInferenceEngine:
             "action_probabilities": action_probs,
             "action_ervs": erv_by_action,
             "model_metadata": {
-                "version": self.metadata.get("model_version", "1.0.0-production"),
-                "algorithm": self.metadata.get("algorithm", "XGBoost Gradient Boosted Decision Trees"),
-                "trained_at": self.metadata.get("trained_at", datetime.utcnow().isoformat())
+                "model_name": model_name,
+                "version": self.metadata.get("model_version", "1.0.0-production") if self.is_loaded else "1.0.0-fallback",
+                "algorithm": algorithm,
+                "scoring_mode": scoring_mode,
+                "loaded": self.is_loaded,
+                "artifact_checksum": self.artifact_checksum,
+                "dataset_type": "synthetic",
+                "trained_at": self.metadata.get("trained_at", datetime.utcnow().isoformat()) if self.is_loaded else ""
             }
         }
 
     def predict_batch(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         High-performance vectorized batch inference across hundreds or thousands of transactions.
-        Evaluates real XGBoost models simultaneously.
+        Evaluates real XGBoost models simultaneously. Fails closed in production if models missing.
         """
         if not records:
             return []
+
+        if getattr(settings, "ENVIRONMENT", "development") == "production" and not self.is_loaded:
+            logger.error("Production batch ML inference rejected: ML model artifacts unavailable.")
+            raise RuntimeError("ML model unavailable")
 
         # Prepare normalized DataFrame
         rows = []
@@ -300,7 +392,7 @@ class MLInferenceEngine:
             probs = raw_probs.copy()
 
             if act == "RETRY_NOW":
-                mask_bad = np.isin(f_reason, ["EXPIRED_CARD", "INVALID_CARD", "MANDATE_CANCELLED"])
+                mask_bad = np.isin(f_reason, ["EXPIRED_CARD", "INVALID_CARD", "MANDATE_CANCELLED", "INSUFFICIENT_FUNDS"])
                 probs[mask_bad] = np.minimum(probs[mask_bad] * 0.05, 0.05)
                 mask_down = np.isin(f_reason, ["UPI_TIMEOUT", "BANK_SERVER_DOWN"])
                 probs[mask_down] = np.minimum(probs[mask_down] * 0.35, 0.30)
@@ -314,13 +406,13 @@ class MLInferenceEngine:
                 probs[mask_down] = np.minimum(probs[mask_down] * 1.15, 0.88)
 
             elif act == "UPI_SWITCH":
-                mask_upi = np.isin(f_reason, ["UPI_TIMEOUT", "BANK_SERVER_DOWN", "UPI_PIN_FAILED"])
+                mask_upi = np.isin(f_reason, ["UPI_TIMEOUT", "BANK_SERVER_DOWN", "UPI_PIN_FAILED", "INSUFFICIENT_FUNDS"])
                 probs[mask_upi] = np.minimum(probs[mask_upi] * 1.25, 0.94)
                 mask_pref = pref == "UPI"
                 probs[mask_pref] = np.minimum(probs[mask_pref] * 1.15, 0.92)
 
             elif act == "PAYMENT_LINK":
-                mask_link = np.isin(f_cat, ["AUTHENTICATION", "INVALID_INSTRUMENT"]) | (f_reason == "OTP_FAILED")
+                mask_link = np.isin(f_cat, ["AUTHENTICATION", "INVALID_INSTRUMENT"]) | np.isin(f_reason, ["OTP_FAILED", "INSUFFICIENT_FUNDS"])
                 probs[mask_link] = np.minimum(probs[mask_link] * 1.20, 0.92)
 
             elif act == "PERSONALIZED_REMINDER":
@@ -338,6 +430,10 @@ class MLInferenceEngine:
         results = []
         amounts = df_batch["amount"].values
         attempts = df_batch["attempt_count"].values
+
+        scoring_mode = "ML_MODEL" if self.is_loaded else "Deterministic Fallback"
+        model_name = "XGBoost Gradient Boosted Decision Trees" if self.is_loaded else "Deterministic Fallback Heuristic"
+        algorithm = "XGBoost Gradient Boosted Decision Trees" if self.is_loaded else "Rule-Based Deterministic Scoring"
 
         for i in range(n):
             amt = amounts[i]
@@ -370,9 +466,14 @@ class MLInferenceEngine:
                 "action_probabilities": act_p,
                 "action_ervs": act_erv,
                 "model_metadata": {
-                    "version": self.metadata.get("model_version", "1.0.0-production"),
-                    "algorithm": self.metadata.get("algorithm", "XGBoost Gradient Boosted Decision Trees"),
-                    "trained_at": self.metadata.get("trained_at", datetime.utcnow().isoformat())
+                    "model_name": model_name,
+                    "version": self.metadata.get("model_version", "1.0.0-production") if self.is_loaded else "1.0.0-fallback",
+                    "algorithm": algorithm,
+                    "scoring_mode": scoring_mode,
+                    "loaded": self.is_loaded,
+                    "artifact_checksum": self.artifact_checksum,
+                    "dataset_type": "synthetic",
+                    "trained_at": self.metadata.get("trained_at", datetime.utcnow().isoformat()) if self.is_loaded else ""
                 }
             })
 

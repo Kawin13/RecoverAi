@@ -95,8 +95,8 @@ def test_decision_evidence_generation():
     assert "8/9" in evidence_str
     assert "Expected Recovery Value" in evidence_str
 
-def test_recovery_analyze_endpoint(client: TestClient):
-    response = client.post("/api/recovery/analyze/tx_rec_98214")
+def test_recovery_analyze_endpoint(auth_client):
+    response = auth_client.post("/api/recovery/analyze/tx_rec_98214")
     assert response.status_code == 200
     data = response.json()
 
@@ -107,8 +107,8 @@ def test_recovery_analyze_endpoint(client: TestClient):
     assert len(data["evidence"]) >= 2
     assert "diagnosis" in data
 
-def test_get_strategies_endpoint(client: TestClient):
-    response = client.get("/api/recovery/tx_rec_98214/strategies")
+def test_get_strategies_endpoint(auth_client):
+    response = auth_client.get("/api/recovery/tx_rec_98214/strategies")
     assert response.status_code == 200
     data = response.json()
 
