@@ -68,12 +68,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
               <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
                 <span className="font-bold text-surface text-base tracking-tight font-display">
                   Recover<span className="text-burnt-orange">AI</span>
-                </span>
-                <span className="px-1.5 py-0.2 bg-warm-gray-800 text-[10px] font-mono text-warm-gray-400 border border-warm-gray-700 rounded-sm">
-                  v1.0
                 </span>
               </div>
               <span className="text-[10px] text-warm-gray-400 block tracking-tight">

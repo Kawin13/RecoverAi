@@ -59,7 +59,7 @@ export const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> =
         </div>
 
         <div className="flex justify-between items-center text-xs text-stone-500 pt-4 border-t border-stone-800/80">
-          <span>RecoverAI v1.0.0 • Fail-Safe Protection Active</span>
+          <span>RecoverAI • Fail-Safe Protection Active</span>
           <span className="text-stone-400 font-mono">ENVIRONMENT: production</span>
         </div>
       </div>

@@ -610,6 +610,30 @@ export const api = {
     return await res.json()
   },
 
+  async syncCasePayment(caseId: string): Promise<{ status: string; recovered: boolean; case: WorkflowCase }> {
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/workflows/${caseId}/sync-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to sync payment status with gateway')
+    }
+    return await res.json()
+  },
+
+  async verifyPaymentLink(paymentLinkId: string): Promise<{ status: string; paid: boolean; payment_link_id: string; payment_link_status: string; case_status?: string }> {
+    const res = await authFetch(`${API_BASE_URL}/api/recovery/payment-links/${paymentLinkId}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to verify payment link')
+    }
+    return await res.json()
+  },
+
   async getNotifications(caseId?: string, limit: number = 20): Promise<NotificationReceiptItem[]> {
     const url = caseId
       ? `${API_BASE_URL}/api/recovery/notifications?case_id=${caseId}&limit=${limit}`
