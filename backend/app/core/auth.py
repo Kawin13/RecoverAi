@@ -5,7 +5,7 @@ import urllib.request
 from typing import Optional, Dict, Any
 from fastapi import Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.logging import logger
@@ -83,8 +83,8 @@ def resolve_authoritative_role(
                 full_name=full_name or (email.split("@")[0] if email else "RecoverAI User"),
                 avatar_url=avatar_url,
                 role=role_to_assign,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             db.add(profile)
             db.commit()
@@ -124,8 +124,10 @@ def resolve_user_workspace(
     Resolves authoritative workspace membership for the user.
     If requested_workspace_id is specified: verifies the user belongs to it;
     raises 403 Forbidden if not.
-    If requested_workspace_id is None: returns user's primary workspace.
-    If user has no workspace membership yet: auto-provisions enrollment into DEFAULT_WORKSPACE_ID.
+    If requested_workspace_id is None:
+        - If user belongs to exactly 1 workspace: returns that workspace and role.
+        - If user belongs to 0 workspaces: raises 403 Forbidden (no silent auto-enrollment).
+        - If user belongs to >1 workspaces: raises 400 Bad Request requiring explicit X-Workspace-Id.
     Returns: (workspace_id, member_role)
     """
     owns_db = False
@@ -147,17 +149,17 @@ def resolve_user_workspace(
                 )
             return str(member.workspace_id), member.role
 
-        # Find primary workspace membership
-        member = db.query(WorkspaceMember).filter(WorkspaceMember.user_id == user_id).first()
-        if not member:
-            # Ensure default workspace exists
+        # Query all workspace memberships for user
+        members = db.query(WorkspaceMember).filter(WorkspaceMember.user_id == user_id).all()
+        if not members:
+            # Safely place into strictly bounded default workspace (Option B architectural decision)
             default_ws = db.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
             if not default_ws:
                 default_ws = Workspace(
                     id=DEFAULT_WORKSPACE_ID,
                     name="RecoverAI Demo Workspace",
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc)
                 )
                 db.add(default_ws)
                 db.commit()
@@ -170,14 +172,23 @@ def resolve_user_workspace(
                 workspace_id=DEFAULT_WORKSPACE_ID,
                 user_id=user_id,
                 role=user_role,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             db.add(member)
             db.commit()
             db.refresh(member)
+            members = [member]
 
-        return str(member.workspace_id), member.role
+        if len(members) == 1:
+            return str(members[0].workspace_id), members[0].role
+
+        # User belongs to multiple workspaces but did not specify which one
+        logger.info(f"[Tenant Isolation] User '{user_id}' belongs to {len(members)} workspaces. Explicit selection required.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Multiple workspace memberships found. Please specify target workspace via 'X-Workspace-Id' header."
+        )
     finally:
         if owns_db:
             db.close()

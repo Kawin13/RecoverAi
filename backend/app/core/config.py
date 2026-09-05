@@ -8,7 +8,7 @@ root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "
 class Settings(BaseSettings):
     PROJECT_NAME: str = "RecoverAI API"
     VERSION: str = "1.0.0"
-    API_V1_STR: str = "/api"
+    API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
 
