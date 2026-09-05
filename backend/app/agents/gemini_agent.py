@@ -10,7 +10,7 @@ import json
 import logging
 import re
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import lru_cache
 
 from app.core.config import settings
@@ -74,7 +74,7 @@ class GeminiAgent:
                             "customer_risk_profile": parsed.get("customer_risk_profile", "Low"),
                             "source": "gemini-genai-live",
                             "model": self.model_name,
-                            "generated_at": datetime.utcnow().isoformat()
+                            "generated_at": datetime.now(timezone.utc).isoformat()
                         }
                         self._cache[cache_key] = result
                         return result
@@ -242,7 +242,7 @@ class GeminiAgent:
             "customer_risk_profile": "Low",
             "source": "deterministic-fallback",
             "model": "rule-template-engine",
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.now(timezone.utc).isoformat()
         }
 
     def _get_fallback_message(self, recovery_id: str, tx: Dict[str, Any], decision: Dict[str, Any], language: str) -> Dict[str, Any]:
