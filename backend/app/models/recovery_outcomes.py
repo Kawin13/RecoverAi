@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -13,7 +14,7 @@ class RecoveryOutcome(Base):
     recovered_amount = Column(Float, nullable=False)
     payment_method_used = Column(String(32), default="UPI")
     time_to_recover_seconds = Column(Integer, default=0)
-    settled_at = Column(DateTime, default=datetime.utcnow)
+    settled_at = Column(DateTime, default=utcnow)
 
     # Relationships
     recovery_case = relationship("RecoveryCase", back_populates="recovery_outcome")

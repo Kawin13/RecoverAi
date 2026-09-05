@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, Uuid
 from sqlalchemy.orm import relationship
@@ -24,8 +25,8 @@ class RecoveryCase(Base):
     executed_at = Column(DateTime, nullable=True)
     execution_payload = Column(Text, nullable=True)
     checkout_session_id = Column(String(64), nullable=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     recovered_at = Column(DateTime, nullable=True)
 
     # Relationships

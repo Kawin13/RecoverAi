@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Text, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -15,7 +16,7 @@ class RecoveryAction(Base):
     payload_data = Column(Text, nullable=True)
     erv = Column(Float, default=0.0)
     status = Column(String(32), default="DISPATCHED")  # DISPATCHED, DELIVERED, OPENED, CLICKED, COMPLETED, BLOCKED
-    dispatched_at = Column(DateTime, default=datetime.utcnow)
+    dispatched_at = Column(DateTime, default=utcnow)
 
     # Relationships
     recovery_case = relationship("RecoveryCase", back_populates="recovery_actions")
