@@ -10,7 +10,7 @@ import random
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.schemas.simulation import (
     SimulationControls,
@@ -203,8 +203,8 @@ class SimulationService:
         4. Executes RecoverAI autonomous intelligence pipeline.
         5. Computes comparative benchmarks, ROI, incremental lift, and chart breakdowns.
         """
-        sim_id = f"sim_{controls.seed}_{int(datetime.utcnow().timestamp())}"
-        executed_at = datetime.utcnow().isoformat()
+        sim_id = f"sim_{controls.seed}_{int(datetime.now(timezone.utc).timestamp())}"
+        executed_at = datetime.now(timezone.utc).isoformat()
         
         # Initialize deterministic PRNGs
         rng = np.random.RandomState(controls.seed)
