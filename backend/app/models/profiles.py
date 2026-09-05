@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Text, DateTime, CheckConstraint, Uuid
 from sqlalchemy.orm import relationship
@@ -11,8 +12,8 @@ class Profile(Base):
     email = Column(String(255), nullable=True, index=True)
     avatar_url = Column(Text, nullable=True)
     role = Column(String(32), nullable=False, default="operator")  # 'admin' or 'operator'
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
         CheckConstraint("role IN ('admin', 'operator')", name="role_check"),

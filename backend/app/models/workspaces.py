@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey, CheckConstraint, UniqueConstraint, Uuid
 from sqlalchemy.orm import relationship
@@ -11,8 +12,8 @@ class Workspace(Base):
 
     id = Column(Uuid(as_uuid=False), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     members = relationship("WorkspaceMember", back_populates="workspace", cascade="all, delete-orphan")
 
@@ -24,8 +25,8 @@ class WorkspaceMember(Base):
     workspace_id = Column(Uuid(as_uuid=False), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Uuid(as_uuid=False), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(32), nullable=False, default="operator")
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "user_id", name="uq_workspace_member"),
