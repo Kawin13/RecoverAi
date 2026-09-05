@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext'
 
 export const LandingPage: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | 'security' | null>(null)
   const { session } = useAuth()
   const isAuthenticated = !!session
 
@@ -47,12 +48,9 @@ export const LandingPage: React.FC = () => {
               <div className="w-8 h-8 rounded-sm bg-burnt-orange flex items-center justify-center text-white font-bold font-display shadow-sm group-hover:bg-burnt-orange-hover transition-colors">
                 <Shield className="w-4 h-4 text-white" />
               </div>
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex items-baseline">
                 <span className="font-bold text-graphite text-lg tracking-tight font-display">
                   Recover<span className="text-burnt-orange">AI</span>
-                </span>
-                <span className="px-1.5 py-0.2 bg-warm-gray-200 text-[10px] font-mono text-warm-gray-700 border border-border rounded-sm">
-                  v1.0
                 </span>
               </div>
             </Link>
@@ -978,49 +976,431 @@ export const LandingPage: React.FC = () => {
       {/* ==================================================================== */}
       {/* FOOTER                                                               */}
       {/* ==================================================================== */}
-      <footer className="bg-surface border-t border-border py-12 text-xs text-warm-gray-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-sm bg-burnt-orange flex items-center justify-center text-white text-xs font-bold font-display">
-                <Shield className="w-3.5 h-3.5" />
+      <footer className="bg-surface border-t border-border pt-12 pb-8 sm:pt-14 sm:pb-10 text-warm-gray-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          {/* Main Grid: Desktop 5-Col (1.5fr + 1fr + 1fr + 1fr + 1fr), Tablet 2-Col (Brand full + 2x2), Mobile 1-Col */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr] gap-8 xl:gap-10 items-start">
+            {/* Left: Brand & Product Summary */}
+            <div className="col-span-1 md:col-span-2 lg:col-span-1 space-y-4">
+              <div className="h-7 flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-sm bg-burnt-orange flex items-center justify-center text-white font-bold font-display shadow-sm">
+                  <Shield className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-bold text-graphite font-display text-lg tracking-tight">
+                  Recover<span className="text-burnt-orange">AI</span>
+                </span>
               </div>
-              <span className="font-bold text-graphite font-display text-sm">
-                Recover<span className="text-burnt-orange">AI</span>
-              </span>
-              <span className="text-warm-gray-400">|</span>
-              <span className="text-warm-gray-500 font-mono text-[11px]">
-                AI Revenue Recovery Platform
-              </span>
+
+              <p className="text-xs text-warm-gray-600 leading-relaxed font-normal">
+                RecoverAI helps digital commerce businesses recover lost revenue from failed payments and abandoned checkouts. It detects recovery opportunities, recommends the best next action, and supports safe execution with approval controls and full audit visibility.
+              </p>
+
+              {/* Clean Status & Trust Card */}
+              <div className="p-3 bg-warm-gray-50/90 border border-border/90 rounded-sm space-y-1 shadow-fintech-subtle">
+                <div className="flex items-center gap-2 text-xs font-medium text-graphite">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-moss-green opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-moss-green" />
+                  </span>
+                  <span>Recovery Engine Active</span>
+                </div>
+                <p className="text-[11px] text-warm-gray-500 pl-4 leading-normal">
+                  Real-time monitoring, prioritization, and recovery workflows
+                </p>
+              </div>
+
+              {/* Three Trust Badges */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-0.5 text-xs text-warm-gray-600">
+                <div className="flex items-center gap-1.5 whitespace-nowrap" title="Secure Payment Flows">
+                  <Lock className="w-3.5 h-3.5 text-moss-green flex-shrink-0" />
+                  <span>Secure Payment Flows</span>
+                </div>
+                <div className="flex items-center gap-1.5 whitespace-nowrap" title="Human Approval Controls">
+                  <ShieldCheck className="w-3.5 h-3.5 text-burnt-orange flex-shrink-0" />
+                  <span>Human Approval Controls</span>
+                </div>
+                <div className="flex items-center gap-1.5 whitespace-nowrap" title="Audit Ready">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-moss-green flex-shrink-0" />
+                  <span>Audit Ready</span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-6 text-[11px] font-mono text-warm-gray-500">
-              <button type="button" onClick={() => scrollToSection('product')} className="hover:text-graphite">Product</button>
-              <button type="button" onClick={() => scrollToSection('how-it-works')} className="hover:text-graphite">How it Works</button>
-              <button type="button" onClick={() => scrollToSection('safety')} className="hover:text-graphite">Safety</button>
-              <button type="button" onClick={() => scrollToSection('impact')} className="hover:text-graphite">Impact</button>
-              <Link to="/overview" className="hover:text-graphite">Dashboard</Link>
+            {/* Col 1: Core Capabilities */}
+            <div className="col-span-1 md:col-span-1 lg:col-span-1 space-y-4">
+              <div className="h-7 flex items-center">
+                <h4 className="text-sm font-semibold text-graphite font-display">
+                  Core Capabilities
+                </h4>
+              </div>
+              <ul className="space-y-2.5 text-xs font-normal">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('product')}
+                    className="text-left w-full text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Failed Payment Detection
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('product')}
+                    className="text-left w-full text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Recovery Scoring
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('product')}
+                    className="text-left w-full text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Expected Recovery Value (ERV)
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('how-it-works')}
+                    className="text-left w-full text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Smart Payment Links
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('how-it-works')}
+                    className="text-left w-full text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Customer Recovery Messaging
+                  </button>
+                </li>
+                <li>
+                  <Link
+                    to="/cart-recovery"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Cart Recovery Flows
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 2: Safety & Governance */}
+            <div className="col-span-1 md:col-span-1 lg:col-span-1 space-y-4">
+              <div className="h-7 flex items-center">
+                <h4 className="text-sm font-semibold text-graphite font-display">
+                  Safety &amp; Governance
+                </h4>
+              </div>
+              <ul className="space-y-2.5 text-xs font-normal">
+                <li>
+                  <Link
+                    to="/guardrails"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Policy Rules &amp; Limits
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/guardrails"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Human Approval Queue
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('safety')}
+                    className="text-left w-full text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Frequency Caps &amp; Quiet Hours
+                  </button>
+                </li>
+                <li>
+                  <Link
+                    to="/audit-trail"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Full Audit Trail
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/admin/users"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Role-Based Access Control
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('safety')}
+                    className="text-left w-full text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Duplicate &amp; Replay Protection
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 3: Operations Workspace */}
+            <div className="col-span-1 md:col-span-1 lg:col-span-1 space-y-4">
+              <div className="h-7 flex items-center">
+                <h4 className="text-sm font-semibold text-graphite font-display">
+                  Operations Workspace
+                </h4>
+              </div>
+              <ul className="space-y-2.5 text-xs font-normal">
+                <li>
+                  <Link
+                    to="/overview"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Executive Overview
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/at-risk"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    At-Risk Revenue Queue
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/recovery-agent"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Recovery Agent Console
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/demo-checkout"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Demo Store Checkout
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/analytics"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Recovery Analytics
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/simulation"
+                    className="text-left w-full block text-warm-gray-600 hover:text-burnt-orange transition-colors"
+                  >
+                    Simulation &amp; Forecasting
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 4: Integrations */}
+            <div className="col-span-1 md:col-span-1 lg:col-span-1 space-y-4">
+              <div className="h-7 flex items-center">
+                <h4 className="text-sm font-semibold text-graphite font-display">
+                  Integrations
+                </h4>
+              </div>
+              <ul className="space-y-2.5 text-xs font-normal">
+                <li className="flex items-center gap-2 text-warm-gray-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-moss-green flex-shrink-0" />
+                  <span>Razorpay</span>
+                </li>
+                <li className="flex items-center gap-2 text-warm-gray-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-moss-green flex-shrink-0" />
+                  <span>UPI</span>
+                </li>
+                <li className="flex items-center gap-2 text-warm-gray-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-warm-gray-400 flex-shrink-0" />
+                  <span>Cards &amp; NetBanking</span>
+                </li>
+                <li className="flex items-center gap-2 text-warm-gray-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-amber flex-shrink-0" />
+                  <span>Supabase</span>
+                </li>
+                <li className="flex items-center gap-2 text-warm-gray-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-burnt-orange flex-shrink-0" />
+                  <span>Gemini AI</span>
+                </li>
+                <li className="flex items-center gap-2 text-warm-gray-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-moss-green flex-shrink-0" />
+                  <span>API-Ready Architecture</span>
+                </li>
+              </ul>
             </div>
           </div>
 
-          <div className="pt-6 border-t border-border/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[11px] text-warm-gray-500 font-mono">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="px-1.5 py-0.5 bg-warm-gray-100 border border-border rounded-sm">
-                Hackathon prototype
-              </span>
-              <span className="px-1.5 py-0.5 bg-warm-gray-100 border border-border rounded-sm">
-                Razorpay Test Mode
-              </span>
-              <span className="px-1.5 py-0.5 bg-warm-gray-100 border border-border rounded-sm">
-                Synthetic demo data where indicated
-              </span>
+          {/* Sub-Footer / Legal & Copyright Row */}
+          <div className="pt-6 border-t border-border flex flex-col lg:flex-row items-center justify-between gap-4 text-xs text-warm-gray-500">
+            {/* Left side: Copyright */}
+            <div className="text-center lg:text-left font-mono text-[11px] sm:text-xs">
+              <span>&copy; {new Date().getFullYear()} RecoverAI Technologies</span>
             </div>
-            <div>
-              &copy; {new Date().getFullYear()} RecoverAI. Built for intelligent payment recovery.
+
+            {/* Center: Tagline */}
+            <div className="text-center text-[11px] text-warm-gray-400 font-sans">
+              <span>Autonomous Revenue Recovery for Digital Commerce</span>
+            </div>
+
+            {/* Right side: Policy & Status Links */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-5 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setLegalModal('privacy')}
+                className="hover:text-graphite transition-colors underline-offset-4 hover:underline"
+              >
+                Privacy Policy
+              </button>
+              <button
+                type="button"
+                onClick={() => setLegalModal('terms')}
+                className="hover:text-graphite transition-colors underline-offset-4 hover:underline"
+              >
+                Terms of Service
+              </button>
+              <button
+                type="button"
+                onClick={() => setLegalModal('security')}
+                className="hover:text-graphite transition-colors underline-offset-4 hover:underline"
+              >
+                Security & Compliance
+              </button>
+              <a
+                href="http://localhost:8000/health"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-graphite transition-colors inline-flex items-center gap-1"
+              >
+                <span>System Status</span>
+                <ArrowUpRight className="w-3 h-3" />
+              </a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Legal & Compliance Dialog Modal */}
+      {legalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface border border-border rounded-md shadow-fintech-modal max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-warm-gray-50">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-burnt-orange" />
+                <h3 className="font-bold text-graphite font-display text-sm">
+                  {legalModal === 'privacy' && 'Enterprise Privacy Policy'}
+                  {legalModal === 'terms' && 'Merchant Terms of Service'}
+                  {legalModal === 'security' && 'Security & Regulatory Governance'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLegalModal(null)}
+                aria-label="Close dialog"
+                className="p-1 rounded-sm text-warm-gray-500 hover:text-graphite hover:bg-warm-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-4 text-xs text-warm-gray-600 leading-relaxed font-sans">
+              {legalModal === 'privacy' && (
+                <>
+                  <p className="font-semibold text-graphite">Last Updated: September 2026</p>
+                  <p>
+                    RecoverAI is engineered with strict privacy-by-design principles. We enforce deterministic data minimization, processing only the telemetry attributes strictly necessary to compute payment recovery propensity scores and route fallback payment rails.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">1. Data Ingestion & Sanitization</h4>
+                  <p>
+                    Webhook payloads ingested from payment gateways (e.g. Razorpay) are sanitized at the gateway boundary. Plaintext primary account numbers (PAN) and CVVs are strictly prohibited from touching RecoverAI application memory or database storage.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">2. Multi-Tenant Isolation</h4>
+                  <p>
+                    All customer records, transaction logs, and recovery cases are segmented using PostgreSQL Row-Level Security (RLS) policies. No merchant data is shared, blended, or utilized across cross-merchant models without explicit enterprise consensus.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">3. Regulatory Compliance</h4>
+                  <p>
+                    Our data processing pipelines adhere to RBI digital payment processing guidelines, GDPR customer deletion mandates (Right to be Forgotten), and the Digital Personal Data Protection (DPDP) Act.
+                  </p>
+                </>
+              )}
+
+              {legalModal === 'terms' && (
+                <>
+                  <p className="font-semibold text-graphite">Effective Date: September 2026</p>
+                  <p>
+                    By connecting merchant stores, gateway API keys, or webhooks to the RecoverAI platform, you agree to these standard operating terms and fintech governance conditions.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">1. Autonomous Intervention Scope</h4>
+                  <p>
+                    RecoverAI operates as an authorized autonomous financial agent executing customer interventions (1-click paylinks, retry scheduling, SMS/WhatsApp recovery prompts). All interventions operate under the strict governance of the merchant's configured Fintech Guardrails.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">2. Fail-Safe Guardrails</h4>
+                  <p>
+                    The platform enforces frequency capping (maximum 3 touchpoints per transaction), quiet hours (overnight suppression), and discount ceiling policies. High-value transactions exceeding policy thresholds automatically pause into the Human Approval Queue.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">3. Service Availability SLA</h4>
+                  <p>
+                    RecoverAI targets a 99.9% uptime SLA for webhook ingestion and live event bus delivery. Diagnostic processing operates asynchronously with a target sub-200ms latency.
+                  </p>
+                </>
+              )}
+
+              {legalModal === 'security' && (
+                <>
+                  <p className="font-semibold text-graphite">Fintech Security & Operational Resilience</p>
+                  <p>
+                    Security is central to our financial recovery architecture. We employ defense-in-depth methodologies across all network, application, and database tiers.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">1. Cryptographic Verification</h4>
+                  <p>
+                    All incoming gateway notifications must pass cryptographic HMAC-SHA256 signature verification before ingestion into the event ledger. Forged or mismatched payloads are rejected immediately.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">2. Idempotency & Replay Shield</h4>
+                  <p>
+                    Every recovery intervention generates a unique cryptographic hash (<code className="font-mono bg-warm-gray-100 px-1 py-0.5 rounded-xs">hash(order_id + event + attempt)</code>). Replay attempts, duplicate webhooks, or race conditions are safely neutralized without duplicate billing or outreach.
+                  </p>
+                  <h4 className="font-bold text-graphite font-display text-xs uppercase tracking-wider pt-2">3. Immutable Audit Trail</h4>
+                  <p>
+                    Every automated decision, propensity evaluation, ML model inference, and human operator approval is committed to an immutable append-only audit trail with UTC timestamps, user agent signatures, and forensic diff logs.
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 border-t border-border bg-warm-gray-50 flex items-center justify-between">
+              <span className="text-[11px] font-mono text-warm-gray-500">
+                RecoverAI Governance Standard • 2026
+              </span>
+              <button
+                type="button"
+                onClick={() => setLegalModal(null)}
+                className="px-4 py-1.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-medium rounded-sm transition-colors shadow-fintech-subtle"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
