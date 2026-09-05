@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -60,7 +60,7 @@ def create_payment_order(
             phone=request.customer_phone,
             tier="STANDARD",
             ltv=request.amount,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.add(customer)
         db.flush()
@@ -101,8 +101,8 @@ def create_payment_order(
         method="Card",  # Default placeholder until checkout completes
         status="PENDING",
         razorpay_order_id=razorpay_order_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
     db.add(transaction)
 
@@ -116,7 +116,7 @@ def create_payment_order(
         cart_value=request.amount,
         dropped_at_step="ORDER_CREATED",
         is_recovered=False,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db.add(checkout_session)
 
@@ -129,7 +129,7 @@ def create_payment_order(
         action_type="ORDER_CREATED",
         target_resource=tx_id,
         details=f"Razorpay order {razorpay_order_id} created for ₹{request.amount:,.2f} ({request.product_name})",
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db.add(audit_entry)
 
@@ -196,7 +196,7 @@ def verify_payment(
                     action_type="SIGNATURE_VERIFICATION_FAILED",
                     target_resource=tx.id,
                     details=f"Payment signature verification failed for Payment ID {request.razorpay_payment_id}. Potential forgery.",
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 )
             )
             db.commit()
@@ -299,7 +299,7 @@ def verify_payment(
             amount=tx.amount,
             method=tx.method or normalized_method,
             status="SUCCESS",
-            verified_at=tx.updated_at or datetime.utcnow(),
+            verified_at=tx.updated_at or datetime.now(timezone.utc),
             message="Payment was already successfully verified (idempotent response)."
         )
 
@@ -308,7 +308,7 @@ def verify_payment(
     tx.razorpay_payment_id = request.razorpay_payment_id
     tx.razorpay_signature = request.razorpay_signature
     tx.method = normalized_method
-    tx.updated_at = datetime.utcnow()
+    tx.updated_at = datetime.now(timezone.utc)
 
     # Record successful payment attempt
     attempt = PaymentAttempt(
@@ -320,7 +320,7 @@ def verify_payment(
         gateway_payment_id=request.razorpay_payment_id,
         latency_ms=320,
         status="SUCCESS",
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db.add(attempt)
 
@@ -339,7 +339,7 @@ def verify_payment(
         action_type="PAYMENT_VERIFIED",
         target_resource=tx.id,
         details=f"Payment {request.razorpay_payment_id} successfully verified with HMAC-SHA256. Captured ₹{tx.amount:,.2f} via {normalized_method}.",
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db.add(audit_entry)
 
@@ -357,7 +357,7 @@ def verify_payment(
         amount=tx.amount,
         method=normalized_method,
         status="SUCCESS",
-        verified_at=datetime.utcnow(),
+        verified_at=datetime.now(timezone.utc),
         message="Payment signature cryptographically verified and recorded."
     )
 
@@ -399,7 +399,7 @@ def record_payment_failure(
     tx.status = "FAILED"
     if request.payment_id:
         tx.razorpay_payment_id = request.payment_id
-    tx.updated_at = datetime.utcnow()
+    tx.updated_at = datetime.now(timezone.utc)
 
     # 2. Record failed payment attempt
     attempt = PaymentAttempt(
@@ -414,7 +414,7 @@ def record_payment_failure(
         error_category=request.error_category,
         latency_ms=1450,
         status="FAILED",
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db.add(attempt)
 
@@ -432,8 +432,8 @@ def record_payment_failure(
             expected_recovery_value=round(tx.amount * 0.74, 2),
             status="PENDING_APPROVAL",
             attempt_count=1,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         db.add(recovery_case)
 
@@ -448,7 +448,7 @@ def record_payment_failure(
             action_type="PAYMENT_FAILED",
             target_resource=tx.id,
             details=f"Payment failed: {request.error_code} - {request.error_description}. Case escalated to RecoverAI Autonomous Agent.",
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
     )
 

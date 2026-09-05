@@ -1,7 +1,7 @@
 import json
 import uuid
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from fastapi import APIRouter, Request, HTTPException, Depends, status
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.core.logging import logger
 from app.core.events import event_broadcaster
+from app.core.datetime_utils import diff_seconds
 from app.models import (
     Customer,
     Transaction,
@@ -154,7 +155,7 @@ async def razorpay_webhook_receiver(
                 resource_id=payment_id or order_id or plink_id,
                 status=webhook_status,
                 payload_summary=f"Ignored out-of-order {event_type} for existing {tx.status} transaction {tx.id}",
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(webhook_record)
             db.commit()
@@ -185,7 +186,7 @@ async def razorpay_webhook_receiver(
                         action_type="AMOUNT_MISMATCH_REJECTED",
                         target_resource=tx.id,
                         details=f"Webhook {event_type} amount mismatch. Expected {expected_paise} paise, got {amount_paise} paise. Ignored.",
-                        created_at=datetime.utcnow()
+                        created_at=datetime.now(timezone.utc)
                     )
                 )
                 db.commit()
@@ -199,13 +200,13 @@ async def razorpay_webhook_receiver(
 
         if plink_record:
             plink_record.status = "paid"
-            plink_record.updated_at = datetime.utcnow()
+            plink_record.updated_at = datetime.now(timezone.utc)
 
         if case:
             case.status = "RECOVERED"
             case.current_step = "RECOVERED"
-            case.recovered_at = datetime.utcnow()
-            case.updated_at = datetime.utcnow()
+            case.recovered_at = datetime.now(timezone.utc)
+            case.updated_at = datetime.now(timezone.utc)
 
             # Record or update RecoveryOutcome
             outcome = db.query(RecoveryOutcome).filter(RecoveryOutcome.recovery_case_id == case.id).first()
@@ -217,21 +218,21 @@ async def razorpay_webhook_receiver(
                     recovery_case_id=case.id,
                     recovered_amount=recovered_val,
                     payment_method_used=normalized_method,
-                    time_to_recover_seconds=int((datetime.utcnow() - case.created_at).total_seconds()) if case.created_at else 120,
-                    settled_at=datetime.utcnow()
+                    time_to_recover_seconds=int(diff_seconds(datetime.now(timezone.utc), case.created_at, default=120.0)),
+                    settled_at=datetime.now(timezone.utc)
                 )
                 db.add(outcome)
             else:
                 outcome.recovered_amount = recovered_val
                 outcome.payment_method_used = normalized_method
-                outcome.settled_at = datetime.utcnow()
+                outcome.settled_at = datetime.now(timezone.utc)
 
         if tx:
             tx.status = "SUCCESS"
             if payment_id:
                 tx.razorpay_payment_id = payment_id
             tx.method = normalized_method
-            tx.updated_at = datetime.utcnow()
+            tx.updated_at = datetime.now(timezone.utc)
 
             # Record payment attempt
             attempt = PaymentAttempt(
@@ -243,7 +244,7 @@ async def razorpay_webhook_receiver(
                 gateway_payment_id=payment_id,
                 status="SUCCESS",
                 latency_ms=280,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(attempt)
 
@@ -258,7 +259,7 @@ async def razorpay_webhook_receiver(
                 action_type="PAYMENT_CAPTURED",
                 target_resource=case.id if case else (tx.id if tx else (payment_id or plink_id or "unknown")),
                 details=f"Webhook confirmed {event_type} for ₹{amount_inr or (case.risk_amount if case else 0):,.2f} via {normalized_method} (Payment {payment_id or 'N/A'}, Link {plink_id or 'N/A'}). Recovery case marked RECOVERED.",
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
         )
 
@@ -282,7 +283,7 @@ async def razorpay_webhook_receiver(
                 "status": "RECOVERED",
                 "risk_amount": case.risk_amount,
                 "details": f"Payment verified via Razorpay webhook ({event_type}).",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             event_broadcaster.broadcast_sync("RECOVERY_QUEUE_UPDATED", {
                 "case_id": case.id,
@@ -319,7 +320,7 @@ async def razorpay_webhook_receiver(
                     phone=cust_contact,
                     tier="STANDARD",
                     ltv=amount_inr,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 )
                 db.add(customer)
                 db.flush()
@@ -334,8 +335,8 @@ async def razorpay_webhook_receiver(
                 status="FAILED",
                 razorpay_order_id=order_id,
                 razorpay_payment_id=payment_id,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             db.add(tx)
             db.flush()
@@ -344,7 +345,7 @@ async def razorpay_webhook_receiver(
             tx.status = "FAILED"
             if payment_id:
                 tx.razorpay_payment_id = payment_id
-            tx.updated_at = datetime.utcnow()
+            tx.updated_at = datetime.now(timezone.utc)
 
             # Record payment attempt
             attempt = PaymentAttempt(
@@ -359,7 +360,7 @@ async def razorpay_webhook_receiver(
                 error_description=error_description,
                 error_category=error_reason,
                 latency_ms=1200,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(attempt)
 
@@ -376,8 +377,8 @@ async def razorpay_webhook_receiver(
                     expected_recovery_value=round(tx.amount * 0.76, 2),
                     status="PENDING_APPROVAL",
                     attempt_count=1,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc)
                 )
                 db.add(case)
 
@@ -392,7 +393,7 @@ async def razorpay_webhook_receiver(
                     action_type="PAYMENT_FAILED",
                     target_resource=tx.id,
                     details=f"Webhook reported payment.failed: {error_code} - {error_description}. Case updated for AI Recovery.",
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 )
             )
 
@@ -421,7 +422,7 @@ async def razorpay_webhook_receiver(
             if payment_id:
                 tx.razorpay_payment_id = payment_id
             tx.method = normalized_method
-            tx.updated_at = datetime.utcnow()
+            tx.updated_at = datetime.now(timezone.utc)
 
             attempt = PaymentAttempt(
                 id=f"pa_{uuid.uuid4().hex[:10]}",
@@ -431,7 +432,7 @@ async def razorpay_webhook_receiver(
                 gateway_payment_id=payment_id,
                 status="AUTHORIZED",
                 latency_ms=250,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(attempt)
 
@@ -444,7 +445,7 @@ async def razorpay_webhook_receiver(
                     action_type="PAYMENT_AUTHORIZED",
                     target_resource=tx.id,
                     details=f"Webhook recorded transitional payment.authorized for ₹{tx.amount:,.2f} via {normalized_method} (Payment {payment_id})",
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 )
             )
 
@@ -466,7 +467,7 @@ async def razorpay_webhook_receiver(
         resource_id=payment_id or order_id,
         status=webhook_status,
         payload_summary=f"Event {event_type} processed for ₹{amount_inr:,.2f}",
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db.add(webhook_record)
     db.commit()
