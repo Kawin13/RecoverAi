@@ -6,7 +6,7 @@ selects optimal recovery strategies, and aggregates the 5-stage abandonment funn
 
 import uuid
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session, joinedload
 
@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.core.events import event_broadcaster
 from app.services.notification_service import notification_service
+from app.core.datetime_utils import diff_seconds
 from app.models import CheckoutSession, Customer, Transaction, RecoveryCase, AuditLog
 from app.schemas.checkout_sessions import (
     CheckoutSessionCreate,
@@ -51,7 +52,7 @@ class AbandonmentService:
 
         session_id = f"chk_{uuid.uuid4().hex[:10]}"
         order_id = data.order_id or f"order_chk_{uuid.uuid4().hex[:8]}"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         session = CheckoutSession(
             id=session_id,
@@ -97,7 +98,7 @@ class AbandonmentService:
 
         prev_status = session.status
         new_status = transition.new_status.upper().strip()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         session.status = new_status
         session.last_activity_at = now
@@ -142,7 +143,7 @@ class AbandonmentService:
         Scans active checkout sessions where inactivity exceeds timeout.
         Marks them ABANDONED and launches bounded recovery cases.
         """
-        cutoff = datetime.utcnow() - timedelta(seconds=timeout_seconds)
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=timeout_seconds)
         active_states = ["STARTED", "CUSTOMER_IDENTIFIED", "PAYMENT_METHOD_VIEWED", "PAYMENT_INITIATED"]
 
         abandoned_sessions = (
@@ -157,7 +158,7 @@ class AbandonmentService:
         processed = []
         for s in abandoned_sessions:
             s.status = "ABANDONED"
-            s.abandoned_at = datetime.utcnow()
+            s.abandoned_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(s)
             self.create_abandonment_recovery_case(s, db)
@@ -188,8 +189,8 @@ class AbandonmentService:
         hist_conv = tier_conversion_map.get(tier, 0.35)
 
         # 2. Recency calculation
-        last_active = session.last_activity_at or session.started_at or datetime.utcnow()
-        recency_mins = max(0.1, (datetime.utcnow() - last_active).total_seconds() / 60.0)
+        last_active = session.last_activity_at or session.started_at or datetime.now(timezone.utc)
+        recency_mins = max(0.1, diff_seconds(datetime.now(timezone.utc), last_active) / 60.0)
 
         # 3. Intent weight based on drop-off stage
         stage_intent_weights = {
@@ -283,7 +284,7 @@ class AbandonmentService:
             db.add(tx)
             db.flush()
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         case = RecoveryCase(
             id=case_id,
             transaction_id=tx.id,
