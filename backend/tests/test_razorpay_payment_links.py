@@ -318,3 +318,78 @@ def test_webhook_payment_link_paid_lifecycle(client, db_session):
     audit = db_session.query(AuditLog).filter(AuditLog.recovery_case_id == case.id).first()
     assert audit is not None
     assert audit.action_type == "PAYMENT_CAPTURED"
+
+
+def test_sync_case_payment_reconciliation(auth_client, db_session):
+    """Verifies that active Razorpay payment link sync reconciles paid links even without webhooks."""
+    from unittest.mock import patch
+    from app.services.recovery_executor import sync_case_payment_links
+
+    order_res = auth_client.post("/api/payments/order", json={
+        "product_id": "prod_pl_sync",
+        "product_name": "Sync Test Item",
+        "amount": 3500.0,
+        "customer_name": "Sync Shopper",
+        "customer_email": "syncshopper@example.com"
+    })
+    tx_id = order_res.json()["transaction_id"]
+    case_id = f"case_sync_{uuid.uuid4().hex[:6]}"
+    test_plink = f"plink_sync_{uuid.uuid4().hex[:6]}"
+
+    case = RecoveryCase(
+        id=case_id,
+        transaction_id=tx_id,
+        risk_amount=3500.0,
+        failure_category="INSUFFICIENT_FUNDS",
+        status="WAITING_FOR_CUSTOMER",
+        current_step="WAITING_FOR_CUSTOMER",
+        selected_strategy="PAYMENT_LINK"
+    )
+    db_session.add(case)
+
+    pl_record = PaymentLink(
+        id=f"pl_{uuid.uuid4().hex[:6]}",
+        payment_link_id=test_plink,
+        recovery_case_id=case_id,
+        short_url=f"https://rzp.io/rzp/{uuid.uuid4().hex[:6]}",
+        amount=3500.0,
+        currency="INR",
+        status="created",
+        is_live_demo=True
+    )
+    db_session.add(pl_record)
+    db_session.commit()
+
+    mock_rzp_res = {
+        "id": test_plink,
+        "status": "paid",
+        "amount": 350000,
+        "amount_paid": 350000,
+        "payments": [
+            {
+                "payment_id": "pay_mock_sync_123",
+                "method": "card",
+                "status": "captured",
+                "amount": 350000
+            }
+        ]
+    }
+
+    with patch("app.services.recovery_executor.razorpay_service.fetch_payment_link", return_value=mock_rzp_res):
+        sync_res = auth_client.post(f"/api/recovery/workflows/{case_id}/sync-payment")
+        assert sync_res.status_code == 200
+        data = sync_res.json()
+        assert data["recovered"] is True
+        assert data["case"]["status"] == "RECOVERED"
+        assert data["case"]["current_step"] == "RECOVERED"
+
+    db_session.expire_all()
+    updated_pl = db_session.query(PaymentLink).filter(PaymentLink.payment_link_id == test_plink).first()
+    assert updated_pl.status == "paid"
+
+    updated_case = db_session.query(RecoveryCase).filter(RecoveryCase.id == case_id).first()
+    assert updated_case.status == "RECOVERED"
+
+    updated_tx = db_session.query(Transaction).filter(Transaction.id == tx_id).first()
+    assert updated_tx.status == "SUCCESS"
+    assert updated_tx.razorpay_payment_id == "pay_mock_sync_123"

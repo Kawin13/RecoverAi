@@ -264,28 +264,28 @@ def test_concurrent_last_admin_demotion_race(client, db_session, monkeypatch):
     db_session.commit()
 
     from app.core import auth
-    # Super admin actor making demotion requests
+    # Map token to corresponding admin identity so both concurrent threads authenticate as valid admins
     monkeypatch.setattr(auth, "verify_supabase_jwt", lambda token: {
-        "id": admin_a_id,
-        "email": "admin_a@recoverai.io",
-        "user_metadata": {"full_name": "Admin Alpha"}
+        "id": admin_b_id if "token_b" in str(token) else admin_a_id,
+        "email": "admin_b@recoverai.io" if "token_b" in str(token) else "admin_a@recoverai.io",
+        "user_metadata": {"full_name": "Admin User"}
     })
 
     results = []
 
-    def demote_user(target_id: str):
+    def demote_user(target_id: str, token_str: str):
         # Dedicated client call in thread
         resp = client.patch(
             f"/api/v1/admin/users/{target_id}/role",
             json={"role": "operator"},
-            headers={"Authorization": "Bearer valid_token"}
+            headers={"Authorization": f"Bearer {token_str}"}
         )
         return resp.status_code, resp.json()
 
     # Launch two simultaneous demotion requests across thread pool
     with ThreadPoolExecutor(max_workers=2) as executor:
-        f1 = executor.submit(demote_user, admin_a_id)
-        f2 = executor.submit(demote_user, admin_b_id)
+        f1 = executor.submit(demote_user, admin_a_id, "token_a")
+        f2 = executor.submit(demote_user, admin_b_id, "token_b")
         results.append(f1.result())
         results.append(f2.result())
 
