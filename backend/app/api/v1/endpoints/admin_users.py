@@ -8,15 +8,16 @@ import uuid
 import threading
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy import text
+from sqlalchemy import text, select
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models.profiles import Profile
+from app.models.workspaces import WorkspaceMember, DEFAULT_WORKSPACE_ID
 from app.models.audit_logs import AuditLog
 from app.core.auth import require_admin
 from app.core.events import event_broadcaster
@@ -186,7 +187,7 @@ def extract_status_from_metadata(auth_user: Optional[Dict[str, Any]]) -> Optiona
                 b_dt = banned_until
             else:
                 b_dt = None
-            if b_dt and b_dt.timestamp() > datetime.utcnow().timestamp():
+            if b_dt and b_dt.timestamp() > datetime.now(timezone.utc).timestamp():
                 return "Suspended"
         except Exception:
             return "Suspended"
@@ -212,24 +213,49 @@ def list_users(
 ):
     """
     Returns list of workspace users with authoritative roles.
-    Accessible strictly to Administrators. Returns only browser-safe attributes.
+    Accessible strictly to Administrators. Scoped strictly to the administrator's workspace.
     """
-    profiles = db.query(Profile).order_by(Profile.created_at.desc()).all()
+    admin_ws = admin_user.get("workspace_id")
+    if admin_ws and admin_ws != DEFAULT_WORKSPACE_ID:
+        # Non-default tenant: strictly isolated to members explicitly joined to this tenant
+        members_with_profiles = (
+            db.query(Profile, WorkspaceMember.role)
+            .join(WorkspaceMember, WorkspaceMember.user_id == Profile.id)
+            .filter(WorkspaceMember.workspace_id == admin_ws)
+            .order_by(Profile.created_at.desc())
+            .all()
+        )
+        profiles_and_roles = [(p, r) for p, r in members_with_profiles]
+    else:
+        # Default/demo workspace: includes members assigned to DEFAULT_WORKSPACE_ID
+        # as well as unassigned profiles that default to DEFAULT_WORKSPACE_ID.
+        # Strictly excludes users assigned exclusively to other tenant workspaces!
+        other_ws_subq = (
+            select(WorkspaceMember.user_id)
+            .filter(WorkspaceMember.workspace_id != DEFAULT_WORKSPACE_ID)
+        )
+        profiles = (
+            db.query(Profile)
+            .filter(Profile.id.notin_(other_ws_subq))
+            .order_by(Profile.created_at.desc())
+            .all()
+        )
+        profiles_and_roles = [(p, p.role or "operator") for p in profiles]
 
     # If database has no profiles yet, auto-populate the current admin user
-    if not profiles and admin_user:
+    if not profiles_and_roles and admin_user:
         admin_profile = Profile(
             id=admin_user["id"],
             email=admin_user.get("email"),
             full_name=(admin_user.get("user_metadata") or {}).get("full_name") or "Administrator",
             role="admin",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         db.add(admin_profile)
         db.commit()
         db.refresh(admin_profile)
-        profiles = [admin_profile]
+        profiles_and_roles = [(admin_profile, "admin")]
 
     # Fetch trusted auth user records from Supabase
     auth_users_map = fetch_supabase_auth_users(db)
@@ -238,7 +264,7 @@ def list_users(
         auth_users_map[admin_user["id"]] = admin_user
 
     response_items = []
-    for p in profiles:
+    for p, ws_role in profiles_and_roles:
         auth_user = auth_users_map.get(str(p.id))
 
         provider = extract_provider_from_metadata(auth_user)
@@ -252,7 +278,7 @@ def list_users(
                 email=p.email,
                 avatar_url=p.avatar_url,
                 provider=provider,
-                role=p.role or "operator",
+                role=ws_role or p.role or "operator",
                 created_at=p.created_at.isoformat() if p.created_at else None,
                 last_sign_in_at=last_sign_in,
                 status=user_status
@@ -276,6 +302,7 @@ def update_user_role(
     to ensure two simultaneous demotions can never result in zero admins.
     Logs immutable audit record for compliance.
     """
+    admin_ws = admin_user.get("workspace_id")
     new_role = payload.role.strip().lower()
     if new_role not in ("admin", "operator"):
         raise HTTPException(
@@ -296,15 +323,58 @@ def update_user_role(
                 detail=f"User with ID '{user_id}' not found."
             )
 
-        previous_role = target_profile.role or "operator"
+        # Cross-workspace check: Ensure target user belongs to the administrator's workspace
+        target_member = None
+        if admin_ws and admin_ws != DEFAULT_WORKSPACE_ID:
+            target_member = db.query(WorkspaceMember).filter(
+                WorkspaceMember.workspace_id == admin_ws,
+                WorkspaceMember.user_id == user_id
+            ).first()
+            if not target_member:
+                logger.warning(f"[Tenant Isolation] Admin '{admin_user.get('id')}' in workspace '{admin_ws}' attempted to modify user '{user_id}' outside their workspace.")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found in this workspace."
+                )
+        elif admin_ws == DEFAULT_WORKSPACE_ID:
+            # Cannot modify users who belong exclusively to other tenant workspaces
+            other_member = db.query(WorkspaceMember).filter(
+                WorkspaceMember.workspace_id != DEFAULT_WORKSPACE_ID,
+                WorkspaceMember.user_id == user_id
+            ).first()
+            if other_member:
+                target_member = db.query(WorkspaceMember).filter(
+                    WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+                    WorkspaceMember.user_id == user_id
+                ).first()
+                if not target_member:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="User not found in this workspace."
+                    )
+            else:
+                target_member = db.query(WorkspaceMember).filter(
+                    WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+                    WorkspaceMember.user_id == user_id
+                ).first()
 
-        # ATOMIC LAST ADMIN PROTECTION:
+        previous_role = target_member.role if target_member else (target_profile.role or "operator")
+
+        # ATOMIC LAST ADMIN PROTECTION (scoped to this workspace if admin_ws is set, else global):
         # If target is currently admin and demoting to operator, verify count inside locked transaction
         if previous_role == "admin" and new_role == "operator":
-            query = db.query(Profile).filter(Profile.role == "admin")
-            if db.bind and db.bind.dialect.name == "postgresql":
-                query = query.with_for_update()
-            admin_count = query.count()
+            if admin_ws and admin_ws != DEFAULT_WORKSPACE_ID:
+                admin_count = db.query(WorkspaceMember).filter(
+                    WorkspaceMember.workspace_id == admin_ws,
+                    WorkspaceMember.role == "admin"
+                ).count()
+            else:
+                # In default workspace / global: check both Profile and WorkspaceMember
+                p_query = db.query(Profile).filter(Profile.role == "admin")
+                if db.bind and db.bind.dialect.name == "postgresql":
+                    p_query = p_query.with_for_update()
+                admin_count = p_query.count()
+
             if admin_count <= 1:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -312,7 +382,10 @@ def update_user_role(
                 )
 
         # Apply role change
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
+        if target_member:
+            target_member.role = new_role
+            target_member.updated_at = timestamp
         target_profile.role = new_role
         target_profile.updated_at = timestamp
         db.commit()
@@ -332,9 +405,10 @@ def update_user_role(
         f"Administrator changed: {target_name} from {prev_label} to {new_label}."
     )
 
-    # Record AuditLog
+    # Record AuditLog scoped to workspace
     audit_log = AuditLog(
         id=f"aud_role_{uuid.uuid4().hex[:8]}",
+        workspace_id=admin_ws or DEFAULT_WORKSPACE_ID,
         recovery_case_id=None,
         transaction_id=None,
         actor=f"ADMIN:{admin_actor}",
@@ -347,21 +421,27 @@ def update_user_role(
             "target_email": target_profile.email,
             "previous_role": previous_role,
             "new_role": new_role,
-            "timestamp": timestamp.isoformat()
+            "timestamp": timestamp.isoformat(),
+            "workspace_id": admin_ws
         }),
         created_at=timestamp
     )
     db.add(audit_log)
     db.commit()
 
-    # Emit real-time SSE broadcast
-    event_broadcaster.broadcast_sync("USER_ROLE_CHANGED", {
-        "actor": admin_actor,
-        "target_user_id": user_id,
-        "previous_role": previous_role,
-        "new_role": new_role,
-        "timestamp": timestamp.isoformat()
-    })
+    # Emit real-time SSE broadcast scoped to workspace
+    event_broadcaster.broadcast_sync(
+        "USER_ROLE_CHANGED",
+        {
+            "actor": admin_actor,
+            "target_user_id": user_id,
+            "previous_role": previous_role,
+            "new_role": new_role,
+            "timestamp": timestamp.isoformat(),
+            "workspace_id": admin_ws
+        },
+        workspace_id=admin_ws
+    )
 
     logger.info(f"[RBAC] {admin_actor} changed role of {target_name} from {previous_role} to {new_role}")
 
