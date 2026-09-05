@@ -1,7 +1,7 @@
 import asyncio
 import collections
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import AsyncGenerator, Set, Dict, Any, Optional
 from app.core.logging import logger
 from app.models.workspaces import DEFAULT_WORKSPACE_ID
@@ -22,10 +22,11 @@ class EventBroadcaster:
     def workspace_listener_count(self, workspace_id: str) -> int:
         return len(self._listeners.get(str(workspace_id), set()))
 
-    async def subscribe(self, workspace_id: str = DEFAULT_WORKSPACE_ID) -> AsyncGenerator[str, None]:
+    async def subscribe(self, workspace_id: str = DEFAULT_WORKSPACE_ID, max_events: Optional[int] = None) -> AsyncGenerator[str, None]:
         """
         Subscribes a client to the event bus scoped strictly to a specific workspace_id.
         Includes a 15-second heartbeat ping (: ping\n\n) to prevent HTTP connection timeouts.
+        If max_events is specified, terminates cleanly after yielding the requested number of events.
         """
         ws_key = str(workspace_id)
         queue: asyncio.Queue = asyncio.Queue(maxsize=200)
@@ -33,26 +34,38 @@ class EventBroadcaster:
         logger.info(f"New SSE client connected to workspace '{ws_key}'. Active listeners in workspace: {len(self._listeners[ws_key])}")
 
         # Yield initial connection handshake
+        now_utc = datetime.now(timezone.utc).isoformat()
         initial_event = {
             "type": "CONNECTION_ESTABLISHED",
             "data": {
                 "status": "LIVE",
                 "workspace_id": ws_key,
-                "server_time": datetime.utcnow().isoformat()
+                "server_time": now_utc
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": now_utc
         }
         yield f"data: {json.dumps(initial_event)}\n\n"
+        yielded_count = 1
+
+        if max_events is not None and yielded_count >= max_events:
+            if ws_key in self._listeners:
+                self._listeners[ws_key].discard(queue)
+                if not self._listeners[ws_key]:
+                    self._listeners.pop(ws_key, None)
+            return
 
         try:
             while True:
                 try:
                     message = await asyncio.wait_for(queue.get(), timeout=15.0)
                     yield f"data: {json.dumps(message)}\n\n"
+                    yielded_count += 1
+                    if max_events is not None and yielded_count >= max_events:
+                        break
                 except asyncio.TimeoutError:
                     # Heartbeat comment to keep HTTP streaming alive
                     yield ": ping\n\n"
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, GeneratorExit):
             pass
         finally:
             if ws_key in self._listeners:
@@ -83,7 +96,7 @@ class EventBroadcaster:
             "type": event_type,
             "data": data,
             "workspace_id": target_ws,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # Determine target queues
