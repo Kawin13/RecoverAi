@@ -6,7 +6,7 @@ Enforces deterministic rule evaluation, human approval workflows, and immutable 
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 
@@ -235,7 +235,7 @@ class GuardrailsService:
 
         orig_strategy = case.selected_strategy or "PAYMENT_LINK"
         prev_step = case.current_step or case.status or "PENDING_APPROVAL"
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         if norm_decision == "APPROVE":
             case.status = "ACTION_SCHEDULED"
@@ -350,7 +350,7 @@ class GuardrailsService:
             threshold_breached=threshold,
             action_taken=action_taken,
             details=details,
-            triggered_at=datetime.utcnow()
+            triggered_at=datetime.now(timezone.utc)
         )
         db.add(event)
         try:

@@ -6,7 +6,7 @@ Labels all mock/unconfigured sends honestly as DEMO DELIVERY without spoofing re
 
 import uuid
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
@@ -85,7 +85,7 @@ class NotificationService:
             language=language,
             recovery_case_id=recovery_case_id,
             latency_ms=145,
-            dispatched_at=datetime.utcnow()
+            dispatched_at=datetime.now(timezone.utc)
         )
 
         # Store in recent history
