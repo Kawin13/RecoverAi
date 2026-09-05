@@ -6,14 +6,15 @@ Enforces strict transition auditing, honest notification tracking, and real Razo
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional, Dict, Any, List, Tuple
 from sqlalchemy.orm import Session
 
 from app.core.logging import logger
 from app.core.events import event_broadcaster
-from app.models import RecoveryCase, Transaction, AuditLog, PaymentLink, RecoveryAction
+from app.core.datetime_utils import diff_seconds
+from app.models import RecoveryCase, Transaction, AuditLog, PaymentLink, RecoveryAction, RecoveryOutcome, PaymentAttempt
 from app.core.config import settings
 from app.services.razorpay_service import razorpay_service
 from app.services.notification_service import notification_service
@@ -56,7 +57,7 @@ class RecoveryExecutor:
 
         execution_data: Dict[str, Any] = {
             "strategy": strategy,
-            "executed_at": datetime.utcnow().isoformat(),
+            "executed_at": datetime.now(timezone.utc).isoformat(),
             "case_id": case.id,
             "attempt_number": case.attempt_count
         }
@@ -85,8 +86,8 @@ class RecoveryExecutor:
                 currency="INR",
                 status=link_res.get("status", "created"),
                 is_live_demo=link_res.get("is_live_demo", False),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             db.add(plink_record)
             db.flush()
@@ -134,7 +135,7 @@ class RecoveryExecutor:
 
         elif strategy == "RETRY_LATER":
             # Schedule delayed attempt recommendation during optimal clearing window
-            scheduled_retry_time = datetime.utcnow() + timedelta(minutes=30)
+            scheduled_retry_time = datetime.now(timezone.utc) + timedelta(minutes=30)
             case.scheduled_at = scheduled_retry_time
 
             receipt = notification_service.send_recovery_notification(
@@ -210,11 +211,11 @@ class RecoveryExecutor:
             payload_data=json.dumps(execution_data),
             erv=case.expected_recovery_value,
             status="DISPATCHED",
-            dispatched_at=datetime.utcnow()
+            dispatched_at=datetime.now(timezone.utc)
         )
         db.add(rec_action)
 
-        case.executed_at = datetime.utcnow()
+        case.executed_at = datetime.now(timezone.utc)
         case.execution_payload = json.dumps(execution_data)
         return execution_data
 
@@ -248,7 +249,7 @@ class RecoveryStateMachine:
 
         case.current_step = next_step
         case.status = next_step
-        case.updated_at = datetime.utcnow()
+        case.updated_at = datetime.now(timezone.utc)
 
         # Audit record
         audit = AuditLog(
@@ -267,7 +268,7 @@ class RecoveryStateMachine:
                 "attempt_count": case.attempt_count,
                 "max_attempts": case.max_attempts
             }),
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.add(audit)
         db.commit()
@@ -287,7 +288,7 @@ class RecoveryStateMachine:
                 "risk_amount": case.risk_amount,
                 "details": details,
                 "workspace_id": str(case.workspace_id),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             },
             workspace_id=case.workspace_id
         )
@@ -372,7 +373,7 @@ class RecoveryStateMachine:
             else:
                 case.channel = "IN_APP"
 
-            case.scheduled_at = datetime.utcnow()
+            case.scheduled_at = datetime.now(timezone.utc)
             details = f"Action scheduled for immediate dispatch via channel '{case.channel}'."
             case = self.transition(case, RecoveryStep.ACTION_SCHEDULED.value, details, db)
             step_result["next_step"] = RecoveryStep.ACTION_SCHEDULED.value
@@ -452,10 +453,10 @@ class RecoveryStateMachine:
         norm_outcome = outcome.upper()
 
         if norm_outcome == "RECOVERED":
-            case.recovered_at = datetime.utcnow()
+            case.recovered_at = datetime.now(timezone.utc)
             if case.transaction:
                 case.transaction.status = "SUCCESS"
-                case.transaction.updated_at = datetime.utcnow()
+                case.transaction.updated_at = datetime.now(timezone.utc)
 
             details = f"Payment verified via gateway. ₹{case.risk_amount:,.2f} recovered successfully on attempt {case.attempt_count}!"
             case = self.transition(case, RecoveryStep.RECOVERED.value, details, db, actor="CUSTOMER_INTERVENTION")
@@ -474,3 +475,205 @@ class RecoveryStateMachine:
         return case
 
 recovery_state_machine = RecoveryStateMachine()
+
+
+def reconcile_payment_link_record(
+    plink: PaymentLink,
+    db: Session,
+    rzp_data: Optional[Dict[str, Any]] = None,
+    actor: str = "RAZORPAY_RECONCILIATION"
+) -> bool:
+    """
+    Reconciles a genuine Razorpay payment link with local state.
+    If Razorpay reports status as 'paid', marks PaymentLink paid,
+    RecoveryCase as RECOVERED, Transaction as SUCCESS, creates RecoveryOutcome,
+    records PaymentAttempt and AuditLog, and emits real-time SSE events.
+    """
+    if not plink or not plink.payment_link_id:
+        return False
+
+    if not rzp_data:
+        if not str(plink.payment_link_id).startswith("plink_"):
+            return False
+        try:
+            rzp_data = razorpay_service.fetch_payment_link(plink.payment_link_id)
+        except Exception as e:
+            logger.warning(f"Error fetching payment link status for {plink.payment_link_id}: {e}")
+            return False
+
+    rzp_status = str(rzp_data.get("status", "")).lower()
+    amount_paid = rzp_data.get("amount_paid", 0)
+    expected_amount = rzp_data.get("amount", 0)
+
+    is_paid = (rzp_status == "paid") or (amount_paid > 0 and amount_paid >= expected_amount)
+
+    if not is_paid:
+        return False
+
+    # Extract payment details
+    payments = rzp_data.get("payments") or []
+    latest_payment = payments[-1] if payments else {}
+    payment_id = latest_payment.get("payment_id") or latest_payment.get("id") or rzp_data.get("id")
+    raw_method = latest_payment.get("method", "UPI")
+    method_map = {
+        "card": "Card",
+        "upi": "UPI",
+        "netbanking": "NetBanking",
+        "wallet": "Wallet",
+        "emi": "EMI"
+    }
+    normalized_method = method_map.get(str(raw_method).lower(), str(raw_method).capitalize())
+    amount_inr = round(amount_paid / 100.0, 2) if amount_paid else plink.amount
+
+    # Update PaymentLink
+    plink.status = "paid"
+    plink.updated_at = datetime.now(timezone.utc)
+
+    case = plink.recovery_case
+    tx = case.transaction if case else None
+    ws_id = case.workspace_id if case else (tx.workspace_id if tx else plink.workspace_id)
+
+    if case:
+        case.status = "RECOVERED"
+        case.current_step = "RECOVERED"
+        case.recovered_at = datetime.now(timezone.utc)
+        case.updated_at = datetime.now(timezone.utc)
+
+        # Create or update RecoveryOutcome
+        outcome = db.query(RecoveryOutcome).filter(RecoveryOutcome.recovery_case_id == case.id).first()
+        recovered_val = case.risk_amount or amount_inr
+        if not outcome:
+            outcome = RecoveryOutcome(
+                id=f"out_{uuid.uuid4().hex[:10]}",
+                workspace_id=ws_id,
+                recovery_case_id=case.id,
+                recovered_amount=recovered_val,
+                payment_method_used=normalized_method,
+                time_to_recover_seconds=int(diff_seconds(datetime.now(timezone.utc), case.created_at, default=120.0)),
+                settled_at=datetime.now(timezone.utc)
+            )
+            db.add(outcome)
+        else:
+            outcome.recovered_amount = recovered_val
+            outcome.payment_method_used = normalized_method
+            outcome.settled_at = datetime.now(timezone.utc)
+
+    if tx:
+        tx.status = "SUCCESS"
+        if payment_id and str(payment_id).startswith("pay_"):
+            tx.razorpay_payment_id = payment_id
+        tx.method = normalized_method
+        tx.updated_at = datetime.now(timezone.utc)
+
+        attempt = PaymentAttempt(
+            id=f"pa_{uuid.uuid4().hex[:10]}",
+            workspace_id=ws_id,
+            transaction_id=tx.id,
+            attempt_number=len(tx.payment_attempts or []) + 1,
+            gateway="Razorpay",
+            gateway_payment_id=payment_id,
+            status="SUCCESS",
+            latency_ms=250,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(attempt)
+
+    db.add(
+        AuditLog(
+            id=f"aud_{uuid.uuid4().hex[:10]}",
+            workspace_id=ws_id,
+            transaction_id=tx.id if tx else (case.transaction_id if case else None),
+            recovery_case_id=case.id if case else None,
+            actor=actor,
+            action_type="PAYMENT_CAPTURED",
+            target_resource=case.id if case else plink.payment_link_id,
+            details=f"Payment link {plink.payment_link_id} verified as PAID via Razorpay. ₹{amount_inr:,.2f} recovered via {normalized_method}. Case marked RECOVERED.",
+            created_at=datetime.now(timezone.utc)
+        )
+    )
+
+    db.commit()
+
+    # Real-time SSE Broadcasts
+    if tx:
+        event_broadcaster.broadcast_sync(
+            "TRANSACTION_UPDATED",
+            {
+                "transaction_id": tx.id,
+                "order_id": tx.order_id,
+                "status": "SUCCESS",
+                "amount": tx.amount,
+                "method": tx.method,
+                "event_type": "payment_link.paid"
+            },
+            workspace_id=ws_id
+        )
+
+    if case:
+        event_broadcaster.broadcast_sync(
+            "RECOVERY_AGENT_TRANSITION",
+            {
+                "case_id": case.id,
+                "transaction_id": case.transaction_id,
+                "prev_step": "WAITING_FOR_CUSTOMER",
+                "current_step": "RECOVERED",
+                "strategy": case.selected_strategy,
+                "status": "RECOVERED",
+                "risk_amount": case.risk_amount,
+                "details": f"Payment verified via Razorpay payment link ({plink.payment_link_id}).",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "workspace_id": str(ws_id)
+            },
+            workspace_id=ws_id
+        )
+
+    event_broadcaster.broadcast_sync(
+        "RECOVERY_QUEUE_UPDATED",
+        {
+            "case_id": case.id if case else "",
+            "payment_link_id": plink.payment_link_id,
+            "status": "paid",
+            "workspace_id": str(ws_id)
+        },
+        workspace_id=ws_id
+    )
+
+    event_broadcaster.broadcast_sync(
+        "DASHBOARD_REFRESH",
+        {
+            "reason": "payment_recovered",
+            "transaction_id": tx.id if tx else "",
+            "case_id": case.id if case else "",
+            "amount": amount_inr
+        },
+        workspace_id=ws_id
+    )
+
+    event_broadcaster.broadcast_sync(
+        "transaction_recovered",
+        {
+            "transaction_id": tx.id if tx else "",
+            "amount": amount_inr,
+            "case_id": case.id if case else ""
+        },
+        workspace_id=ws_id
+    )
+
+    return True
+
+
+def sync_case_payment_links(case: RecoveryCase, db: Session) -> bool:
+    """
+    Checks all active payment links for a recovery case against Razorpay.
+    Returns True if any link transitioned to paid and recovered the case.
+    """
+    if not case or not case.payment_links:
+        return False
+
+    recovered = False
+    for pl in case.payment_links:
+        if pl.status != "paid" and pl.payment_link_id and pl.payment_link_id.startswith("plink_"):
+            if reconcile_payment_link_record(pl, db):
+                recovered = True
+                break
+    return recovered
