@@ -92,14 +92,14 @@ def get_approval_queue(
             })
         elif c.status == "PENDING_APPROVAL":
             # If all safety policies are cleared and requires_approval is false: remove from approval queue
-            from datetime import datetime
+            from datetime import datetime, timezone
             if decision.allowed:
                 c.status = "ACTION_SCHEDULED"
                 c.current_step = "ACTION_SCHEDULED"
             else:
                 c.status = "STOPPED"
                 c.current_step = "STOPPED"
-            c.updated_at = datetime.utcnow()
+            c.updated_at = datetime.now(timezone.utc)
             db.add(c)
             db.commit()
 

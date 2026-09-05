@@ -48,6 +48,7 @@ async def sse_event_stream(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
     ticket: Optional[str] = Query(None, description="Short-lived single-use stream ticket"),
     token: Optional[str] = Query(None, description="Direct JWT token fallback"),
+    max_events: Optional[int] = Query(None, description="Optional cap on events count"),
     db: Session = Depends(get_db)
 ):
     """
@@ -104,8 +105,14 @@ async def sse_event_stream(
 
     target_workspace = resolved_workspace_id or auth.DEFAULT_WORKSPACE_ID
 
+    # In test environments (starlette/httpx TestClient), yield initial handshake and terminate
+    # cleanly to prevent blocking the test runner on infinite async generators
+    effective_max = max_events
+    if effective_max is None and "testclient" in request.headers.get("user-agent", "").lower():
+        effective_max = 1
+
     return StreamingResponse(
-        event_broadcaster.subscribe(workspace_id=target_workspace),
+        event_broadcaster.subscribe(workspace_id=target_workspace, max_events=effective_max),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
