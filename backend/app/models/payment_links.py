@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -16,8 +17,8 @@ class PaymentLink(Base):
     currency = Column(String(8), default="INR")
     status = Column(String(32), default="created")  # created, paid, expired, cancelled
     is_live_demo = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     recovery_case = relationship("RecoveryCase", back_populates="payment_links")

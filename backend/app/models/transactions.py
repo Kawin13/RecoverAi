@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -18,8 +19,8 @@ class Transaction(Base):
     razorpay_order_id = Column(String(64), nullable=True, index=True)
     razorpay_payment_id = Column(String(64), nullable=True, index=True)
     razorpay_signature = Column(String(256), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     customer = relationship("Customer", back_populates="transactions")

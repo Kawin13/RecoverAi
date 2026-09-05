@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -18,7 +19,7 @@ class PaymentAttempt(Base):
     error_category = Column(String(64), nullable=True)
     latency_ms = Column(Integer, default=0)
     status = Column(String(32), default="FAILED")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     transaction = relationship("Transaction", back_populates="payment_attempts")
