@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.database.session import SessionLocal, engine
 from app.database.base import Base
@@ -21,7 +21,7 @@ from app.models import (
 from app.core.logging import logger
 
 def seed_database(db: Session):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Ensure default Workspace exists
     default_ws = db.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
@@ -62,6 +62,34 @@ def seed_database(db: Session):
         ))
         db.commit()
 
+    # Ensure test Operator Profile and Membership exist
+    op_prof = db.query(Profile).filter(Profile.id == "00000000-0000-0000-0000-000000000002").first()
+    if not op_prof:
+        db.add(Profile(
+            id="00000000-0000-0000-0000-000000000002",
+            email="operator.user@recoverai.io",
+            full_name="Operator User",
+            role="operator",
+            created_at=now,
+            updated_at=now
+        ))
+        db.commit()
+
+    op_member = db.query(WorkspaceMember).filter(
+        WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+        WorkspaceMember.user_id == "00000000-0000-0000-0000-000000000002"
+    ).first()
+    if not op_member:
+        db.add(WorkspaceMember(
+            id="00000000-0000-0000-0000-000000000020",
+            workspace_id=DEFAULT_WORKSPACE_ID,
+            user_id="00000000-0000-0000-0000-000000000002",
+            role="operator",
+            created_at=now,
+            updated_at=now
+        ))
+        db.commit()
+
     # Check if database already has records
     if db.query(Customer).count() > 0:
         logger.info("Database already seeded. Skipping initial customer/tx seeding.")
@@ -70,7 +98,7 @@ def seed_database(db: Session):
     logger.info("Seeding minimal realistic sample records into RecoverAI database...")
 
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # 1. Customers
     customers = [
