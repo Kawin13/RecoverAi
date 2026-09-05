@@ -9,7 +9,12 @@ from app.core.logging import logger
 from app.core.events import event_broadcaster
 from app.core.auth import get_current_user
 from app.models import RecoveryCase, Transaction, PaymentLink
-from app.services.recovery_executor import recovery_state_machine, RecoveryStep
+from app.services.recovery_executor import (
+    recovery_state_machine,
+    RecoveryStep,
+    sync_case_payment_links,
+    reconcile_payment_link_record
+)
 from app.services.notification_service import notification_service
 from app.services.razorpay_service import razorpay_service
 from app.schemas.recovery_executor import (
@@ -84,6 +89,19 @@ def list_workflows(
         query = query.filter(RecoveryCase.workspace_id == ws_id)
 
     cases = query.order_by(RecoveryCase.created_at.desc()).limit(limit).all()
+    # Actively reconcile any cases with open (unpaid) genuine Razorpay links
+    for c in cases:
+        if c.status not in ("RECOVERED", "STOPPED") and c.payment_links:
+            has_open_rzp_link = any(
+                pl.status != "paid" and str(pl.payment_link_id).startswith("plink_")
+                for pl in c.payment_links
+            )
+            if has_open_rzp_link:
+                try:
+                    sync_case_payment_links(c, db)
+                except Exception as e:
+                    logger.warning(f"Error syncing payment links for case {c.id}: {e}")
+
     serialized = [_serialize_case(c) for c in cases]
     active_count = sum(1 for c in cases if c.status not in ("RECOVERED", "STOPPED"))
 
@@ -106,6 +124,12 @@ def get_workflow(
     case = query.first()
     if not case:
         raise HTTPException(status_code=404, detail="Recovery case not found")
+    if case.status not in ("RECOVERED", "STOPPED") and case.payment_links:
+        try:
+            sync_case_payment_links(case, db)
+            db.refresh(case)
+        except Exception as e:
+            logger.warning(f"Error syncing payment links for case {case.id}: {e}")
     return _serialize_case(case)
 
 @router.post("/workflows/{case_id}/step", summary="Advance Recovery Workflow by One Step")
@@ -283,3 +307,52 @@ def get_notifications(
 ):
     """Returns recent notification simulation receipts labeled with DEMO DELIVERY."""
     return notification_service.get_recent_notifications(case_id=case_id, limit=limit)
+
+@router.post("/workflows/{case_id}/sync-payment", summary="Sync & Reconcile Case Payment Links with Razorpay")
+def sync_case_payment(
+    case_id: str,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Actively checks Razorpay API for status updates on all payment links associated with this case.
+    If paid, immediately marks the case RECOVERED, updates transaction to SUCCESS, and records outcome.
+    """
+    ws_id = current_user.get("workspace_id")
+    query = db.query(RecoveryCase).filter(RecoveryCase.id == case_id)
+    if ws_id is not None:
+        query = query.filter(RecoveryCase.workspace_id == ws_id)
+    case = query.first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Recovery case not found")
+
+    recovered = sync_case_payment_links(case, db)
+    db.refresh(case)
+    return {
+        "status": "success",
+        "recovered": recovered or (case.status == "RECOVERED"),
+        "case": _serialize_case(case)
+    }
+
+@router.post("/payment-links/{payment_link_id}/verify", summary="Verify Specific Payment Link Status with Razorpay")
+def verify_payment_link(
+    payment_link_id: str,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Directly queries Razorpay API for a specific payment link and reconciles state if paid.
+    """
+    plink = db.query(PaymentLink).filter(PaymentLink.payment_link_id == payment_link_id).first()
+    if not plink:
+        raise HTTPException(status_code=404, detail="Payment link not found")
+
+    is_paid = reconcile_payment_link_record(plink, db)
+    db.refresh(plink)
+    return {
+        "status": "success",
+        "paid": plink.status == "paid",
+        "payment_link_id": plink.payment_link_id,
+        "payment_link_status": plink.status,
+        "case_status": plink.recovery_case.status if plink.recovery_case else None
+    }
