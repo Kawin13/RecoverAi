@@ -3,7 +3,7 @@ import hashlib
 import time
 import uuid
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 from app.core.config import settings
 from app.core.logging import logger
@@ -306,7 +306,7 @@ class RazorpayService:
             "amount": round(amount_paise / 100.0, 2),
             "status": "created",
             "reference_id": ref_id,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "is_live_demo": False,
             "raw_response": {"id": fallback_id, "short_url": fallback_url}
         }
