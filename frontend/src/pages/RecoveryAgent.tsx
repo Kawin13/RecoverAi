@@ -49,6 +49,8 @@ export const RecoveryAgent: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [isActionBusy, setIsActionBusy] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState<string | null>(null)
+  const [isSyncing, setIsSyncing] = useState<boolean>(false)
+  const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null)
   const { subscribe } = useRealtime()
 
   const loadData = useCallback(async () => {
@@ -164,6 +166,69 @@ export const RecoveryAgent: React.FC = () => {
     setCopiedLink(url)
     setTimeout(() => setCopiedLink(null), 2000)
   }
+
+  const handleSyncPayment = async (caseId: string) => {
+    setIsSyncing(true)
+    try {
+      const res = await api.syncCasePayment(caseId)
+      await loadData()
+      if (res.recovered) {
+        setSyncSuccessMsg(`Payment Confirmed! ₹${formatINR(res.case.risk_amount)} has been successfully recovered via Razorpay.`)
+        setTimeout(() => setSyncSuccessMsg(null), 7000)
+      } else {
+        setSyncSuccessMsg(`Gateway checked: Payment link is still awaiting customer completion.`)
+        setTimeout(() => setSyncSuccessMsg(null), 4000)
+      }
+    } catch (err: any) {
+      alert(`Payment sync failed: ${err.message || 'Gateway connection error'}`)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  // Automatic reconciliation when window regains focus (e.g. user returns from Razorpay tab)
+  useEffect(() => {
+    const onFocus = () => {
+      if (selectedCaseId) {
+        api.syncCasePayment(selectedCaseId)
+          .then(res => {
+            if (res.recovered) {
+              loadData()
+              setSyncSuccessMsg(`Payment Confirmed! ₹${formatINR(res.case.risk_amount)} recovered via Razorpay.`)
+              setTimeout(() => setSyncSuccessMsg(null), 7000)
+            }
+          })
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [selectedCaseId, loadData])
+
+  // Periodic polling if selected case has an open unpaid Razorpay payment link
+  useEffect(() => {
+    const curCase = workflows.find(w => w.id === selectedCaseId)
+    if (!curCase || curCase.status === 'RECOVERED') return
+
+    const hasUnpaidLink = curCase.payment_links?.some(
+      pl => pl.status !== 'paid' && pl.payment_link_id?.startsWith('plink_')
+    )
+    if (!hasUnpaidLink) return
+
+    const interval = setInterval(() => {
+      api.syncCasePayment(curCase.id)
+        .then(res => {
+          if (res.recovered) {
+            loadData()
+            setSyncSuccessMsg(`Payment Confirmed! ₹${formatINR(res.case.risk_amount)} recovered via Razorpay.`)
+            setTimeout(() => setSyncSuccessMsg(null), 7000)
+          }
+        })
+        .catch(() => {})
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [selectedCaseId, workflows, loadData])
 
   const activeWorkflows = workflows.filter(w => !isTerminalState(w.status))
   const recoveredCount = workflows.filter(w => w.status === 'RECOVERED').length
@@ -308,6 +373,22 @@ export const RecoveryAgent: React.FC = () => {
       {/* Selected Case State Machine Stepper Visualizer */}
       {selectedCase && (
         <div className="bg-stone-900/90 border border-stone-800 rounded-lg p-5 shadow-sm space-y-4">
+          {syncSuccessMsg && (
+            <div className="p-3 rounded-md bg-emerald-950/90 border border-emerald-600 text-emerald-100 text-xs flex items-center justify-between gap-3 shadow-md animate-fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="font-semibold">{syncSuccessMsg}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSyncSuccessMsg(null)}
+                className="text-stone-400 hover:text-stone-200 text-xs cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-800/80">
             <div>
               <div className="flex items-center gap-2.5">
@@ -403,6 +484,18 @@ export const RecoveryAgent: React.FC = () => {
                 <span>Create Payment Link</span>
               </button>
 
+              {/* Real-Time Verify / Sync Gateway Status */}
+              <button
+                type="button"
+                onClick={() => handleSyncPayment(selectedCase.id)}
+                disabled={isSyncing || selectedCase.status === 'RECOVERED'}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-950/70 hover:bg-teal-900/90 text-teal-200 border border-teal-700/70 rounded text-xs font-medium disabled:opacity-50 transition-colors cursor-pointer"
+                title="Directly query Razorpay API for live payment status"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-teal-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Verifying Gateway...' : 'Verify Link Payment'}</span>
+              </button>
+
               {/* Simulate Customer Payment (RECOVERED) */}
               <button
                 type="button"
@@ -447,7 +540,9 @@ export const RecoveryAgent: React.FC = () => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-mono text-sky-300 font-semibold">{pl.payment_link_id}</span>
-                          <span className="text-[10px] px-1 rounded bg-stone-800 text-stone-300 font-mono">{pl.status}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${pl.status === 'paid' ? 'bg-emerald-950 text-emerald-300 border border-emerald-700' : 'bg-stone-800 text-stone-300'}`}>
+                            {pl.status === 'paid' ? 'PAID & RECOVERED' : pl.status}
+                          </span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${isReal ? 'bg-sky-900/80 text-sky-200 border border-sky-700' : 'bg-amber-950 text-amber-300 border border-amber-800'}`}>
                             {isReal ? 'RAZORPAY TEST PAYMENT LINK' : 'DEMO RECOVERY LINK'}
                           </span>
@@ -462,10 +557,22 @@ export const RecoveryAgent: React.FC = () => {
                         </button>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {pl.status !== 'paid' && isReal && (
+                          <button
+                            type="button"
+                            onClick={() => handleSyncPayment(selectedCase.id)}
+                            disabled={isSyncing}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-emerald-300 hover:text-emerald-100 bg-emerald-950/70 hover:bg-emerald-900/90 border border-emerald-700/60 rounded text-xs font-medium transition-colors cursor-pointer"
+                            title="Verify payment with Razorpay"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline">Verify</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleCopy(pl.short_url)}
-                          className="p-1.5 text-stone-400 hover:text-stone-200 bg-stone-800 hover:bg-stone-700 rounded text-xs transition-colors"
+                          className="p-1.5 text-stone-400 hover:text-stone-200 bg-stone-800 hover:bg-stone-700 rounded text-xs transition-colors cursor-pointer"
                           title="Copy payment link"
                         >
                           {copiedLink === pl.short_url ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -473,7 +580,7 @@ export const RecoveryAgent: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleOpenPaymentLink(pl.short_url)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sky-300 hover:text-sky-100 bg-sky-900/60 hover:bg-sky-800/80 border border-sky-700/60 rounded text-xs font-medium transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sky-300 hover:text-sky-100 bg-sky-900/60 hover:bg-sky-800/80 border border-sky-700/60 rounded text-xs font-medium transition-colors cursor-pointer"
                           title="Open Razorpay Hosted Checkout"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
