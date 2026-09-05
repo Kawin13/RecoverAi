@@ -42,6 +42,17 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error while running database seed: {e}")
     finally:
         db.close()
+
+    # 3. ML Model Startup Validation (Safe status logging & fail-closed production check)
+    logger.info("Validating ML model runtime compatibility and artifact loading...")
+    try:
+        from app.ml.inference import inference_engine
+        inference_engine.validate_startup()
+    except Exception as exc:
+        if str(settings.ENVIRONMENT).lower() == "production":
+            logger.critical(f"FATAL: Production ML model startup validation failed: {exc}")
+            raise RuntimeError(f"FATAL: Production ML model startup validation failed: {exc}")
+        logger.warning(f"ML model startup validation notice: {exc}")
         
     logger.info(f"{settings.PROJECT_NAME} v{settings.VERSION} ready on {settings.ENVIRONMENT} mode.")
     yield
@@ -93,9 +104,12 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Include Routers
 app.include_router(health_router)
+# Canonical API v1 Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
-app.include_router(api_router, prefix="/api/v1")  # Alias for /api/v1
-app.include_router(api_router, prefix="/api")     # Alias for /api routes
+
+# Backward-compatibility alias for legacy /api routes (omitted from schema to prevent duplicate route docs)
+if settings.API_V1_STR != "/api":
+    app.include_router(api_router, prefix="/api", include_in_schema=False)
 
 # Direct Root Mounts for Webhooks & SSE Streaming
 from app.api.v1.endpoints.webhooks import router as webhooks_root_router
