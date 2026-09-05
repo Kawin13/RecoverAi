@@ -6,10 +6,11 @@ merchant verticals, and customer value segments.
 Strictly truthful: No hidden hardcoded KPI additions or artificial record scaling.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, or_, and_
+from app.core.datetime_utils import to_utc
 
 from app.models.recovery_cases import RecoveryCase
 from app.models.recovery_outcomes import RecoveryOutcome
@@ -39,7 +40,7 @@ class AnalyticsService:
         filters: AnalyticsFilters,
         workspace_id: Optional[str] = None
     ) -> AnalyticsResponse:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # 1. Determine genuine time boundary
         time_filter = (filters.time_range or "7d").lower()
@@ -180,7 +181,8 @@ class AnalyticsService:
 
             if case.status in [
                 "DETECTED", "ANALYZED", "STRATEGY_SELECTED", "GUARDRAIL_CHECKED",
-                "ACTION_SCHEDULED", "ACTION_EXECUTED", "WAITING_FOR_CUSTOMER", "IN_PROGRESS"
+                "ACTION_SCHEDULED", "ACTION_EXECUTED", "WAITING_FOR_CUSTOMER", "IN_PROGRESS",
+                "PENDING_APPROVAL", "ATTEMPTING", "MANUAL_ESCALATION"
             ]:
                 active_count += 1
 
@@ -376,7 +378,8 @@ class AnalyticsService:
             b_risk = 0.0
             b_rec = 0.0
             for c in cases:
-                if c.created_at and bucket_start <= c.created_at < bucket_end:
+                c_dt = to_utc(c.created_at)
+                if c_dt and bucket_start <= c_dt < bucket_end:
                     r = float(c.risk_amount or 0.0)
                     if c.status == "RECOVERED":
                         b_rec += float(c.recovery_outcome.recovered_amount) if (c.recovery_outcome and c.recovery_outcome.recovered_amount is not None) else r
@@ -400,10 +403,10 @@ class AnalyticsService:
         )
 
         # Explicit Data Mode
-        if is_simulation_dataset:
-            data_mode = "SIMULATED DATA"
-        elif is_demo_dataset:
+        if is_demo_dataset:
             data_mode = "Demo Dataset"
+        elif is_simulation_dataset:
+            data_mode = "SIMULATED DATA"
         else:
             data_mode = "LIVE TEST DATA"
 

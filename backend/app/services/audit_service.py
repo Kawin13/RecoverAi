@@ -5,7 +5,7 @@ Guarantees zero secret exposure, strict credential redaction, and compliance exp
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_, and_
@@ -104,8 +104,8 @@ class AuditService:
                 failure_reason=c.failure_category or "UPI_TIMEOUT",
                 status=c.status or "DETECTED",
                 selected_strategy=c.selected_strategy or "SMART_PAYLINK_1CLICK",
-                created_at=c.created_at.isoformat() if c.created_at else datetime.utcnow().isoformat(),
-                latest_activity=c.updated_at.isoformat() if c.updated_at else datetime.utcnow().isoformat()
+                created_at=c.created_at.isoformat() if c.created_at else datetime.now(timezone.utc).isoformat(),
+                latest_activity=c.updated_at.isoformat() if c.updated_at else datetime.now(timezone.utc).isoformat()
             ))
 
         return CaseAuditListResponse(items=items, total=len(items))
@@ -123,7 +123,7 @@ class AuditService:
             case_query = case_query.filter(RecoveryCase.workspace_id == workspace_id)
         case = case_query.first()
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if not case:
             if case_or_tx_id.startswith("demo_") or case_or_tx_id.startswith("sim_"):
@@ -467,7 +467,7 @@ class AuditService:
 
     def _synthesize_sample_case_chronology(self, case_id: str) -> CaseAuditTimelineResponse:
         """Synthesizes high-fidelity sample case chronology if ID is not in DB."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         t0 = now - timedelta(minutes=8)
         amount = 28999.0
         reason = "CARD_DECLINED"
