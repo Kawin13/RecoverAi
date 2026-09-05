@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -16,7 +17,7 @@ class AuditLog(Base):
     target_resource = Column(String(128), nullable=False)
     details = Column(Text, nullable=False)
     metadata_json = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     recovery_case = relationship("RecoveryCase", back_populates="audit_logs")

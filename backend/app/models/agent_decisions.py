@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -15,7 +16,7 @@ class AgentDecision(Base):
     propensity_scores = Column(Text, nullable=True)
     selected_action = Column(String(64), nullable=False)
     reasoning_summary = Column(Text, nullable=False)
-    decided_at = Column(DateTime, default=datetime.utcnow)
+    decided_at = Column(DateTime, default=utcnow)
 
     # Relationships
     recovery_case = relationship("RecoveryCase", back_populates="agent_decisions")
