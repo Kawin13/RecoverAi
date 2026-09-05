@@ -14,10 +14,7 @@ import {
   LogOut,
   KeyRound,
   ShieldCheck,
-  Cpu,
-  CreditCard,
-  User as UserIcon,
-  Sparkles
+  User as UserIcon
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -232,10 +229,8 @@ export const Account: React.FC = () => {
         </div>
       )}
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Columns: Identity & Profile Details */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Profile & Security Details */}
+      <div className="max-w-4xl space-y-6">
           {/* Main Account Profile Card */}
           <div className="bg-surface border border-border rounded-md p-6 shadow-fintech-card space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border">
@@ -480,81 +475,6 @@ export const Account: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Right Column: RecoverAI Access & Security Summary */}
-        <div className="space-y-6">
-          {/* RecoverAI Product Access Card (Safe Test Environment) */}
-          <div className="bg-surface border border-border rounded-md p-5 shadow-fintech-card space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-burnt-orange" />
-                <h3 className="text-sm font-bold font-display text-graphite">
-                  RecoverAI Access
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-burnt-orange-subtle text-burnt-orange border border-burnt-orange/30 rounded-sm font-semibold">
-                SANDBOX
-              </span>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between py-1.5 border-b border-border/60">
-                <span className="text-warm-gray-500">Environment</span>
-                <span className="font-semibold text-graphite font-mono">Demo / Test</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-b border-border/60">
-                <span className="text-warm-gray-500">Payment Gateway</span>
-                <span className="font-semibold text-graphite font-mono flex items-center gap-1.5">
-                  <CreditCard className="w-3.5 h-3.5 text-warm-gray-400" />
-                  Razorpay Test Mode
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-b border-border/60">
-                <span className="text-warm-gray-500">AI Recovery Engine</span>
-                <span className="font-semibold text-graphite font-mono flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-moss-green" />
-                  AI Decision Engine
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5">
-                <span className="text-warm-gray-500">Autonomous Guardrails</span>
-                <span className="font-semibold text-moss-green-dark font-mono flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-moss-green" />
-                  Active (Safe Parameters)
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 bg-warm-gray-50 border border-border rounded-sm text-[11px] text-warm-gray-600 leading-relaxed">
-              <strong>Protected Credentials:</strong> Operational credentials and database connections reside strictly on secure server environments and are never transmitted to client applications.
-            </div>
-          </div>
-
-          {/* Session Governance Overview */}
-          <div className="bg-surface border border-border rounded-md p-5 shadow-fintech-card space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-warm-gray-500 font-display">
-              Session Governance
-            </h3>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-start gap-2 text-warm-gray-600">
-                <CheckCircle2 className="w-3.5 h-3.5 text-moss-green flex-shrink-0 mt-0.5" />
-                <span>Secure session tokens refreshed in memory.</span>
-              </div>
-              <div className="flex items-start gap-2 text-warm-gray-600">
-                <CheckCircle2 className="w-3.5 h-3.5 text-moss-green flex-shrink-0 mt-0.5" />
-                <span>Protected operational routes require authenticated session.</span>
-              </div>
-              <div className="flex items-start gap-2 text-warm-gray-600">
-                <CheckCircle2 className="w-3.5 h-3.5 text-moss-green flex-shrink-0 mt-0.5" />
-                <span>Audit logging captures merchant actions with immutable timestamps.</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Change Password Modal */}
