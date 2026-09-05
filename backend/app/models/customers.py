@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -14,7 +15,7 @@ class Customer(Base):
     phone = Column(String(32), nullable=True)
     tier = Column(String(32), default="STANDARD")  # ENTERPRISE, VIP, GROWTH, STANDARD
     ltv = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     transactions = relationship("Transaction", back_populates="customer", cascade="all, delete-orphan")

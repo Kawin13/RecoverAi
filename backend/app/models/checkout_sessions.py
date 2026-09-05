@@ -1,3 +1,4 @@
+from app.core.datetime_utils import utcnow
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
@@ -15,8 +16,8 @@ class CheckoutSession(Base):
     status = Column(String(32), default="STARTED", index=True)  # STARTED, CUSTOMER_IDENTIFIED, PAYMENT_METHOD_VIEWED, PAYMENT_INITIATED, COMPLETED, ABANDONED
     selected_method = Column(String(32), nullable=True)  # UPI, CARD, NETBANKING, WALLET
     payment_attempted = Column(Boolean, default=False)
-    started_at = Column(DateTime, default=datetime.utcnow)
-    last_activity_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=utcnow)
+    last_activity_at = Column(DateTime, default=utcnow)
     completed_at = Column(DateTime, nullable=True)
     abandoned_at = Column(DateTime, nullable=True)
     is_demo_simulation = Column(Boolean, default=True)  # Clearly labels demo checkout vs real Razorpay test transactions
@@ -27,7 +28,7 @@ class CheckoutSession(Base):
     cart_value = Column(Float, nullable=False, default=0.0)
     dropped_at_step = Column(String(64), nullable=True)
     is_recovered = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     customer = relationship("Customer", back_populates="checkout_sessions")
