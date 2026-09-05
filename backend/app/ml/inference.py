@@ -6,7 +6,7 @@ import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.config import settings
 
 logger = logging.getLogger("recoverai.ml")
@@ -46,14 +46,94 @@ class MLInferenceEngine:
         self._load_artifacts()
 
     @property
+    def recovery_model_loaded(self) -> bool:
+        return self.rec_model is not None
+
+    @property
+    def recovery_preprocessor_loaded(self) -> bool:
+        return self.rec_preprocessor is not None
+
+    @property
+    def intervention_model_loaded(self) -> bool:
+        return self.int_model is not None
+
+    @property
+    def intervention_preprocessor_loaded(self) -> bool:
+        return self.int_preprocessor is not None
+
+    @property
     def is_loaded(self) -> bool:
         """Returns True if genuine XGBoost models and preprocessors are loaded in memory."""
         return bool(
-            self.rec_model is not None and
-            self.rec_preprocessor is not None and
-            self.int_model is not None and
-            self.int_preprocessor is not None
+            self.recovery_model_loaded and
+            self.recovery_preprocessor_loaded and
+            self.intervention_model_loaded and
+            self.intervention_preprocessor_loaded
         )
+
+    def validate_startup(self) -> Dict[str, Any]:
+        """
+        At backend startup verify:
+        - recovery model loaded
+        - recovery preprocessor loaded
+        - intervention model loaded
+        - intervention preprocessor loaded
+        
+        Logs safe information:
+        - model loaded: yes/no
+        - model version
+        - scoring mode
+        Never prints secrets.
+        
+        If a required production model cannot load:
+        fail clearly or mark ML unavailable.
+        """
+        all_loaded = self.is_loaded
+        version = self.metadata.get("model_version", "1.0.0-production") if all_loaded else "1.0.0-fallback"
+        scoring_mode = "ML_MODEL (XGBoost)" if all_loaded else "Deterministic Fallback"
+
+        logger.info(
+            f"ML Startup Validation: model loaded={'yes' if all_loaded else 'no'}, "
+            f"model version={version}, scoring mode={scoring_mode}"
+        )
+        logger.info(
+            f"ML Artifact Status: "
+            f"recovery_model={'yes' if self.recovery_model_loaded else 'no'}, "
+            f"recovery_preprocessor={'yes' if self.recovery_preprocessor_loaded else 'no'}, "
+            f"intervention_model={'yes' if self.intervention_model_loaded else 'no'}, "
+            f"intervention_preprocessor={'yes' if self.intervention_preprocessor_loaded else 'no'}"
+        )
+
+        if not all_loaded:
+            missing = []
+            if not self.recovery_model_loaded:
+                missing.append("recovery_model")
+            if not self.recovery_preprocessor_loaded:
+                missing.append("recovery_preprocessor")
+            if not self.intervention_model_loaded:
+                missing.append("intervention_model")
+            if not self.intervention_preprocessor_loaded:
+                missing.append("intervention_preprocessor")
+
+            env = getattr(settings, "ENVIRONMENT", "development")
+            if str(env).lower() == "production":
+                err_msg = f"FATAL: Production ML model startup validation failed. Missing or corrupt artifacts: {', '.join(missing)}"
+                logger.critical(err_msg)
+                raise RuntimeError(err_msg)
+            else:
+                logger.warning(
+                    f"ML artifacts incomplete ({', '.join(missing)}); operating in deterministic fallback scoring mode."
+                )
+
+        return {
+            "model_loaded": all_loaded,
+            "model_version": version,
+            "scoring_mode": scoring_mode,
+            "recovery_model_loaded": self.recovery_model_loaded,
+            "recovery_preprocessor_loaded": self.recovery_preprocessor_loaded,
+            "intervention_model_loaded": self.intervention_model_loaded,
+            "intervention_preprocessor_loaded": self.intervention_preprocessor_loaded,
+        }
 
     def _load_artifacts(self):
         rec_model_path = os.path.join(self.artifacts_dir, "recovery_model.joblib")
@@ -306,7 +386,7 @@ class MLInferenceEngine:
                 "loaded": self.is_loaded,
                 "artifact_checksum": self.artifact_checksum,
                 "dataset_type": "synthetic",
-                "trained_at": self.metadata.get("trained_at", datetime.utcnow().isoformat()) if self.is_loaded else ""
+                "trained_at": self.metadata.get("trained_at", datetime.now(timezone.utc).isoformat()) if self.is_loaded else ""
             }
         }
 
@@ -473,7 +553,7 @@ class MLInferenceEngine:
                     "loaded": self.is_loaded,
                     "artifact_checksum": self.artifact_checksum,
                     "dataset_type": "synthetic",
-                    "trained_at": self.metadata.get("trained_at", datetime.utcnow().isoformat()) if self.is_loaded else ""
+                    "trained_at": self.metadata.get("trained_at", datetime.now(timezone.utc).isoformat()) if self.is_loaded else ""
                 }
             })
 

@@ -15,7 +15,7 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 import xgboost as xgb
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
@@ -278,7 +278,7 @@ def save_artifacts(rec_model, rec_preprocessor, rec_metrics,
 
     metadata = {
         "model_version": "1.0.0-production",
-        "trained_at": datetime.utcnow().isoformat(),
+        "trained_at": datetime.now(timezone.utc).isoformat(),
         "algorithm": "XGBoost Gradient Boosted Decision Trees",
         "framework": "xgboost 3.2.0 + scikit-learn",
         "model_name": "XGBoost Gradient Boosted Decision Trees",
