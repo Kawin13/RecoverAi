@@ -1,7 +1,7 @@
 import uuid
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
@@ -26,7 +26,11 @@ WORKSPACE_A_ID = "11111111-1111-1111-1111-111111111111"
 WORKSPACE_B_ID = "22222222-2222-2222-2222-222222222222"
 
 USER_A_ID = "aaaaaaa1-1111-1111-1111-111111111111"
+USER_A_OP_ID = "aaaaaaa2-1111-1111-1111-111111111111"
 USER_B_ID = "bbbbbbb2-2222-2222-2222-222222222222"
+USER_B_OP_ID = "bbbbbbb3-2222-2222-2222-222222222222"
+USER_C_ID = "ccccccc3-3333-3333-3333-333333333333"
+USER_M_ID = "ddddddd4-4444-4444-4444-444444444444"
 
 
 @pytest.fixture
@@ -35,7 +39,7 @@ def multi_tenant_setup(db_session, monkeypatch):
     Sets up two isolated workspaces (Workspace A and Workspace B)
     with their own dedicated users, customers, transactions, and recovery cases.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # 1. Create Workspace A
     ws_a = db_session.query(Workspace).filter(Workspace.id == WORKSPACE_A_ID).first()
@@ -55,10 +59,30 @@ def multi_tenant_setup(db_session, monkeypatch):
         prof_a = Profile(id=USER_A_ID, email="alpha@merchant.io", full_name="Alpha Admin", role="admin", created_at=now, updated_at=now)
         db_session.add(prof_a)
 
+    prof_a_op = db_session.query(Profile).filter(Profile.id == USER_A_OP_ID).first()
+    if not prof_a_op:
+        prof_a_op = Profile(id=USER_A_OP_ID, email="alpha.op@merchant.io", full_name="Alpha Operator", role="operator", created_at=now, updated_at=now)
+        db_session.add(prof_a_op)
+
     prof_b = db_session.query(Profile).filter(Profile.id == USER_B_ID).first()
     if not prof_b:
         prof_b = Profile(id=USER_B_ID, email="beta@merchant.io", full_name="Beta Admin", role="admin", created_at=now, updated_at=now)
         db_session.add(prof_b)
+
+    prof_b_op = db_session.query(Profile).filter(Profile.id == USER_B_OP_ID).first()
+    if not prof_b_op:
+        prof_b_op = Profile(id=USER_B_OP_ID, email="beta.op@merchant.io", full_name="Beta Operator", role="operator", created_at=now, updated_at=now)
+        db_session.add(prof_b_op)
+
+    prof_c = db_session.query(Profile).filter(Profile.id == USER_C_ID).first()
+    if not prof_c:
+        prof_c = Profile(id=USER_C_ID, email="orphan@noworkspace.io", full_name="Orphan User", role="operator", created_at=now, updated_at=now)
+        db_session.add(prof_c)
+
+    prof_m = db_session.query(Profile).filter(Profile.id == USER_M_ID).first()
+    if not prof_m:
+        prof_m = Profile(id=USER_M_ID, email="multi@merchant.io", full_name="Multi User", role="operator", created_at=now, updated_at=now)
+        db_session.add(prof_m)
 
     db_session.flush()
 
@@ -68,10 +92,33 @@ def multi_tenant_setup(db_session, monkeypatch):
         mem_a = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=WORKSPACE_A_ID, user_id=USER_A_ID, role="admin", created_at=now, updated_at=now)
         db_session.add(mem_a)
 
+    mem_a_op = db_session.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == WORKSPACE_A_ID, WorkspaceMember.user_id == USER_A_OP_ID).first()
+    if not mem_a_op:
+        mem_a_op = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=WORKSPACE_A_ID, user_id=USER_A_OP_ID, role="operator", created_at=now, updated_at=now)
+        db_session.add(mem_a_op)
+
     mem_b = db_session.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == WORKSPACE_B_ID, WorkspaceMember.user_id == USER_B_ID).first()
     if not mem_b:
         mem_b = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=WORKSPACE_B_ID, user_id=USER_B_ID, role="admin", created_at=now, updated_at=now)
         db_session.add(mem_b)
+
+    mem_b_op = db_session.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == WORKSPACE_B_ID, WorkspaceMember.user_id == USER_B_OP_ID).first()
+    if not mem_b_op:
+        mem_b_op = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=WORKSPACE_B_ID, user_id=USER_B_OP_ID, role="operator", created_at=now, updated_at=now)
+        db_session.add(mem_b_op)
+
+    # Multi-workspace user memberships in BOTH A and B
+    mem_m_a = db_session.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == WORKSPACE_A_ID, WorkspaceMember.user_id == USER_M_ID).first()
+    if not mem_m_a:
+        mem_m_a = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=WORKSPACE_A_ID, user_id=USER_M_ID, role="operator", created_at=now, updated_at=now)
+        db_session.add(mem_m_a)
+
+    mem_m_b = db_session.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == WORKSPACE_B_ID, WorkspaceMember.user_id == USER_M_ID).first()
+    if not mem_m_b:
+        mem_m_b = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=WORKSPACE_B_ID, user_id=USER_M_ID, role="operator", created_at=now, updated_at=now)
+        db_session.add(mem_m_b)
+
+    # NOTE: USER_C_ID has NO WorkspaceMember row intentionally!
 
     # 5. Create Tenant A Domain Records
     cust_a = db_session.query(Customer).filter(Customer.id == "cust_alpha_01").first()
@@ -159,13 +206,21 @@ def multi_tenant_setup(db_session, monkeypatch):
 
     db_session.commit()
 
-    # Mock JWT verification for Alpha and Beta
+    # Mock JWT verification for Alpha, Beta, Orphan, and Multi-workspace
     original_verify = auth.verify_supabase_jwt
     def _tenant_verify(token: str):
         if token == "token_user_a":
             return {"id": USER_A_ID, "email": "alpha@merchant.io", "user_metadata": {"full_name": "Alpha Admin"}}
+        elif token == "token_user_a_op":
+            return {"id": USER_A_OP_ID, "email": "alpha.op@merchant.io", "user_metadata": {"full_name": "Alpha Operator"}}
         elif token == "token_user_b":
             return {"id": USER_B_ID, "email": "beta@merchant.io", "user_metadata": {"full_name": "Beta Admin"}}
+        elif token == "token_user_b_op":
+            return {"id": USER_B_OP_ID, "email": "beta.op@merchant.io", "user_metadata": {"full_name": "Beta Operator"}}
+        elif token == "token_user_c":
+            return {"id": USER_C_ID, "email": "orphan@noworkspace.io", "user_metadata": {"full_name": "Orphan User"}}
+        elif token == "token_user_m":
+            return {"id": USER_M_ID, "email": "multi@merchant.io", "user_metadata": {"full_name": "Multi User"}}
         elif token in ("test_auth_token", "test_admin_token"):
             return {"id": "597289a7-e26e-415d-ab4d-fa587e32899a", "email": "test.ops@recoverai.io", "user_metadata": {"full_name": "Revenue Ops Admin"}}
         return original_verify(token)
@@ -176,7 +231,17 @@ def multi_tenant_setup(db_session, monkeypatch):
         "workspace_a_id": WORKSPACE_A_ID,
         "workspace_b_id": WORKSPACE_B_ID,
         "user_a_token": "token_user_a",
+        "user_a_op_token": "token_user_a_op",
         "user_b_token": "token_user_b",
+        "user_b_op_token": "token_user_b_op",
+        "user_c_token": "token_user_c",
+        "user_m_token": "token_user_m",
+        "user_a_id": USER_A_ID,
+        "user_a_op_id": USER_A_OP_ID,
+        "user_b_id": USER_B_ID,
+        "user_b_op_id": USER_B_OP_ID,
+        "user_c_id": USER_C_ID,
+        "user_m_id": USER_M_ID,
         "tx_a_id": "tx_alpha_01",
         "tx_b_id": "tx_beta_01",
         "rc_a_id": "rc_alpha_01",
@@ -395,3 +460,232 @@ def test_sse_stream_ticket_scoped_to_user_workspace(multi_tenant_setup, client):
     data = res.json()
     assert "ticket" in data
     assert data["workspace_id"] == WORKSPACE_A_ID
+
+
+def test_overview_kpis_strictly_isolated(multi_tenant_setup, client):
+    """11. Overview KPIs (Revenue at Risk, Recovered, Active) are strictly scoped per workspace."""
+    headers_a = {"Authorization": f"Bearer {multi_tenant_setup['user_a_token']}"}
+    headers_b = {"Authorization": f"Bearer {multi_tenant_setup['user_b_token']}"}
+
+    # User A requests Dashboard
+    res_a = client.get("/api/v1/dashboard", headers=headers_a)
+    assert res_a.status_code == 200
+    data_a = res_a.json()
+    metrics_a = data_a["metrics"]
+    assert metrics_a["revenue_at_risk"] == 12000.0
+    assert metrics_a["active_recoveries"] == 1
+
+    # User B requests Dashboard
+    res_b = client.get("/api/v1/dashboard", headers=headers_b)
+    assert res_b.status_code == 200
+    data_b = res_b.json()
+    metrics_b = data_b["metrics"]
+    assert metrics_b["revenue_at_risk"] == 45000.0
+    assert metrics_b["revenue_at_risk"] != metrics_a["revenue_at_risk"]
+
+
+def test_analytics_strictly_isolated(multi_tenant_setup, client):
+    """12. Financial analytics breakdowns and time series return only the authenticated tenant's data."""
+    headers_a = {"Authorization": f"Bearer {multi_tenant_setup['user_a_token']}"}
+    headers_b = {"Authorization": f"Bearer {multi_tenant_setup['user_b_token']}"}
+
+    # User A Analytics
+    res_a = client.get("/api/v1/analytics", headers=headers_a)
+    assert res_a.status_code == 200
+    data_a = res_a.json()
+    assert data_a["kpis"]["revenue_at_risk"] == 12000.0
+    upi_a = next(m for m in data_a["recovery_by_payment_method"] if m["method"].upper() == "UPI")
+    card_a = next(m for m in data_a["recovery_by_payment_method"] if m["method"].upper() == "CARD")
+    assert upi_a["total_volume"] == 1
+    assert upi_a["at_risk_amount"] == 12000.0
+    assert card_a["total_volume"] == 0
+    assert card_a["at_risk_amount"] == 0.0
+
+    # User B Analytics
+    res_b = client.get("/api/v1/analytics", headers=headers_b)
+    assert res_b.status_code == 200
+    data_b = res_b.json()
+    assert data_b["kpis"]["revenue_at_risk"] == 45000.0
+    card_b = next(m for m in data_b["recovery_by_payment_method"] if m["method"].upper() == "CARD")
+    upi_b = next(m for m in data_b["recovery_by_payment_method"] if m["method"].upper() == "UPI")
+    assert card_b["total_volume"] == 1
+    assert card_b["at_risk_amount"] == 45000.0
+    assert upi_b["total_volume"] == 0
+    assert upi_b["at_risk_amount"] == 0.0
+
+
+def test_at_risk_totals_strictly_isolated(multi_tenant_setup, client):
+    """13. At-Risk queue totals include only cases from the current workspace."""
+    headers_a = {"Authorization": f"Bearer {multi_tenant_setup['user_a_token']}"}
+    headers_b = {"Authorization": f"Bearer {multi_tenant_setup['user_b_token']}"}
+
+    res_a = client.get("/api/v1/recovery-cases/queue-counts", headers=headers_a)
+    assert res_a.status_code == 200
+    assert res_a.json()["all_at_risk"] == 1
+
+    res_b = client.get("/api/v1/recovery-cases/queue-counts", headers=headers_b)
+    assert res_b.status_code == 200
+    assert res_b.json()["all_at_risk"] == 1
+
+
+def test_user_management_strictly_isolated(multi_tenant_setup, client):
+    """14. Workspace user list is scoped; Admin cross-workspace role update is blocked."""
+    headers_a = {"Authorization": f"Bearer {multi_tenant_setup['user_a_token']}"}
+    headers_b = {"Authorization": f"Bearer {multi_tenant_setup['user_b_token']}"}
+
+    # Admin A lists users
+    res_a = client.get("/api/v1/admin/users", headers=headers_a)
+    assert res_a.status_code == 200
+    user_ids_a = [u["id"] for u in res_a.json()]
+    assert multi_tenant_setup["user_a_id"] in user_ids_a
+    assert multi_tenant_setup["user_a_op_id"] in user_ids_a
+    assert multi_tenant_setup["user_b_id"] not in user_ids_a
+    assert multi_tenant_setup["user_b_op_id"] not in user_ids_a
+
+    # Admin B lists users
+    res_b = client.get("/api/v1/admin/users", headers=headers_b)
+    assert res_b.status_code == 200
+    user_ids_b = [u["id"] for u in res_b.json()]
+    assert multi_tenant_setup["user_b_id"] in user_ids_b
+    assert multi_tenant_setup["user_b_op_id"] in user_ids_b
+    assert multi_tenant_setup["user_a_id"] not in user_ids_b
+
+    # Admin A attempts cross-workspace role change on User B -> 404
+    attack_res = client.patch(
+        f"/api/v1/admin/users/{multi_tenant_setup['user_b_id']}/role",
+        json={"role": "operator"},
+        headers=headers_a
+    )
+    assert attack_res.status_code == 404
+    assert "not found" in attack_res.json()["detail"].lower()
+
+    # Admin A updates role of in-workspace operator -> 200 OK
+    promote_res = client.patch(
+        f"/api/v1/admin/users/{multi_tenant_setup['user_a_op_id']}/role",
+        json={"role": "admin"},
+        headers=headers_a
+    )
+    assert promote_res.status_code == 200
+    assert promote_res.json()["role"] == "admin"
+
+
+def test_public_checkout_workspace_ownership_and_anti_spoofing(multi_tenant_setup, client, db_session):
+    """15. Public checkout works without JWT and prevents client-side workspace_id spoofing."""
+    from app.models import CheckoutSession
+
+    # Malicious attempt to inject Workspace B ID in public checkout payload
+    payload = {
+        "cart_amount": 2999.0,
+        "customer_name": "Public Shopper",
+        "customer_email": "shopper@public.com",
+        "workspace_id": WORKSPACE_B_ID
+    }
+    res = client.post("/api/v1/checkout/sessions", json=payload)
+    assert res.status_code == 200
+    session_id = res.json()["id"]
+
+    # Verify session in database is assigned to trusted demo workspace, NOT WORKSPACE_B_ID
+    session_db = db_session.query(CheckoutSession).filter(CheckoutSession.id == session_id).first()
+    assert session_db is not None
+    assert str(session_db.workspace_id) == DEFAULT_WORKSPACE_ID
+    assert str(session_db.workspace_id) != WORKSPACE_B_ID
+
+
+def test_razorpay_webhook_derives_workspace_internally(multi_tenant_setup, client, db_session, monkeypatch):
+    """16. Razorpay webhook derives workspace ownership internally from transaction, never external payload."""
+    import hmac
+    import hashlib
+    from app.services.razorpay_service import razorpay_service
+
+    # Monkeypatch signature verification to true for this test
+    monkeypatch.setattr(razorpay_service, "verify_webhook_signature", lambda raw, sig: True)
+
+    webhook_payload = {
+        "event": "payment.captured",
+        "id": f"evt_test_{uuid.uuid4().hex[:12]}",
+        "payload": {
+            "payment": {
+                "entity": {
+                    "id": f"pay_{uuid.uuid4().hex[:10]}",
+                    "order_id": "ord_alpha_101",
+                    "amount": 1200000,
+                    "method": "upi",
+                    "notes": {
+                        "workspace_id": WORKSPACE_B_ID  # Malicious attempt to forge workspace in webhook payload
+                    }
+                }
+            }
+        }
+    }
+
+    raw_json = json.dumps(webhook_payload).encode("utf-8")
+    headers = {
+        "X-Razorpay-Signature": "mock_sig_123",
+        "Content-Type": "application/json"
+    }
+
+    res = client.post("/api/v1/webhooks/razorpay", data=raw_json, headers=headers)
+    assert res.status_code == 200
+
+    # Verify AuditLog created for this event has workspace_id == WORKSPACE_A_ID (derived from tx_alpha_01)
+    aud = db_session.query(AuditLog).filter(
+        AuditLog.transaction_id == multi_tenant_setup["tx_a_id"],
+        AuditLog.action_type == "PAYMENT_CAPTURED"
+    ).first()
+    assert aud is not None
+    assert str(aud.workspace_id) == WORKSPACE_A_ID
+    assert str(aud.workspace_id) != WORKSPACE_B_ID
+
+
+def test_unassigned_user_safely_bounded_to_default_workspace(multi_tenant_setup, client, db_session):
+    """17. Authenticated user with no pre-assigned workspace is safely placed into bounded DEFAULT_WORKSPACE_ID and cannot access other tenants."""
+    headers_c = {"Authorization": f"Bearer {multi_tenant_setup['user_c_token']}"}
+
+    # 1. User C requests transactions -> bounded to DEFAULT_WORKSPACE_ID
+    res = client.get("/api/v1/transactions", headers=headers_c)
+    assert res.status_code == 200
+    tx_ids = [t["id"] for t in res.json()["items"]]
+    assert multi_tenant_setup["tx_a_id"] not in tx_ids
+    assert multi_tenant_setup["tx_b_id"] not in tx_ids
+
+    # 2. User C direct read of Workspace A transaction -> 404 Not Found
+    res_direct = client.get(f"/api/v1/transactions/{multi_tenant_setup['tx_a_id']}", headers=headers_c)
+    assert res_direct.status_code == 404
+
+    # 3. User C attempt to switch to Workspace A via header -> 403 Forbidden
+    res_tamper = client.get(
+        "/api/v1/transactions",
+        headers={**headers_c, "X-Workspace-Id": multi_tenant_setup["workspace_a_id"]}
+    )
+    assert res_tamper.status_code == 403
+    assert "Access denied" in res_tamper.json()["detail"]
+
+
+def test_multi_workspace_user_deterministic_behavior(multi_tenant_setup, client):
+    """18. Multi-workspace user requires explicit X-Workspace-Id header; routes correctly when provided."""
+    headers_m = {"Authorization": f"Bearer {multi_tenant_setup['user_m_token']}"}
+
+    # 1. Request without header -> 400 Bad Request
+    res_no_header = client.get("/api/v1/transactions", headers=headers_m)
+    assert res_no_header.status_code == 400
+    assert "Multiple workspace memberships found" in res_no_header.json()["detail"]
+
+    # 2. Request with Workspace A header -> sees only Workspace A
+    res_a = client.get("/api/v1/transactions", headers={**headers_m, "X-Workspace-Id": WORKSPACE_A_ID})
+    assert res_a.status_code == 200
+    tx_ids_a = [t["id"] for t in res_a.json()["items"]]
+    assert multi_tenant_setup["tx_a_id"] in tx_ids_a
+    assert multi_tenant_setup["tx_b_id"] not in tx_ids_a
+
+    # 3. Request with Workspace B header -> sees only Workspace B
+    res_b = client.get("/api/v1/transactions", headers={**headers_m, "X-Workspace-Id": WORKSPACE_B_ID})
+    assert res_b.status_code == 200
+    tx_ids_b = [t["id"] for t in res_b.json()["items"]]
+    assert multi_tenant_setup["tx_b_id"] in tx_ids_b
+    assert multi_tenant_setup["tx_a_id"] not in tx_ids_b
+
+    # 4. Request with unauthorized workspace header -> 403 Forbidden
+    res_unauth = client.get("/api/v1/transactions", headers={**headers_m, "X-Workspace-Id": "33333333-3333-3333-3333-333333333333"})
+    assert res_unauth.status_code == 403
+    assert "Access denied" in res_unauth.json()["detail"]
+
