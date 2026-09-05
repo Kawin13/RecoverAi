@@ -224,6 +224,10 @@ def test_sse_stream_authenticated_short_lived_ticket_flow(auth_client, client):
     with client.stream("GET", f"/api/events/stream?ticket={ticket}") as stream_res:
         assert stream_res.status_code == 200
         assert "text/event-stream" in stream_res.headers.get("content-type", "")
+        for line in stream_res.iter_lines():
+            if line:
+                assert "CONNECTION_ESTABLISHED" in line
+                break
 
     # 4. Ticket is single-use: subsequent reuse is rejected with 401
     reuse_res = client.get(f"/api/events/stream?ticket={ticket}")
@@ -233,4 +237,8 @@ def test_sse_stream_authenticated_bearer_header(auth_client):
     """Verifies that SSE stream accepts standard Authorization: Bearer <token> header."""
     with auth_client.stream("GET", "/api/events/stream") as res:
         assert res.status_code == 200
-    assert "text/event-stream" in res.headers.get("content-type", "")
+        assert "text/event-stream" in res.headers.get("content-type", "")
+        for line in res.iter_lines():
+            if line:
+                assert "CONNECTION_ESTABLISHED" in line
+                break

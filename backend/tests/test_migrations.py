@@ -44,6 +44,8 @@ def test_fresh_database_upgrade_head(temp_alembic_db):
     tables = insp.get_table_names()
     
     expected_tables = [
+        "workspaces",
+        "workspace_members",
         "customers",
         "transactions",
         "payment_attempts",
@@ -242,3 +244,71 @@ def test_postgresql_transactional_dry_run_upgrade():
 
         finally:
             trans.rollback()
+
+
+def test_phase3_to_phase4_upgrade_preserves_existing_data(temp_alembic_db):
+    """
+    Verifies that upgrading an existing Phase 3 database (stamped at c4d8e2f1a9b3)
+    to Phase 4 (revision d5e9f3a1b7c2) creates workspaces, backfills workspace_members,
+    adds workspace_id to operational tables, and safely preserves existing operational data.
+    """
+    db_url, alembic_cfg = temp_alembic_db
+    engine = create_engine(db_url)
+
+    # 1. Upgrade to Phase 3
+    command.upgrade(alembic_cfg, "c4d8e2f1a9b3")
+
+    # 2. Insert existing pre-Phase 4 records
+    with engine.connect() as conn:
+        conn.execute(text("""
+            INSERT INTO profiles (id, email, full_name, role)
+            VALUES ('11111111-2222-3333-4444-555555555555', 'merchant@existing.com', 'Existing Merchant', 'admin');
+        """))
+        conn.execute(text("""
+            INSERT INTO customers (id, name, email, tier, ltv)
+            VALUES ('cust_legacy_01', 'Legacy Customer', 'shopper@legacy.io', 'GROWTH', 15000.0);
+        """))
+        conn.execute(text("""
+            INSERT INTO transactions (id, order_id, customer_id, amount, status)
+            VALUES ('tx_legacy_01', 'ord_legacy_01', 'cust_legacy_01', 7500.0, 'FAILED');
+        """))
+        conn.commit()
+
+    # 3. Upgrade to Phase 4 (d5e9f3a1b7c2)
+    command.upgrade(alembic_cfg, "d5e9f3a1b7c2")
+
+    # 4. Verify Phase 4 schema and data preservation
+    insp = inspect(engine)
+    tables = insp.get_table_names()
+    assert "workspaces" in tables
+    assert "workspace_members" in tables
+
+    with engine.connect() as conn:
+        # Default workspace created
+        default_ws = conn.execute(text("SELECT id, name FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000001';")).fetchone()
+        assert default_ws is not None
+        assert "RecoverAI" in default_ws[1]
+
+        # Profile backfilled into workspace_members
+        member = conn.execute(text("""
+            SELECT workspace_id, user_id, role 
+            FROM workspace_members 
+            WHERE user_id = '11111111-2222-3333-4444-555555555555';
+        """)).fetchone()
+        assert member is not None
+        assert member[0] == "00000000-0000-0000-0000-000000000001"
+        assert member[2] == "admin"
+
+        # Operational transaction preserved and assigned to default workspace
+        tx_row = conn.execute(text("""
+            SELECT id, order_id, amount, status, workspace_id 
+            FROM transactions 
+            WHERE id = 'tx_legacy_01';
+        """)).fetchone()
+        assert tx_row is not None
+        assert tx_row[0] == "tx_legacy_01"
+        assert tx_row[1] == "ord_legacy_01"
+        assert tx_row[2] == 7500.0
+        assert tx_row[3] == "FAILED"
+        assert tx_row[4] == "00000000-0000-0000-0000-000000000001"
+
