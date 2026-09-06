@@ -102,7 +102,7 @@ flowchart TD
   $$\text{ERV}_i = P_{\text{recovery}}(i) \times (\text{Amount} - \text{IncentiveCost}(i)) - \text{DeliveryCost}(i) - \text{FrictionPenalty}(i)$$
 - Automatically selects the action $\arg\max_i \text{ERV}_i$ subject to merchant policies.
 
-### 4. Generative AI Communications (Google Gemini 2.5 Flash)
+### 4. Generative AI Communications (Google Gemini 3.7 Flash)
 - Generates empathetic, contextual recovery messages with localized nuance.
 - Multi-lingual localization support: **English (EN)**, **Hindi (HI)**, **Tamil (TA)**, and **Hinglish**.
 - Generates transparent operator explanations justifying why a particular strategy was chosen.
