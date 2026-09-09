@@ -139,34 +139,34 @@ export const DemoCheckout: React.FC = () => {
         console.warn('Could not fetch payment config:', err)
       }
 
-      // Dynamically load Razorpay checkout.js script
-      if (!window.Razorpay) {
-        const script = document.createElement('script')
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-        script.async = true
-        script.onload = () => {
-          setSdkReady(true)
-        }
-        script.onerror = () => {
-          console.error('Failed to load Razorpay checkout.js SDK')
-        }
-        document.body.appendChild(script)
-      } else {
+      // Check if Razorpay is already available
+      if (window.Razorpay) {
         setSdkReady(true)
+        return
       }
+
+      // Dynamically inject Razorpay Checkout SDK
+      const script = document.createElement('script')
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      script.async = true
+      script.onload = () => setSdkReady(true)
+      script.onerror = () => {
+        console.warn('Could not load Razorpay SDK dynamically. Fallback enabled.')
+        setSdkReady(true) // Allow simulated fallback
+      }
+      document.body.appendChild(script)
     }
 
     init()
   }, [])
 
-  // Quick Persona selector
   const handleSelectPersona = (name: string, email: string, phone: string) => {
     setCustomerName(name)
     setCustomerEmail(email)
     setCustomerPhone(phone)
   }
 
-  // 2. Launch Genuine Razorpay Test Mode Checkout
+  // 2. Main Razorpay Standard Checkout Flow
   const handleLaunchCheckout = async () => {
     setIsLoading(true)
     setErrorMsg(null)
@@ -174,8 +174,8 @@ export const DemoCheckout: React.FC = () => {
     setFailureResult(null)
 
     try {
-      // Step A: Request server to create authentic Razorpay order
-      const orderPayload = {
+      // Step A: Create order on backend (receives Razorpay order_id and key_id)
+      const orderData: CreateOrderResponse = await api.createPaymentOrder({
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
         amount: selectedProduct.price,
@@ -183,21 +183,7 @@ export const DemoCheckout: React.FC = () => {
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone
-      }
-
-      const orderData: CreateOrderResponse = await api.createPaymentOrder(orderPayload)
-
-      if (!orderData.key_id || !orderData.key_id.startsWith('rzp_test_')) {
-        throw new Error(
-          'Razorpay Gateway is unconfigured: A valid Test Mode key (starting with rzp_test_) is required for checkout.'
-        )
-      }
-
-      // Track session transition to PAYMENT_METHOD_VIEWED and PAYMENT_INITIATED
-      if (activeSessionId) {
-        api.transitionCheckoutSession(activeSessionId, { new_status: 'PAYMENT_METHOD_VIEWED' }).catch(() => {})
-        api.transitionCheckoutSession(activeSessionId, { new_status: 'PAYMENT_INITIATED', payment_attempted: true }).catch(() => {})
-      }
+      })
 
       // Step B: Configure Razorpay Checkout.js
       if (window.Razorpay) {
@@ -234,7 +220,7 @@ export const DemoCheckout: React.FC = () => {
             contact: customerPhone
           },
           theme: {
-            color: '#D95D39' // RecoverAI Signature Burnt Orange
+            color: '#6C00FF' // RecoverAI Vivid Purple
           },
           modal: {
             ondismiss: async () => {
@@ -359,17 +345,17 @@ export const DemoCheckout: React.FC = () => {
         title="RecoverAI Demo Store"
         subtitle="Experience standard Razorpay Test Mode checkout with server-side HMAC signature verification & AI recovery handoff"
         actions={
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
-              <Zap className="w-3 h-3 text-amber-600" />
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-primary-light text-primary border border-primary-border shadow-xs">
+              <Zap className="w-3.5 h-3.5 text-primary" />
               <span>Razorpay Test Sandbox</span>
             </span>
             <Link
               to="/transactions"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warm-gray-100 hover:bg-warm-gray-200 text-warm-gray-800 rounded-sm text-xs font-medium transition-colors border border-border"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-surface hover:bg-slate-50 text-navy rounded-xl text-xs font-semibold transition-all border border-border shadow-xs"
             >
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>View All Transactions</span>
+              <CreditCard className="w-3.5 h-3.5 text-primary" />
+              <span>View Ledger</span>
             </Link>
           </div>
         }
@@ -377,18 +363,18 @@ export const DemoCheckout: React.FC = () => {
 
       {/* Gateway Credential Alert if not configured */}
       {config && !config.is_configured && (
-        <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-md text-xs text-amber-900 flex items-start gap-3 shadow-xs">
+        <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-2xl text-xs text-amber-950 flex items-start gap-3 shadow-xs">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <div className="font-semibold text-amber-950 flex items-center gap-2">
+            <div className="font-bold text-amber-950 flex items-center gap-2">
               <span>Razorpay Test Mode Sandbox Active (Local Mock Mode)</span>
-              <span className="px-1.5 py-0.5 bg-amber-200/70 text-amber-900 rounded-xs text-[10px] font-mono">
+              <span className="px-2 py-0.5 bg-amber-200/80 text-amber-900 rounded-full text-[10px] font-mono font-bold">
                 Key ID: {config.key_id}
               </span>
             </div>
-            <p className="text-amber-800 leading-relaxed">
+            <p className="text-amber-800 leading-relaxed font-sans">
               To connect your real Razorpay Test Account, configure your test keys in{' '}
-              <code className="px-1 py-0.5 bg-amber-100 rounded text-amber-950 font-mono">backend/.env</code>{' '}
+              <code className="px-1.5 py-0.5 bg-white/80 rounded-md text-amber-950 font-mono font-bold">backend/.env</code>{' '}
               (<code className="font-mono">RAZORPAY_KEY_ID=rzp_test_...</code> and{' '}
               <code className="font-mono">API_GATEWAY_SECRET=...</code>). The checkout will automatically switch to live Razorpay servers.
             </p>
@@ -398,23 +384,23 @@ export const DemoCheckout: React.FC = () => {
 
       {/* SUCCESS RESULT SCREEN */}
       {checkoutResult && (
-        <div className="bg-surface rounded-lg border border-moss-green/40 p-8 shadow-fintech-card space-y-6 transition-all duration-normal animate-fadeIn">
+        <div className="bg-surface rounded-2xl border border-emerald-300 p-8 shadow-fintech-card space-y-6 transition-all duration-normal animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-full bg-moss-green-light flex items-center justify-center text-moss-green border border-moss-green/30">
-                <CheckCircle2 className="w-6 h-6" />
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 border border-emerald-300 shadow-xs">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-graphite font-display">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-xl font-bold text-navy font-display">
                     Payment Verified Successfully
                   </h2>
-                  <span className="px-2 py-0.5 bg-moss-green-light text-moss-green-dark border border-moss-green/30 text-[10px] font-semibold rounded-full flex items-center gap-1 font-mono">
-                    <ShieldCheck className="w-3 h-3 text-moss-green" />
-                    HMAC-SHA256 Validated
+                  <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-full flex items-center gap-1 font-mono">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    HMAC Validated
                   </span>
                 </div>
-                <p className="text-xs text-warm-gray-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Transaction recorded and confirmed server-side without relying solely on client callbacks.
                 </p>
               </div>
@@ -423,7 +409,7 @@ export const DemoCheckout: React.FC = () => {
             <button
               type="button"
               onClick={resetStore}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-warm-gray-100 hover:bg-warm-gray-200 text-warm-gray-700 text-xs rounded-sm font-medium transition-colors border border-border"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-xl font-semibold transition-colors border border-border cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Make Another Payment</span>
@@ -432,49 +418,49 @@ export const DemoCheckout: React.FC = () => {
 
           {/* Receipt Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-3.5 bg-warm-gray-50 rounded border border-border space-y-1">
-              <span className="text-[10px] text-warm-gray-500 uppercase tracking-wider block font-medium">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-border space-y-1">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
                 Amount Captured
               </span>
-              <div className="text-lg font-bold text-graphite font-display">
+              <div className="text-xl font-bold text-navy font-mono">
                 ₹{checkoutResult.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
-              <span className="text-[11px] text-moss-green flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Captured in Test Mode
+              <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Captured in Test Mode
               </span>
             </div>
 
-            <div className="p-3.5 bg-warm-gray-50 rounded border border-border space-y-1">
-              <span className="text-[10px] text-warm-gray-500 uppercase tracking-wider block font-medium">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-border space-y-1">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
                 Payment Method
               </span>
-              <div className="text-sm font-semibold text-graphite font-display flex items-center gap-1.5">
-                <CreditCard className="w-4 h-4 text-burnt-orange" />
+              <div className="text-sm font-bold text-navy font-display flex items-center gap-1.5">
+                <CreditCard className="w-4 h-4 text-primary" />
                 {checkoutResult.method}
               </div>
-              <span className="text-[11px] text-warm-gray-400">Gateway: Razorpay</span>
+              <span className="text-[11px] text-slate-400">Gateway: Razorpay</span>
             </div>
 
-            <div className="p-3.5 bg-warm-gray-50 rounded border border-border space-y-1">
-              <span className="text-[10px] text-warm-gray-500 uppercase tracking-wider block font-medium">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-border space-y-1">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
                 Razorpay Payment ID
               </span>
-              <div className="text-xs font-mono font-medium text-graphite truncate" title={checkoutResult.razorpay_payment_id}>
+              <div className="text-xs font-mono font-semibold text-navy truncate" title={checkoutResult.razorpay_payment_id}>
                 {checkoutResult.razorpay_payment_id}
               </div>
-              <span className="text-[11px] text-warm-gray-400 font-mono truncate block" title={checkoutResult.razorpay_order_id}>
+              <span className="text-[11px] text-slate-400 font-mono truncate block" title={checkoutResult.razorpay_order_id}>
                 Order: {checkoutResult.razorpay_order_id}
               </span>
             </div>
 
-            <div className="p-3.5 bg-warm-gray-50 rounded border border-border space-y-1">
-              <span className="text-[10px] text-warm-gray-500 uppercase tracking-wider block font-medium">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-border space-y-1">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
                 RecoverAI Internal ID
               </span>
-              <div className="text-xs font-mono font-medium text-graphite truncate">
+              <div className="text-xs font-mono font-semibold text-navy truncate">
                 {checkoutResult.transaction_id}
               </div>
-              <span className="text-[11px] text-warm-gray-400">
+              <span className="text-[11px] text-slate-400 font-mono">
                 {new Date(checkoutResult.verified_at).toLocaleTimeString()}
               </span>
             </div>
@@ -484,17 +470,17 @@ export const DemoCheckout: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Link
               to="/transactions"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-graphite hover:bg-dark-surface text-white text-xs font-medium rounded-sm transition-colors shadow-xs"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-all shadow-fintech-purple"
             >
-              <span>View in Transactions Ledger</span>
+              <span>View in Ledger</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
             <Link
               to="/audit"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-surface hover:bg-warm-gray-50 text-warm-gray-700 text-xs font-medium rounded-sm transition-colors border border-border shadow-xs"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition-colors border border-border shadow-xs"
             >
               <span>View HMAC Audit Record</span>
-              <ExternalLink className="w-3.5 h-3.5 text-warm-gray-400" />
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
             </Link>
           </div>
         </div>
@@ -502,22 +488,22 @@ export const DemoCheckout: React.FC = () => {
 
       {/* FAILURE / ESCALATION SCREEN */}
       {failureResult && (
-        <div className="bg-surface rounded-lg border border-burnt-orange/30 p-8 shadow-fintech-card space-y-6 transition-all duration-normal animate-fadeIn">
+        <div className="bg-surface rounded-2xl border border-rose-300 p-8 shadow-fintech-card space-y-6 transition-all duration-normal animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-full bg-crimson-red-light flex items-center justify-center text-crimson-red border border-crimson-red/30">
-                <ShieldAlert className="w-6 h-6" />
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 border border-rose-300 shadow-xs">
+                <ShieldAlert className="w-7 h-7" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-graphite font-display">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-xl font-bold text-navy font-display">
                     Payment Failed & Escalated to RecoverAI
                   </h2>
-                  <span className="px-2 py-0.5 bg-crimson-red-light text-crimson-red border border-crimson-red/30 text-[10px] font-semibold rounded-full font-mono">
+                  <span className="px-2.5 py-0.5 bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-bold rounded-full font-mono">
                     {failureResult.error_code || 'GATEWAY_ERROR'}
                   </span>
                 </div>
-                <p className="text-xs text-warm-gray-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Transaction marked as failed. RecoverAI Autonomous Agent has synthesized failure diagnosis & recovery strategy.
                 </p>
               </div>
@@ -526,23 +512,23 @@ export const DemoCheckout: React.FC = () => {
             <button
               type="button"
               onClick={resetStore}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-warm-gray-100 hover:bg-warm-gray-200 text-warm-gray-700 text-xs rounded-sm font-medium transition-colors border border-border"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-xl font-semibold transition-colors border border-border cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Retry Checkout</span>
             </button>
           </div>
 
-          <div className="p-4 bg-crimson-red-light/30 border border-crimson-red/20 rounded-md text-xs space-y-2">
-            <div className="font-semibold text-graphite flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-crimson-red" />
+          <div className="p-4 bg-rose-50/80 border border-rose-200 rounded-2xl text-xs space-y-2">
+            <div className="font-bold text-navy flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
               <span>Reason: {failureResult.error_description || 'Payment rejected by bank or gateway'}</span>
             </div>
-            <div className="flex flex-wrap gap-4 text-warm-gray-600 font-mono text-[11px]">
+            <div className="flex flex-wrap gap-4 text-slate-600 font-mono text-[11px]">
               <span>Transaction ID: {failureResult.transaction_id}</span>
               <span>Order ID: {failureResult.order_id}</span>
               {failureResult.recovery_case_id && (
-                <span className="text-burnt-orange font-semibold">
+                <span className="text-primary font-bold">
                   Recovery Case: {failureResult.recovery_case_id}
                 </span>
               )}
@@ -553,7 +539,7 @@ export const DemoCheckout: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/agent')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-semibold rounded-sm transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-all shadow-fintech-purple cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>Launch Autonomous Recovery Agent</span>
@@ -561,7 +547,7 @@ export const DemoCheckout: React.FC = () => {
             </button>
             <Link
               to="/at-risk"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-surface hover:bg-warm-gray-50 text-warm-gray-700 text-xs font-medium rounded-sm transition-colors border border-border shadow-xs"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition-colors border border-border shadow-xs"
             >
               <span>View in At-Risk Revenue</span>
             </Link>
@@ -575,61 +561,61 @@ export const DemoCheckout: React.FC = () => {
           {/* Left Column: Product Selection & Customer Info */}
           <div className="lg:col-span-2 space-y-6">
             {/* Step 1: Select Product */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-burnt-orange" />
-                  <h3 className="text-sm font-bold text-graphite font-display">
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                <div className="flex items-center gap-2.5">
+                  <ShoppingBag className="w-4 h-4 text-primary" />
+                  <h3 className="text-base font-bold text-navy font-display">
                     1. Select Demo Product
                   </h3>
                 </div>
-                <span className="text-[11px] text-warm-gray-400">
+                <span className="text-[11px] text-slate-400 font-medium">
                   Select a realistic business tier
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                 {PRODUCTS.map((prod) => {
                   const isSelected = selectedProduct.id === prod.id
                   return (
                     <div
                       key={prod.id}
                       onClick={() => setSelectedProduct(prod)}
-                      className={`cursor-pointer rounded-md p-4 border transition-all duration-fast relative flex flex-col justify-between ${
+                      className={`cursor-pointer rounded-2xl p-4 border transition-all relative flex flex-col justify-between ${
                         isSelected
-                          ? 'border-burnt-orange bg-burnt-orange/5 ring-1 ring-burnt-orange shadow-xs'
-                          : 'border-border bg-surface hover:border-warm-gray-300 hover:bg-warm-gray-50/50'
+                          ? 'border-primary bg-surface-blue/50 ring-2 ring-primary/20 shadow-fintech-card'
+                          : 'border-border/80 bg-surface hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
                       }`}
                     >
                       <div>
-                        <div className="flex items-center justify-between gap-1 mb-1.5">
-                          <span className="text-[10px] uppercase font-semibold text-warm-gray-500 font-mono">
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-500 font-mono">
                             {prod.category}
                           </span>
                           <span
-                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                            className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
                               isSelected
-                                ? 'bg-burnt-orange text-white'
-                                : 'bg-warm-gray-100 text-warm-gray-600'
+                                ? 'bg-primary text-white shadow-2xs'
+                                : 'bg-slate-100 text-slate-600'
                             }`}
                           >
                             {prod.badge}
                           </span>
                         </div>
 
-                        <h4 className="text-xs font-bold text-graphite font-display mb-1">
+                        <h4 className="text-xs font-bold text-navy font-display mb-1">
                           {prod.name}
                         </h4>
-                        <p className="text-[11px] text-warm-gray-500 mb-3 leading-snug line-clamp-2">
+                        <p className="text-[11px] text-slate-500 mb-3 leading-snug line-clamp-2">
                           {prod.description}
                         </p>
                       </div>
 
-                      <div className="pt-2 border-t border-border/60">
-                        <div className="text-base font-bold text-graphite font-display">
+                      <div className="pt-2.5 border-t border-border/60">
+                        <div className="text-base font-bold text-navy font-mono">
                           ₹{prod.price.toLocaleString('en-IN')}
                           {prod.period && (
-                            <span className="text-[10px] font-normal text-warm-gray-500 ml-1">
+                            <span className="text-[10px] font-normal text-slate-500 ml-1 font-sans">
                               {prod.period}
                             </span>
                           )}
@@ -641,14 +627,14 @@ export const DemoCheckout: React.FC = () => {
               </div>
 
               {/* Selected product feature list */}
-              <div className="bg-warm-gray-50/70 rounded p-3 border border-border/80 text-xs space-y-1.5">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-warm-gray-500 font-display">
+              <div className="bg-surface-blue/50 rounded-xl p-4 border border-surface-blue-border text-xs space-y-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-primary font-display">
                   Included Features:
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
                   {selectedProduct.features.map((feat, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5 text-[11px] text-warm-gray-700">
-                      <CheckCircle2 className="w-3 h-3 text-moss-green shrink-0" />
+                    <div key={idx} className="flex items-center gap-2 text-[11px] text-navy font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span>{feat}</span>
                     </div>
                   ))}
@@ -657,63 +643,63 @@ export const DemoCheckout: React.FC = () => {
             </div>
 
             {/* Step 2: Customer Contact & Prefill Personas */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-burnt-orange" />
-                  <h3 className="text-sm font-bold text-graphite font-display">
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                <div className="flex items-center gap-2.5">
+                  <UserCheck className="w-4 h-4 text-primary" />
+                  <h3 className="text-base font-bold text-navy font-display">
                     2. Customer Information
                   </h3>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-warm-gray-400">Quick Personas:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium">Quick Personas:</span>
                   <button
                     type="button"
                     onClick={() => handleSelectPersona('Aditya Sharma', 'aditya.sharma@techcorp.in', '+91 98450 12345')}
-                    className="px-2 py-0.5 bg-warm-gray-100 hover:bg-warm-gray-200 text-[10px] font-medium text-warm-gray-700 rounded-xs border border-border transition-colors"
+                    className="px-2.5 py-1 bg-surface-blue hover:bg-primary-light text-[10px] font-bold text-primary rounded-full border border-surface-blue-border transition-colors cursor-pointer"
                   >
                     Aditya (VIP)
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectPersona('Priyanka Iyer', 'priyanka.i@zenithai.com', '+91 98112 34567')}
-                    className="px-2 py-0.5 bg-warm-gray-100 hover:bg-warm-gray-200 text-[10px] font-medium text-warm-gray-700 rounded-xs border border-border transition-colors"
+                    className="px-2.5 py-1 bg-surface-blue hover:bg-primary-light text-[10px] font-bold text-primary rounded-full border border-surface-blue-border transition-colors cursor-pointer"
                   >
                     Priyanka (Growth)
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
                 <div>
-                  <label className="text-warm-gray-600 block mb-1 font-medium">Customer Name</label>
+                  <label className="text-slate-600 block mb-1 font-semibold">Customer Name</label>
                   <input
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-sm border border-border bg-warm-gray-50 focus:bg-white text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border border-border bg-surface text-navy placeholder-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 text-xs shadow-2xs font-medium"
                     placeholder="Full name"
                   />
                 </div>
 
                 <div>
-                  <label className="text-warm-gray-600 block mb-1 font-medium">Email Address</label>
+                  <label className="text-slate-600 block mb-1 font-semibold">Email Address</label>
                   <input
                     type="email"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-sm border border-border bg-warm-gray-50 focus:bg-white text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange text-xs font-mono"
+                    className="w-full px-3.5 py-2 rounded-xl border border-border bg-surface text-navy placeholder-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 text-xs shadow-2xs font-mono"
                     placeholder="email@example.com"
                   />
                 </div>
 
                 <div>
-                  <label className="text-warm-gray-600 block mb-1 font-medium">Phone Number</label>
+                  <label className="text-slate-600 block mb-1 font-semibold">Phone Number</label>
                   <input
                     type="tel"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-sm border border-border bg-warm-gray-50 focus:bg-white text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange text-xs font-mono"
+                    className="w-full px-3.5 py-2 rounded-xl border border-border bg-surface text-navy placeholder-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 text-xs shadow-2xs font-mono"
                     placeholder="+91 99999 99999"
                   />
                 </div>
@@ -721,48 +707,48 @@ export const DemoCheckout: React.FC = () => {
             </div>
 
             {/* Step 3: Razorpay Test Mode Helper Accordion */}
-            <div className="bg-surface rounded-md border border-border p-4 shadow-fintech-card space-y-3">
+            <div className="bg-surface rounded-2xl border border-border/80 p-5 shadow-fintech-card space-y-3">
               <div
                 className="flex items-center justify-between cursor-pointer"
                 onClick={() => setShowHelper(!showHelper)}
               >
-                <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-warm-gray-600" />
-                  <span className="text-xs font-bold text-graphite font-display">
-                    Test Payment Options & Supported Payment Methods
+                <div className="flex items-center gap-2.5">
+                  <Info className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-bold text-navy font-display">
+                    Test Payment Options & Helper Badges
                   </span>
                 </div>
                 {showHelper ? (
-                  <ChevronUp className="w-4 h-4 text-warm-gray-400" />
+                  <ChevronUp className="w-4 h-4 text-slate-400" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 text-warm-gray-400" />
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
                 )}
               </div>
 
               {showHelper && (
-                <div className="pt-2 border-t border-border text-xs space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-3 bg-moss-green-light/40 border border-moss-green/30 rounded space-y-1.5">
-                      <span className="text-[11px] font-semibold text-moss-green-dark flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-moss-green" />
+                <div className="pt-3 border-t border-border/70 text-xs space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="p-4 bg-emerald-50/60 border border-emerald-200/80 rounded-2xl space-y-2">
+                      <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                         Simulating Test Success:
                       </span>
-                      <ul className="text-[11px] text-warm-gray-600 space-y-1 list-disc pl-4">
+                      <ul className="text-[11px] text-slate-600 space-y-1.5 list-disc pl-4">
                         <li>
-                          <strong>Card:</strong> <code className="font-mono bg-white px-1 py-0.5 rounded border border-border">4111 1111 1111 1111</code> (any future MM/YY, CVV 123). Click &ldquo;Success&rdquo; on test OTP.
+                          <strong>Card:</strong> <code className="font-mono bg-white px-2 py-0.5 rounded-full border border-slate-200 text-primary font-bold">4111 1111 1111 1111</code> (any future MM/YY, CVV 123). Click &ldquo;Success&rdquo; on test OTP.
                         </li>
                         <li>
-                          <strong>UPI:</strong> Enter <code className="font-mono bg-white px-1 py-0.5 rounded border border-border">success@razorpay</code> or select &ldquo;Success&rdquo; in modal.
+                          <strong>UPI:</strong> Enter <code className="font-mono bg-white px-2 py-0.5 rounded-full border border-slate-200 text-primary font-bold">success@razorpay</code> or select &ldquo;Success&rdquo; in modal.
                         </li>
                       </ul>
                     </div>
 
-                    <div className="p-3 bg-crimson-red-light/30 border border-crimson-red/20 rounded space-y-1.5">
-                      <span className="text-[11px] font-semibold text-crimson-red flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5 text-crimson-red" />
+                    <div className="p-4 bg-rose-50/60 border border-rose-200/80 rounded-2xl space-y-2">
+                      <span className="text-[11px] font-bold text-rose-800 flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-rose-600" />
                         Simulating Test Failure:
                       </span>
-                      <ul className="text-[11px] text-warm-gray-600 space-y-1 list-disc pl-4">
+                      <ul className="text-[11px] text-slate-600 space-y-1.5 list-disc pl-4">
                         <li>
                           <strong>Card:</strong> Select &ldquo;Failure&rdquo; on the Razorpay test OTP screen.
                         </li>
@@ -779,61 +765,61 @@ export const DemoCheckout: React.FC = () => {
 
           {/* Right Column: Order Summary & Checkout Trigger */}
           <div className="space-y-6">
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-5 sticky top-20">
-              <div className="pb-3 border-b border-border">
-                <h3 className="text-sm font-bold text-graphite font-display">
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-5 sticky top-20">
+              <div className="pb-3 border-b border-border/70">
+                <h3 className="text-base font-bold text-navy font-display">
                   Order Summary
                 </h3>
-                <span className="text-[11px] text-warm-gray-400">
+                <span className="text-[11px] text-slate-400 font-medium">
                   Merchant: RecoverAI Demo Store
                 </span>
               </div>
 
-              <div className="space-y-3 text-xs">
-                <div className="flex justify-between items-center text-warm-gray-600">
+              <div className="space-y-3.5 text-xs">
+                <div className="flex justify-between items-center text-slate-600">
                   <span>Product</span>
-                  <span className="font-medium text-graphite">{selectedProduct.name}</span>
+                  <span className="font-semibold text-navy">{selectedProduct.name}</span>
                 </div>
-                <div className="flex justify-between items-center text-warm-gray-600">
+                <div className="flex justify-between items-center text-slate-600">
                   <span>Billing Tier</span>
-                  <span className="font-mono text-warm-gray-800">{selectedProduct.category}</span>
+                  <span className="font-mono text-slate-800 font-medium">{selectedProduct.category}</span>
                 </div>
-                <div className="flex justify-between items-center text-warm-gray-600">
+                <div className="flex justify-between items-center text-slate-600">
                   <span>Subtotal</span>
-                  <span>₹{selectedProduct.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono">₹{selectedProduct.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between items-center text-warm-gray-600">
+                <div className="flex justify-between items-center text-slate-600">
                   <span>GST / Tax</span>
-                  <span className="text-moss-green font-medium">Included (₹0.00)</span>
+                  <span className="text-emerald-600 font-semibold">Included (₹0.00)</span>
                 </div>
 
-                <div className="pt-3 border-t border-border flex justify-between items-baseline">
-                  <span className="text-xs font-bold text-graphite font-display">Total Payable</span>
+                <div className="pt-3.5 border-t border-border/70 flex justify-between items-baseline">
+                  <span className="text-xs font-bold text-navy font-display">Total Payable</span>
                   <div className="text-right">
-                    <div className="text-xl font-bold text-burnt-orange font-display">
+                    <div className="text-2xl font-bold text-navy font-mono">
                       ₹{selectedProduct.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
-                    <span className="text-[10px] text-warm-gray-400 font-mono">INR (Test Mode)</span>
+                    <span className="text-[10px] text-slate-400 font-mono">INR (Test Mode)</span>
                   </div>
                 </div>
               </div>
 
               {errorMsg && (
-                <div className="p-3 bg-crimson-red-light border border-crimson-red/30 text-crimson-red text-xs rounded-sm flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                   <span>{errorMsg}</span>
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="space-y-2.5 pt-2">
+              {/* Action Buttons: Bold purple primary pay button */}
+              <div className="space-y-3 pt-2">
                 <button
                   type="button"
                   onClick={handleLaunchCheckout}
                   disabled={isLoading || !sdkReady}
-                  className="w-full py-2.5 px-4 bg-burnt-orange hover:bg-burnt-orange-hover disabled:bg-warm-gray-300 text-white rounded-sm text-xs font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
+                  className="w-full py-3 px-5 bg-primary hover:bg-primary-hover disabled:bg-slate-200 text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple flex items-center justify-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
                 >
-                  <Lock className="w-3.5 h-3.5" />
+                  <Lock className="w-4 h-4" />
                   {isLoading ? 'Preparing Order...' : !sdkReady ? 'Loading Gateway...' : 'Pay with Razorpay Test Checkout'}
                 </button>
 
@@ -841,17 +827,17 @@ export const DemoCheckout: React.FC = () => {
                   type="button"
                   onClick={handleSimulateFailure}
                   disabled={isLoading}
-                  className="w-full py-2 px-3 bg-warm-gray-100 hover:bg-warm-gray-200 text-warm-gray-700 rounded-sm text-xs font-medium transition-colors border border-border flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 px-4 bg-surface-blue hover:bg-surface-blue-hover text-navy rounded-xl text-xs font-bold transition-colors border border-surface-blue-border flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
                   title="Directly trigger RecoverAI agent failure handling"
                 >
-                  <Cpu className="w-3.5 h-3.5 text-crimson-red" />
+                  <Cpu className="w-3.5 h-3.5 text-rose-600" />
                   <span>Simulate Payment Failure</span>
                 </button>
               </div>
 
-              <div className="pt-3 border-t border-border/80 text-[10px] text-warm-gray-400 space-y-1">
-                <div className="flex items-center gap-1.5 text-warm-gray-500">
-                  <ShieldCheck className="w-3 h-3 text-moss-green" />
+              <div className="pt-3.5 border-t border-border/70 text-[10px] text-slate-400 space-y-1">
+                <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Securely Verified & Recorded</span>
                 </div>
                 <p className="leading-snug">

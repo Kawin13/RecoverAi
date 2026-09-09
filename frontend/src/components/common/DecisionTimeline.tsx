@@ -27,31 +27,31 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
   const getActionConfig = (action: string) => {
     switch (action) {
       case 'SMART_PAYLINK_1CLICK':
-        return { label: 'Dynamic 1-Click Paylink', icon: Zap, color: 'text-burnt-orange', bg: 'bg-burnt-orange-light' }
+        return { label: 'Dynamic 1-Click Paylink', icon: Zap, color: 'text-primary', bg: 'bg-primary-light border-primary-border' }
       case 'UPI_INTENT_FALLBACK':
-        return { label: 'UPI Intent Fallback', icon: ArrowRightLeft, color: 'text-moss-green', bg: 'bg-moss-green-light' }
+        return { label: 'UPI Intent Fallback', icon: ArrowRightLeft, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' }
       case 'TIMED_SMART_RETRY':
-        return { label: 'Timed Smart Retry', icon: Clock, color: 'text-muted-amber', bg: 'bg-muted-amber-light' }
+        return { label: 'Timed Smart Retry', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' }
       case 'INCENTIVIZED_DUNNING':
-        return { label: 'AI Dunning Email', icon: Mail, color: 'text-warm-gray-700', bg: 'bg-warm-gray-200' }
+        return { label: 'AI Dunning Email', icon: Mail, color: 'text-primary', bg: 'bg-surface-blue border-surface-blue-border' }
       case 'WHATSAPP_CONCIERGE':
-        return { label: 'WhatsApp Concierge', icon: MessageSquare, color: 'text-moss-green-dark', bg: 'bg-moss-green-subtle' }
+        return { label: 'WhatsApp Concierge', icon: MessageSquare, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' }
       default:
-        return { label: action, icon: Zap, color: 'text-warm-gray-700', bg: 'bg-warm-gray-100' }
+        return { label: action, icon: Zap, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200' }
     }
   }
 
   const getStatusIcon = (status: AgentActivity['status']) => {
     switch (status) {
       case 'SUCCESS':
-        return <CheckCircle2 className="w-3.5 h-3.5 text-moss-green" />
+        return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
       case 'BLOCKED':
-        return <ShieldAlert className="w-3.5 h-3.5 text-brick-red" />
+        return <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
       case 'WAITING':
-        return <Timer className="w-3.5 h-3.5 text-muted-amber animate-pulse" />
+        return <Timer className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
       case 'EXECUTED':
       default:
-        return <div className="w-2 h-2 rounded-full bg-burnt-orange" />
+        return <div className="w-2 h-2 rounded-full bg-primary" />
     }
   }
 
@@ -63,63 +63,63 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
         const isLast = idx === activities.length - 1
 
         return (
-          <div key={item.id} className="relative flex items-start gap-3 text-xs group">
+          <div key={item.id} className="relative flex items-start gap-3.5 text-xs group">
             {/* Timeline track line */}
             {!isLast && (
-              <div className="absolute left-4 top-8 -bottom-4 w-[1px] bg-border group-hover:bg-warm-gray-400 transition-colors" />
+              <div className="absolute left-4.5 top-9 -bottom-4 w-[2px] bg-slate-200 group-hover:bg-primary/30 transition-colors" />
             )}
 
             {/* Action Icon Pill */}
-            <div className={`w-8 h-8 rounded-sm ${actionCfg.bg} border border-border flex items-center justify-center flex-shrink-0 z-10 shadow-sm`}>
+            <div className={`w-9 h-9 rounded-xl ${actionCfg.bg} border flex items-center justify-center flex-shrink-0 z-10 shadow-xs`}>
               <ActionIcon className={`w-4 h-4 ${actionCfg.color}`} />
             </div>
 
             {/* Content Container */}
-            <div className="flex-1 bg-surface border border-border/80 rounded-sm p-3.5 shadow-fintech-subtle hover:border-warm-gray-400 transition-all">
-              <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+            <div className="flex-1 bg-surface border border-border/80 rounded-2xl p-4 shadow-fintech-card hover:shadow-fintech-elevated hover:border-slate-300 transition-all">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-graphite text-xs font-display">
+                  <span className="font-bold text-navy text-xs font-display">
                     {item.customerName}
                   </span>
-                  <span className="text-warm-gray-400">•</span>
-                  <span className="font-mono text-[11px] text-warm-gray-600">
+                  <span className="text-slate-300">•</span>
+                  <span className="font-mono text-[11px] font-semibold text-slate-600">
                     <MoneyValue amount={item.amount} />
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 text-[11px] font-medium text-warm-gray-600">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
                     {getStatusIcon(item.status)}
                     <span className="capitalize">{item.status.toLowerCase()}</span>
                   </div>
-                  <span className="text-warm-gray-400 text-[10px] tabular-nums font-mono">
+                  <span className="text-slate-400 text-[10px] tabular-nums font-mono">
                     {formatTimeAgo(item.timestamp)}
                   </span>
                 </div>
               </div>
 
               {/* Action Name & ERV */}
-              <div className="flex items-center justify-between gap-2 py-1 mb-1.5 border-y border-border/40">
-                <span className="font-medium text-warm-gray-800 text-[11px] flex items-center gap-1">
-                  <span className="text-warm-gray-500 font-normal">Strategy:</span> {actionCfg.label}
+              <div className="flex items-center justify-between gap-2 py-1.5 mb-2 border-y border-border/50">
+                <span className="font-semibold text-navy text-[11px] flex items-center gap-1.5">
+                  <span className="text-slate-400 font-normal">Strategy:</span> {actionCfg.label}
                 </span>
-                <span className="text-[11px] font-mono text-moss-green-dark">
-                  <span className="text-warm-gray-500 font-sans font-normal">ERV: </span>
+                <span className="text-[11px] font-mono font-bold text-emerald-600">
+                  <span className="text-slate-400 font-sans font-normal">ERV: </span>
                   <MoneyValue amount={item.erv} />
                 </span>
               </div>
 
               {/* Agent Explanation */}
-              <p className="text-warm-gray-600 text-[11px] leading-relaxed">
+              <p className="text-slate-600 text-[11px] leading-relaxed">
                 {item.explanation}
               </p>
 
               {/* Action Button if actionable */}
               {item.status === 'BLOCKED' && onActionClick && (
-                <div className="mt-2.5 pt-2 border-t border-border/50 flex justify-end">
+                <div className="mt-3 pt-2.5 border-t border-border/60 flex justify-end">
                   <button
                     type="button"
                     onClick={() => onActionClick(item)}
-                    className="px-2.5 py-1 bg-brick-red text-white hover:bg-brick-red-hover rounded-sm text-[11px] font-medium transition-colors"
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[11px] font-semibold transition-colors cursor-pointer shadow-xs"
                   >
                     Review Guardrail Override
                   </button>

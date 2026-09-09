@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { SectionHeader } from '../components/common/SectionHeader'
+import { MetricCard } from '../components/common/MetricCard'
 import { api, GuardrailPolicyRuleItem, HumanApprovalQueueItem, WhyStoppedForensicResponse, WorkflowCase } from '../services/api'
 import { HUMAN_APPROVAL_THRESHOLD } from '../constants/thresholds'
 import { useRealtime } from '../lib/useRealtime'
@@ -17,7 +18,8 @@ import {
   Search,
   RefreshCw,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  SlidersHorizontal
 } from 'lucide-react'
 
 export const Guardrails: React.FC = () => {
@@ -40,7 +42,6 @@ export const Guardrails: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [forensicsLoading, setForensicsLoading] = useState(false)
   const [bannerMessage, setBannerMessage] = useState<string | null>(null)
-
 
   // Fetch initial data
   const fetchData = async () => {
@@ -118,23 +119,23 @@ export const Guardrails: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Top Section Header */}
       <SectionHeader
         title="Fintech Safety Guardrails & Human Governance"
         subtitle="Enforce strict rate limits, fraud safety controls, customer DND protection, and pre-execution human supervisor approvals"
         actions={
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface border border-border rounded-sm text-xs font-mono text-graphite">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-warm-gray-400'}`} />
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface border border-border rounded-full text-xs font-mono font-semibold text-navy shadow-2xs">
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
               {policySummary?.policy_version || '2026.08-fintech-v1'}
             </span>
             <button
               onClick={fetchData}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-warm-gray-50 border border-border text-graphite rounded-sm text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-primary ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh Policy State</span>
             </button>
           </div>
@@ -143,155 +144,127 @@ export const Guardrails: React.FC = () => {
 
       {/* Temporary Success Banner */}
       {bannerMessage && (
-        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-md p-3.5 flex items-center justify-between text-xs animate-in fade-in duration-200">
-          <div className="flex items-center gap-2">
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl p-4 flex items-center justify-between text-xs animate-in fade-in duration-200 shadow-2xs">
+          <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>{bannerMessage}</span>
+            <span className="font-semibold">{bannerMessage}</span>
           </div>
-          <button onClick={() => setBannerMessage(null)} className="text-emerald-700 hover:text-emerald-900 text-xs font-medium">
+          <button onClick={() => setBannerMessage(null)} className="text-emerald-700 hover:text-emerald-900 text-xs font-bold cursor-pointer">
             Dismiss
           </button>
         </div>
       )}
 
       {/* 4 Governance Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-surface rounded-md border border-border p-4 shadow-fintech-card">
-          <div className="flex items-center justify-between text-xs text-warm-gray-600">
-            <span>Safety Controls</span>
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-graphite">
-              {policySummary?.enabled_rules ?? 8}/{policySummary?.total_rules ?? 8}
-            </span>
-            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200">
-              100% Enforced
-            </span>
-          </div>
-          <div className="text-[11px] text-warm-gray-500 mt-1">Pre-execution safety gates active</div>
-        </div>
-
-        <div className="bg-surface rounded-md border border-border p-4 shadow-fintech-card">
-          <div className="flex items-center justify-between text-xs text-warm-gray-600">
-            <span>Human Approval Queue</span>
-            <UserCheck className="w-4 h-4 text-burnt-orange" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-graphite">{approvalQueue.length}</span>
-            {approvalQueue.length > 0 && (
-              <span className="text-[11px] font-semibold text-burnt-orange bg-burnt-orange/10 px-1.5 py-0.5 rounded-xs border border-burnt-orange/30 animate-pulse">
-                Action Required
-              </span>
-            )}
-          </div>
-          <div className="text-[11px] text-warm-gray-500 mt-1">Human Approval Threshold (≥ ₹{HUMAN_APPROVAL_THRESHOLD.toLocaleString('en-IN')})</div>
-        </div>
-
-        <div className="bg-surface rounded-md border border-border p-4 shadow-fintech-card">
-          <div className="flex items-center justify-between text-xs text-warm-gray-600">
-            <span>Customer DND Rate Limit</span>
-            <Lock className="w-4 h-4 text-graphite" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-graphite">Max 3 / 24h</span>
-            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200">
-              Active
-            </span>
-          </div>
-          <div className="text-[11px] text-warm-gray-500 mt-1">Prevents customer message spam</div>
-        </div>
-
-        <div className="bg-surface rounded-md border border-border p-4 shadow-fintech-card">
-          <div className="flex items-center justify-between text-xs text-warm-gray-600">
-            <span>Payment Protection</span>
-            <AlertOctagon className="w-4 h-4 text-moss-green" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-moss-green">Locked</span>
-            <span className="text-[11px] font-semibold text-moss-green-dark bg-moss-green-light px-1.5 py-0.5 rounded-xs border border-moss-green/30">
-              Zero Tamper
-            </span>
-          </div>
-          <div className="text-[11px] text-warm-gray-500 mt-1">Exact original amount enforced</div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Safety Controls"
+          value={`${policySummary?.enabled_rules ?? 8}/${policySummary?.total_rules ?? 8}`}
+          subtitle="Pre-execution safety gates active (100% Enforced)"
+          highlightColor="purple"
+          icon={ShieldCheck}
+          variant="standard"
+        />
+        <MetricCard
+          title="Human Approval Queue"
+          value={approvalQueue.length}
+          subtitle={`Human Threshold (≥ ₹${HUMAN_APPROVAL_THRESHOLD.toLocaleString('en-IN')})`}
+          highlightColor="purple"
+          icon={UserCheck}
+          variant="standard"
+        />
+        <MetricCard
+          title="Customer DND Rate Limit"
+          value="Max 3 / 24h"
+          subtitle="Prevents customer message spam"
+          highlightColor="purple"
+          icon={Lock}
+          variant="standard"
+        />
+        <MetricCard
+          title="Payment Protection"
+          value="Zero Tamper"
+          subtitle="Exact original amount enforced"
+          icon={AlertOctagon}
+          variant="soft-blue"
+        />
       </div>
 
       {/* SECTION 1: Human Approval Queue */}
-      <div className="bg-surface rounded-md border border-border shadow-fintech-card overflow-hidden">
-        <div className="p-4 border-b border-border bg-warm-gray-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-surface rounded-2xl border border-border/80 shadow-fintech-card overflow-hidden">
+        <div className="p-5 border-b border-border/80 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-graphite font-display">Supervisor Sign-Off Queue</h3>
-              <span className="px-2 py-0.5 bg-burnt-orange/10 text-burnt-orange border border-burnt-orange/30 text-[10px] font-mono font-bold rounded-xs">
+              <h3 className="text-base font-bold text-navy font-display">Supervisor Sign-Off Queue</h3>
+              <span className="px-2.5 py-0.5 bg-primary-light text-primary border border-primary-border text-[10px] font-mono font-bold rounded-full">
                 {approvalQueue.length} PENDING
               </span>
             </div>
-            <p className="text-xs text-warm-gray-600 mt-0.5">
+            <p className="text-xs text-slate-500 mt-1">
               Transactions meeting or exceeding the Human Approval Threshold (≥ ₹{HUMAN_APPROVAL_THRESHOLD.toLocaleString('en-IN')}) or requiring explicit supervisor guardrails are held for review before dispatch.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs text-warm-gray-600 font-medium">Acting Operator:</label>
+            <label className="text-xs text-slate-500 font-semibold">Acting Operator:</label>
             <input
               type="text"
               value={operatorName}
               onChange={(e) => setOperatorName(e.target.value)}
               placeholder="Operator Badge/Name"
-              className="px-2.5 py-1 text-xs border border-border rounded-sm bg-white font-mono text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange"
+              className="px-3 py-1.5 text-xs border border-border rounded-xl bg-white font-mono text-navy focus:outline-none focus:border-primary shadow-2xs"
             />
           </div>
         </div>
 
         {approvalQueue.length === 0 ? (
-          <div className="p-8 text-center text-xs text-warm-gray-500">
-            <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-            <p className="font-medium text-graphite">Approval Queue is Clear</p>
-            <p className="text-warm-gray-500 mt-1">
+          <div className="p-10 text-center text-xs text-slate-400">
+            <ShieldCheck className="w-9 h-9 text-emerald-500 mx-auto mb-2 opacity-80" />
+            <p className="font-bold text-navy text-sm">Approval Queue is Clear</p>
+            <p className="text-slate-500 mt-1 max-w-md mx-auto">
               No transactions currently require human supervisor sign-off. Orders below ₹{HUMAN_APPROVAL_THRESHOLD.toLocaleString('en-IN')} proceed autonomously unless an explicit guardrail requires manual approval.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border/60">
             {approvalQueue.map((item) => (
-              <div key={item.case_id} className="p-4 hover:bg-warm-gray-50/50 transition-colors space-y-3">
+              <div key={item.case_id} className="p-5 hover:bg-slate-50/50 transition-colors space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-xs text-graphite">{item.case_id}</span>
-                      <span className="text-warm-gray-400">·</span>
-                      <span className="text-xs font-semibold text-graphite">{item.customer_name}</span>
-                      <span className="px-1.5 py-0.2 text-[10px] font-mono bg-warm-gray-100 border border-border rounded-xs text-warm-gray-700">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-bold text-xs text-navy">{item.case_id}</span>
+                      <span className="text-slate-300">·</span>
+                      <span className="text-xs font-bold text-navy">{item.customer_name}</span>
+                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-100 border border-border rounded-full text-slate-700">
                         {item.customer_tier}
                       </span>
-                      <span className="text-[11px] text-warm-gray-500 font-mono">({item.customer_phone})</span>
+                      <span className="text-[11px] text-slate-400 font-mono">({item.customer_phone})</span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-warm-gray-600">
-                      <span>Failure: <strong className="text-brick-red-dark">{item.failure_category}</strong></span>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                      <span>Failure: <strong className="text-rose-600">{item.failure_category}</strong></span>
                       <span>·</span>
-                      <span>AI Recommendation: <strong className="text-forest-green">{item.selected_strategy}</strong> via {item.channel}</span>
+                      <span>AI Recommendation: <strong className="text-primary">{item.selected_strategy}</strong> via {item.channel}</span>
                       <span>·</span>
-                      <span>ERV: <strong className="text-graphite">{formatINR(item.expected_recovery_value)}</strong> ({(item.recovery_probability * 100).toFixed(0)}% likelihood)</span>
+                      <span>ERV: <strong className="text-navy">{formatINR(item.expected_recovery_value)}</strong> ({(item.recovery_probability * 100).toFixed(0)}% likelihood)</span>
                     </div>
 
-                    <div className="text-[11px] text-muted-amber-dark flex items-center gap-1.5 pt-0.5">
-                      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <div className="text-[11px] text-amber-700 flex items-center gap-1.5 pt-0.5 font-medium">
+                      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
                       <span>{item.human_readable_reason}</span>
                     </div>
                   </div>
 
                   {/* Monetary Amount - Strictly Read-Only */}
-                  <div className="flex flex-col md:items-end flex-shrink-0 bg-warm-gray-50 p-2.5 rounded-sm border border-border">
-                    <div className="flex items-center gap-1.5 text-[11px] text-warm-gray-500">
-                      <Lock className="w-3 h-3 text-warm-gray-700" />
+                  <div className="flex flex-col md:items-end flex-shrink-0 bg-surface-blue/50 p-3 rounded-xl border border-surface-blue-border">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+                      <Lock className="w-3 h-3 text-primary" />
                       <span>Payment Amount (Protected & Locked)</span>
                     </div>
-                    <div className="text-base font-bold font-mono text-graphite mt-0.5">
+                    <div className="text-base font-bold font-mono text-navy mt-0.5">
                       {formatINR(item.amount)}
                     </div>
-                    <div className="text-[10px] text-warm-gray-400 font-mono">
+                    <div className="text-[10px] text-slate-400 font-mono">
                       Ref: {item.order_id || item.transaction_id}
                     </div>
                   </div>
@@ -299,20 +272,20 @@ export const Guardrails: React.FC = () => {
 
                 {/* Operator Actions Bar */}
                 {role === 'admin' ? (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/60">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/60">
                     <input
                       type="text"
                       placeholder="Optional supervisor notes / rationale..."
                       value={operatorNotes}
                       onChange={(e) => setOperatorNotes(e.target.value)}
-                      className="flex-1 max-w-md px-2.5 py-1 text-xs border border-border rounded-sm bg-white text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange"
+                      className="flex-1 max-w-md px-3 py-1.5 text-xs border border-border rounded-xl bg-white text-navy focus:outline-none focus:border-primary shadow-2xs"
                     />
 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleDecision(item.case_id, 'APPROVE')}
                         disabled={actionInProgress !== null}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold shadow-fintech-purple transition-all disabled:opacity-50 cursor-pointer"
                       >
                         {actionInProgress === `${item.case_id}_APPROVE` ? (
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -325,33 +298,33 @@ export const Guardrails: React.FC = () => {
                       <button
                         onClick={() => handleDecision(item.case_id, 'REJECT')}
                         disabled={actionInProgress !== null}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brick-red hover:bg-brick-red-dark text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-xl text-xs font-bold shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         {actionInProgress === `${item.case_id}_REJECT` ? (
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <XCircle className="w-3.5 h-3.5" />
                         )}
-                        <span>Reject Intervention</span>
+                        <span>Reject</span>
                       </button>
 
                       <button
                         onClick={() => handleDecision(item.case_id, 'NO_ACTION')}
                         disabled={actionInProgress !== null}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warm-gray-200 hover:bg-warm-gray-300 text-graphite rounded-sm text-xs font-medium transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
                       >
-                        <span>Change to No Action</span>
+                        <span>No Action</span>
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/60">
-                    <div className="flex items-center gap-2 text-xs text-warm-gray-500">
-                      <Lock className="w-3.5 h-3.5 text-warm-gray-400" />
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
                       <span>Supervisory review is required before recovering this transaction.</span>
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warm-gray-100 border border-warm-gray-300 text-warm-gray-700 rounded-sm text-xs font-semibold select-none">
-                      <Lock className="w-3.5 h-3.5 text-warm-gray-500" />
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 border border-border text-slate-700 rounded-xl text-xs font-semibold select-none">
+                      <Lock className="w-3.5 h-3.5 text-slate-500" />
                       <span>Awaiting Administrator Approval</span>
                     </div>
                   </div>
@@ -362,20 +335,19 @@ export const Guardrails: React.FC = () => {
         )}
       </div>
 
-
       {/* SECTION 2: "Why Was This Stopped?" Forensic Inspector */}
-      <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+      <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-graphite font-display">
+              <h3 className="text-base font-bold text-navy font-display">
                 "Why Was This Stopped?" Forensic Inspection
               </h3>
-              <span className="px-2 py-0.5 bg-warm-gray-100 text-warm-gray-700 text-[10px] font-mono rounded-xs border border-border">
-                Forensic Explainability
+              <span className="px-2.5 py-0.5 bg-primary-light text-primary text-[10px] font-mono font-bold rounded-full border border-primary-border">
+                Explainability
               </span>
             </div>
-            <p className="text-xs text-warm-gray-600 mt-0.5">
+            <p className="text-xs text-slate-500 mt-1">
               Inspect root causes for suppressed, gated, or halted cases. Answers regulatory compliance and customer inquiry audits.
             </p>
           </div>
@@ -387,7 +359,7 @@ export const Guardrails: React.FC = () => {
                 setSelectedForensicCaseId(e.target.value)
                 loadForensics(e.target.value)
               }}
-              className="px-2.5 py-1.5 text-xs border border-border rounded-sm bg-white font-mono text-graphite focus:outline-none focus:ring-1 focus:ring-burnt-orange"
+              className="px-3 py-2 text-xs border border-border rounded-xl bg-white font-mono text-navy focus:outline-none focus:border-primary shadow-2xs font-semibold"
             >
               <option value="">Select Case to Inspect...</option>
               {recentCases.map((c) => (
@@ -400,7 +372,7 @@ export const Guardrails: React.FC = () => {
             <button
               onClick={() => loadForensics(selectedForensicCaseId)}
               disabled={!selectedForensicCaseId || forensicsLoading}
-              className="px-3 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border text-graphite text-xs font-medium rounded-sm inline-flex items-center gap-1"
+              className="px-3.5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 shadow-fintech-purple transition-all cursor-pointer disabled:opacity-50"
             >
               {forensicsLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
               <span>Inspect</span>
@@ -411,27 +383,27 @@ export const Guardrails: React.FC = () => {
         {forensics ? (
           <div className="space-y-4 pt-1">
             {/* Verdict Card */}
-            <div className={`p-4 rounded-md border ${
+            <div className={`p-5 rounded-2xl border ${
               forensics.status === 'STOPPED' 
-                ? 'bg-brick-red-subtle border-brick-red/30' 
+                ? 'bg-rose-50/80 border-rose-200' 
                 : forensics.status === 'PENDING_APPROVAL' 
-                ? 'bg-muted-amber-subtle border-muted-amber/30' 
-                : 'bg-emerald-50 border-emerald-200'
+                ? 'bg-amber-50/80 border-amber-200' 
+                : 'bg-emerald-50/80 border-emerald-200'
             }`}>
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3.5">
                 <ShieldAlert className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                  forensics.status === 'STOPPED' ? 'text-brick-red' : 'text-muted-amber-dark'
+                  forensics.status === 'STOPPED' ? 'text-rose-600' : 'text-amber-600'
                 }`} />
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm font-display text-graphite">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-sm font-display text-navy">
                       Decision Outcome: {forensics.status}
                     </span>
-                    <span className="font-mono text-xs px-2 py-0.2 bg-white/80 rounded-xs border border-border">
+                    <span className="font-mono text-xs px-2.5 py-0.5 bg-white rounded-full border border-border font-bold text-navy shadow-2xs">
                       Rule: {forensics.rule_breached}
                     </span>
                   </div>
-                  <p className="text-xs text-warm-gray-800 font-medium">
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed">
                     {forensics.human_readable_reason}
                   </p>
                 </div>
@@ -439,12 +411,12 @@ export const Guardrails: React.FC = () => {
             </div>
 
             {/* Forensic Attribute Matrix */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-                <span className="text-[11px] text-warm-gray-500">Customer DND Opt-Out</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 text-xs">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-border">
+                <span className="text-[11px] text-slate-500 font-semibold">Customer DND Opt-Out</span>
                 <div className="mt-1 font-bold font-mono flex items-center gap-1.5">
                   {forensics.customer_opted_out ? (
-                    <span className="text-brick-red flex items-center gap-1">
+                    <span className="text-rose-600 flex items-center gap-1">
                       <XCircle className="w-3.5 h-3.5" /> DND REGISTERED
                     </span>
                   ) : (
@@ -455,11 +427,11 @@ export const Guardrails: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-                <span className="text-[11px] text-warm-gray-500">Fraud & Risk Marker</span>
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-border">
+                <span className="text-[11px] text-slate-500 font-semibold">Fraud & Risk Marker</span>
                 <div className="mt-1 font-bold font-mono flex items-center gap-1.5">
                   {forensics.fraud_flag_detected ? (
-                    <span className="text-brick-red flex items-center gap-1">
+                    <span className="text-rose-600 flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5" /> FRAUD DETECTED
                     </span>
                   ) : (
@@ -470,16 +442,16 @@ export const Guardrails: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-                <span className="text-[11px] text-warm-gray-500">Attempts vs Ceiling</span>
-                <div className="mt-1 font-bold font-mono text-graphite">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-border">
+                <span className="text-[11px] text-slate-500 font-semibold">Attempts vs Ceiling</span>
+                <div className="mt-1 font-bold font-mono text-navy">
                   {forensics.attempt_count} of {forensics.max_attempts} attempts used
                 </div>
               </div>
 
-              <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-                <span className="text-[11px] text-warm-gray-500">Policy Framework</span>
-                <div className="mt-1 font-bold font-mono text-graphite">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-border">
+                <span className="text-[11px] text-slate-500 font-semibold">Policy Framework</span>
+                <div className="mt-1 font-bold font-mono text-navy">
                   {forensics.policy_version}
                 </div>
               </div>
@@ -488,19 +460,19 @@ export const Guardrails: React.FC = () => {
             {/* Audit Trail Timeline */}
             {forensics.audit_events && forensics.audit_events.length > 0 && (
               <div className="pt-2">
-                <h4 className="text-xs font-bold text-graphite uppercase tracking-wider mb-2">
+                <h4 className="text-xs font-bold text-navy uppercase tracking-wider mb-2 font-display">
                   Pre-Stop Audit History
                 </h4>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                <div className="space-y-2 max-h-48 overflow-y-auto">
                   {forensics.audit_events.map((evt) => (
-                    <div key={evt.id} className="text-xs p-2 bg-warm-gray-50 rounded-sm border border-border/80 flex items-start gap-2">
-                      <Clock className="w-3.5 h-3.5 text-warm-gray-400 mt-0.5 flex-shrink-0" />
+                    <div key={evt.id} className="text-xs p-3 bg-slate-50 rounded-xl border border-border flex items-start gap-2.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
-                        <span className="font-mono font-semibold text-graphite">{evt.actor}</span>
-                        <span className="text-warm-gray-400 mx-1.5">·</span>
-                        <span className="text-warm-gray-700">{evt.details}</span>
+                        <span className="font-mono font-bold text-navy">{evt.actor}</span>
+                        <span className="text-slate-300 mx-1.5">·</span>
+                        <span className="text-slate-600">{evt.details}</span>
                       </div>
-                      <span className="text-[10px] text-warm-gray-400 font-mono flex-shrink-0">
+                      <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">
                         {formatTimeAgo(evt.timestamp)}
                       </span>
                     </div>
@@ -510,19 +482,22 @@ export const Guardrails: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="p-6 text-center text-xs text-warm-gray-500">
+          <div className="p-8 text-center text-xs text-slate-400">
             Select any case above to view its forensic policy verification log.
           </div>
         )}
       </div>
 
       {/* SECTION 3: Central Policy Configuration Registry */}
-      <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-4">
+      <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-4">
         <div>
-          <h3 className="text-base font-bold text-graphite font-display">
-            Central Guardrail Policies & Active Thresholds
-          </h3>
-          <p className="text-xs text-warm-gray-600 mt-0.5">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-primary" />
+            <h3 className="text-base font-bold text-navy font-display">
+              Central Guardrail Policies & Active Thresholds
+            </h3>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
             Default fintech guardrails protecting merchants against infinite retry penalties, compliance breaches, and customer dunning fatigue.
           </p>
         </div>
@@ -531,26 +506,26 @@ export const Guardrails: React.FC = () => {
           {policies.map((rule) => (
             <div
               key={rule.id}
-              className="p-4 rounded-md border border-border bg-white shadow-xs space-y-2 flex flex-col justify-between"
+              className="p-5 rounded-2xl border border-border/80 bg-surface shadow-2xs space-y-3 flex flex-col justify-between hover:border-primary/40 transition-all"
             >
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs font-bold text-graphite font-display">{rule.name}</h4>
-                  <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase bg-warm-gray-100 text-warm-gray-700 rounded-xs border border-border">
+                  <h4 className="text-xs font-bold text-navy font-display">{rule.name}</h4>
+                  <span className="px-2 py-0.5 text-[9px] font-mono font-bold uppercase bg-primary-light text-primary rounded-full border border-primary-border">
                     {rule.category}
                   </span>
                 </div>
-                <p className="text-xs text-warm-gray-600 mt-1 leading-relaxed">{rule.description}</p>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{rule.description}</p>
               </div>
 
-              <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+              <div className="pt-3 border-t border-border/60 flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-[11px] text-warm-gray-500">Threshold: </span>
-                  <span className="font-bold font-mono text-graphite">{rule.threshold_display}</span>
+                  <span className="text-[11px] text-slate-400">Threshold: </span>
+                  <span className="font-bold font-mono text-navy">{rule.threshold_display}</span>
                 </div>
                 <div>
-                  <span className="text-[11px] text-warm-gray-500">Action: </span>
-                  <strong className="text-brick-red-dark font-mono text-[11px]">
+                  <span className="text-[11px] text-slate-400">Action: </span>
+                  <strong className="text-rose-600 font-mono text-[11px]">
                     {rule.action_on_breach}
                   </strong>
                 </div>
@@ -562,3 +537,5 @@ export const Guardrails: React.FC = () => {
     </div>
   )
 }
+
+export default Guardrails

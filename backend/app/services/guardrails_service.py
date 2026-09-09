@@ -248,6 +248,27 @@ class GuardrailsService:
                 f"Amount: ₹{case.risk_amount:,.2f} (read-only verified). "
                 f"Notes: {operator_notes or 'Standard supervisor sign-off'}."
             )
+
+            # Resume or enqueue background job for immediate autonomous execution
+            from app.models.recovery_jobs import RecoveryJob
+            from app.services.background_worker import background_worker, JobType, JobStatus
+            existing_job = db.query(RecoveryJob).filter(
+                RecoveryJob.entity_id == case.id,
+                RecoveryJob.job_type == JobType.PROCESS_RECOVERY_CASE.value
+            ).first()
+            if existing_job:
+                existing_job.status = JobStatus.PENDING.value
+                existing_job.scheduled_at = timestamp
+                existing_job.locked_by = None
+                existing_job.locked_until = None
+            else:
+                background_worker.enqueue_job(
+                    db=db,
+                    job_type=JobType.PROCESS_RECOVERY_CASE.value,
+                    entity_id=case.id,
+                    workspace_id=str(case.workspace_id),
+                    payload={"case_id": case.id, "approved_by": operator_name}
+                )
         elif norm_decision == "REJECT":
             case.status = "STOPPED"
             case.current_step = "STOPPED"
@@ -259,6 +280,15 @@ class GuardrailsService:
                 f"Case halted to protect customer experience. "
                 f"Notes: {operator_notes or 'Disallowed by operator'}."
             )
+            from app.models.recovery_jobs import RecoveryJob
+            from app.services.background_worker import JobType, JobStatus
+            existing_job = db.query(RecoveryJob).filter(
+                RecoveryJob.entity_id == case.id,
+                RecoveryJob.job_type == JobType.PROCESS_RECOVERY_CASE.value
+            ).first()
+            if existing_job and existing_job.status in (JobStatus.PENDING.value, JobStatus.WAITING_FOR_APPROVAL.value):
+                existing_job.status = JobStatus.CANCELLED.value
+                existing_job.completed_at = timestamp
         else:  # NO_ACTION
             case.status = "STOPPED"
             case.current_step = "STOPPED"
@@ -270,6 +300,32 @@ class GuardrailsService:
                 f"Original recommendation '{orig_strategy}' overridden. "
                 f"Notes: {operator_notes or 'Zero-intervention policy override'}."
             )
+            from app.models.recovery_jobs import RecoveryJob
+            from app.services.background_worker import JobType, JobStatus
+            existing_job = db.query(RecoveryJob).filter(
+                RecoveryJob.entity_id == case.id,
+                RecoveryJob.job_type == JobType.PROCESS_RECOVERY_CASE.value
+            ).first()
+            if existing_job and existing_job.status in (JobStatus.PENDING.value, JobStatus.WAITING_FOR_APPROVAL.value):
+                existing_job.status = JobStatus.CANCELLED.value
+                existing_job.completed_at = timestamp
+
+        # Record Internal Event
+        from app.models.internal_events import InternalEvent
+        db.add(
+            InternalEvent(
+                id=f"evt_appr_{uuid.uuid4().hex[:10]}",
+                workspace_id=case.workspace_id,
+                event_type="GUARDRAIL_APPROVED" if norm_decision == "APPROVE" else "GUARDRAIL_REJECTED",
+                entity_type="recovery_case",
+                entity_id=case.id,
+                idempotency_key=f"appr_{case.id}_{int(timestamp.timestamp())}",
+                processing_status="PROCESSED",
+                payload_json=json.dumps({"operator": operator_name, "decision": norm_decision, "amount": case.risk_amount}),
+                created_at=timestamp,
+                processed_at=timestamp
+            )
+        )
 
         # Log to AuditLog: who approved, timestamp, original recommendation, final decision
         audit = AuditLog(

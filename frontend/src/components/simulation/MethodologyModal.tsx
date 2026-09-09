@@ -26,38 +26,38 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-graphite/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-surface rounded-md border border-border max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-navy/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+      <div className="bg-surface rounded-2xl border border-border/80 max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-5 border-b border-border bg-dark-surface text-surface flex items-center justify-between">
+        <div className="p-5 border-b border-border/70 bg-surface flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-sm bg-burnt-orange flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-primary-light border border-primary-border flex items-center justify-center text-primary font-bold shadow-2xs">
               <Scale className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold font-display tracking-tight text-white">
+                <h2 className="text-base font-bold font-display tracking-tight text-navy">
                   Simulation Methodology & Empirical Assumptions
                 </h2>
-                <span className="px-2 py-0.5 bg-warm-gray-800 text-[10px] font-mono text-warm-gray-300 border border-warm-gray-700 rounded-sm">
+                <span className="px-2.5 py-0.5 bg-primary-light text-[10px] font-mono font-bold text-primary border border-primary-border rounded-full">
                   v2.0 Model
                 </span>
               </div>
-              <p className="text-xs text-warm-gray-400">
+              <p className="text-xs text-slate-500">
                 Transparent documentation of Baseline rules, Recovery Likelihood modeling, ERV valuation, and safety controls
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-sm hover:bg-warm-gray-800 text-warm-gray-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-navy transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Mandatory Simulated Test Data Banner */}
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-5 py-2.5 flex items-center gap-2.5 text-xs text-amber-800 dark:text-amber-300 font-medium">
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-5 py-2.5 flex items-center gap-2.5 text-xs text-amber-900 font-medium">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <span>
             <strong className="font-bold">SIMULATED TEST DATA:</strong> All outcomes and telemetry are synthetic benchmarks produced by the RecoverAI simulation sandbox. No live payment links or merchant charges are processed.
@@ -65,13 +65,13 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border bg-warm-gray-50/50 px-5 gap-4 text-xs font-medium">
+        <div className="flex border-b border-border/70 bg-slate-50/60 px-5 gap-6 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('comparison')}
-            className={`py-3 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`py-3.5 border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'comparison'
-                ? 'border-burnt-orange text-burnt-orange font-bold'
-                : 'border-transparent text-warm-gray-500 hover:text-graphite'
+                ? 'border-primary text-primary font-bold'
+                : 'border-transparent text-slate-500 hover:text-navy'
             }`}
           >
             <Scale className="w-4 h-4" />
@@ -79,10 +79,10 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('erv')}
-            className={`py-3 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`py-3.5 border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'erv'
-                ? 'border-burnt-orange text-burnt-orange font-bold'
-                : 'border-transparent text-warm-gray-500 hover:text-graphite'
+                ? 'border-primary text-primary font-bold'
+                : 'border-transparent text-slate-500 hover:text-navy'
             }`}
           >
             <TrendingUp className="w-4 h-4" />
@@ -90,10 +90,10 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('ml')}
-            className={`py-3 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`py-3.5 border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'ml'
-                ? 'border-burnt-orange text-burnt-orange font-bold'
-                : 'border-transparent text-warm-gray-500 hover:text-graphite'
+                ? 'border-primary text-primary font-bold'
+                : 'border-transparent text-slate-500 hover:text-navy'
             }`}
           >
             <Cpu className="w-4 h-4" />
@@ -101,10 +101,10 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('guardrails')}
-            className={`py-3 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`py-3.5 border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'guardrails'
-                ? 'border-burnt-orange text-burnt-orange font-bold'
-                : 'border-transparent text-warm-gray-500 hover:text-graphite'
+                ? 'border-primary text-primary font-bold'
+                : 'border-transparent text-slate-500 hover:text-navy'
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
@@ -113,16 +113,16 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto max-h-[calc(85vh-160px)] text-xs text-warm-gray-700 leading-relaxed">
+        <div className="p-6 overflow-y-auto max-h-[calc(85vh-160px)] text-xs text-slate-600 leading-relaxed">
           {activeTab === 'comparison' && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-md border border-border bg-warm-gray-50/80 space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-graphite font-display text-sm">
-                    <span className="w-2.5 h-2.5 rounded-full bg-warm-gray-400" />
+                <div className="p-5 rounded-2xl border border-border/80 bg-slate-50/80 space-y-2.5">
+                  <div className="flex items-center gap-2 font-bold text-navy font-display text-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
                     <span>Traditional Baseline (Industry Default)</span>
                   </div>
-                  <ul className="space-y-1.5 text-warm-gray-600 list-disc pl-4 text-[11px]">
+                  <ul className="space-y-2 text-slate-600 list-disc pl-4 text-[11px]">
                     <li><strong>Immediate blind retry:</strong> Retries immediately on same rail without diagnosing root cause.</li>
                     <li><strong>No risk filtering:</strong> Retries expired cards and fraud drops, incurring recurring gateway penalty fees.</li>
                     <li><strong>Static channel dunning:</strong> Dispatches a generic message on a single static channel.</li>
@@ -130,12 +130,12 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
                   </ul>
                 </div>
 
-                <div className="p-4 rounded-md border border-burnt-orange/30 bg-burnt-orange/5 space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-burnt-orange font-display text-sm">
-                    <span className="w-2.5 h-2.5 rounded-full bg-burnt-orange" />
+                <div className="p-5 rounded-2xl border border-primary-border bg-primary-light/30 space-y-2.5">
+                  <div className="flex items-center gap-2 font-bold text-primary font-display text-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                     <span>RecoverAI Autonomous Engine</span>
                   </div>
-                  <ul className="space-y-1.5 text-warm-gray-700 list-disc pl-4 text-[11px]">
+                  <ul className="space-y-2 text-slate-700 list-disc pl-4 text-[11px]">
                     <li><strong>Root cause diagnosis:</strong> Categorizes failure taxonomy before executing any action.</li>
                     <li><strong>Likelihood scoring:</strong> Evaluates probability P(recovery | action) across 4 candidate strategies.</li>
                     <li><strong>ERV maximization:</strong> Computes net expected recovery value in minor currency units after costs.</li>
@@ -148,8 +148,8 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
 
           {activeTab === 'erv' && (
             <div className="space-y-4">
-              <div className="p-4 bg-dark-surface text-surface rounded-md font-mono space-y-2">
-                <span className="text-burnt-orange-light font-bold text-xs uppercase tracking-wider block">
+              <div className="p-5 bg-navy text-white rounded-2xl font-mono space-y-2 shadow-sm">
+                <span className="text-purple-300 font-bold text-xs uppercase tracking-wider block">
                   Expected Recovery Value (ERV) Objective Function:
                 </span>
                 <p className="text-sm font-bold text-emerald-400">
@@ -158,23 +158,23 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
               </div>
 
               <div className="space-y-2 text-xs">
-                <div className="p-3 bg-warm-gray-50 border border-border rounded-sm space-y-1.5">
-                  <span className="font-bold text-graphite font-display text-xs">Component Definitions:</span>
-                  <ul className="space-y-1 text-[11px] text-warm-gray-600 list-disc pl-4">
+                <div className="p-4 bg-slate-50 border border-border/80 rounded-2xl space-y-2">
+                  <span className="font-bold text-navy font-display text-xs">Component Definitions:</span>
+                  <ul className="space-y-1.5 text-[11px] text-slate-600 list-disc pl-4">
                     <li>
-                      <strong className="text-graphite">P(recovery | a):</strong> Recovery likelihood predicted for candidate strategy <code className="font-mono text-graphite">a</code>.
+                      <strong className="text-navy">P(recovery | a):</strong> Recovery likelihood predicted for candidate strategy <code className="font-mono text-primary font-bold">a</code>.
                     </li>
                     <li>
-                      <strong className="text-graphite">Amount:</strong> Total at-risk transaction value in integer minor currency units.
+                      <strong className="text-navy">Amount:</strong> Total at-risk transaction value in integer minor currency units.
                     </li>
                     <li>
-                      <strong className="text-graphite">Execution Cost:</strong> Direct hard cost (e.g. ₹0.30 WhatsApp dispatch fee, ₹0.50 payment link surcharge, ₹0.00 automated retry).
+                      <strong className="text-navy">Execution Cost:</strong> Direct hard cost (e.g. ₹0.30 WhatsApp dispatch fee, ₹0.50 payment link surcharge, ₹0.00 automated retry).
                     </li>
                     <li>
-                      <strong className="text-graphite">Friction Penalty:</strong> Quantified customer annoyance cost (e.g. ₹2.00 for intrusive SMS; ₹0.10 for seamless in-app prompt).
+                      <strong className="text-navy">Friction Penalty:</strong> Quantified customer annoyance cost (e.g. ₹2.00 for intrusive SMS; ₹0.10 for seamless in-app prompt).
                     </li>
                     <li>
-                      <strong className="text-graphite">Risk Penalty:</strong> 90% haircut on suspicious transactions; 0 for supervised human reviews.
+                      <strong className="text-navy">Risk Penalty:</strong> 90% haircut on suspicious transactions; 0 for supervised human reviews.
                     </li>
                   </ul>
                 </div>
@@ -184,18 +184,18 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
 
           {activeTab === 'ml' && (
             <div className="space-y-5">
-              <div className="flex items-center justify-between p-3 bg-surface border border-border rounded-sm">
+              <div className="flex items-center justify-between p-4 bg-surface border border-border/80 rounded-2xl shadow-2xs">
                 <div>
-                  <span className="font-bold text-graphite font-display text-xs">Production Model Architecture:</span>
-                  <p className="text-[11px] text-warm-gray-500">Gradient Boosted Decision Engine with Preprocessing Pipeline</p>
+                  <span className="font-bold text-navy font-display text-xs">Production Model Architecture:</span>
+                  <p className="text-[11px] text-slate-500">Gradient Boosted Decision Engine with Preprocessing Pipeline</p>
                 </div>
-                <span className="px-2.5 py-1 bg-moss-green-light text-moss-green-dark border border-moss-green/30 rounded-sm font-mono text-[11px] font-bold">
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full font-mono text-[11px] font-bold">
                   ROC-AUC 0.72 | F1 0.86
                 </span>
               </div>
 
               <div>
-                <span className="font-bold font-display text-graphite text-xs block mb-2">18 Analyzed Payment Signals:</span>
+                <span className="font-bold font-display text-navy text-xs block mb-2">18 Analyzed Payment Signals:</span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
                   {[
                     'amount (INR)',
@@ -217,14 +217,14 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
                     'device_type',
                     'historical_avg_order_value'
                   ].map((feat, idx) => (
-                    <div key={idx} className="p-2 bg-warm-gray-50 border border-border rounded-xs text-warm-gray-700">
+                    <div key={idx} className="p-2.5 bg-slate-50 border border-border/60 rounded-xl text-slate-700">
                       &bull; {feat}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="p-3 bg-warm-gray-50 border border-border rounded-sm text-[11px] text-warm-gray-600">
+              <div className="p-3.5 bg-slate-50 border border-border/80 rounded-xl text-[11px] text-slate-600">
                 <strong>Batch Analysis:</strong> The simulation processes transaction cohorts through optimized predictive scoring, evaluating 1,000 transactions and candidate strategy actions in under 200ms.
               </div>
             </div>
@@ -232,17 +232,17 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
 
           {activeTab === 'guardrails' && (
             <div className="space-y-4">
-              <p className="text-warm-gray-600 text-xs">
+              <p className="text-slate-600 text-xs">
                 To safeguard customer experience, merchant reputation, and regulatory compliance, RecoverAI applies 6 deterministic policy gates before any intervention can be executed:
               </p>
 
               <div className="space-y-2.5">
                 {methodology?.guardrail_policies?.map((g, idx) => (
-                  <div key={idx} className="p-3 bg-surface border border-border rounded-sm flex items-start gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-moss-green mt-0.5 flex-shrink-0" />
+                  <div key={idx} className="p-3.5 bg-surface border border-border/80 rounded-xl flex items-start gap-3 shadow-2xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <span className="font-bold font-mono text-graphite text-xs">{g.rule}</span>
-                      <p className="text-[11px] text-warm-gray-600 mt-0.5">{g.policy}</p>
+                      <span className="font-bold font-mono text-navy text-xs">{g.rule}</span>
+                      <p className="text-[11px] text-slate-600 mt-0.5">{g.policy}</p>
                     </div>
                   </div>
                 ))}
@@ -252,13 +252,13 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-warm-gray-50 flex items-center justify-between">
-          <span className="text-[11px] text-warm-gray-500 font-mono">
+        <div className="p-4 border-t border-border/70 bg-slate-50/60 flex items-center justify-between">
+          <span className="text-[11px] text-slate-400 font-mono font-medium">
             RecoverAI Autonomous Financial Intelligence Engine
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-dark-surface hover:bg-graphite text-surface rounded-sm text-xs font-medium transition-colors"
+            className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple cursor-pointer"
           >
             Close Methodology
           </button>

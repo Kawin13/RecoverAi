@@ -50,9 +50,9 @@ class RecoveryExecutor:
         strategy = (case.selected_strategy or "PAYMENT_LINK").upper()
         tx = case.transaction
         cust = tx.customer if tx else None
-        cust_name = cust.name if cust else "Valued Customer"
-        cust_email = cust.email if cust else "customer@example.com"
-        cust_phone = cust.phone if cust else "+919876543210"
+        cust_name = (cust.name if cust and cust.name else "Valued Customer")
+        cust_email = (cust.email if cust and cust.email else "customer@example.com")
+        cust_phone = (cust.phone if cust and cust.phone else "+919876543210")
         amount = case.risk_amount
 
         execution_data: Dict[str, Any] = {

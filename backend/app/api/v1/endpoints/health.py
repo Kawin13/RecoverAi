@@ -42,6 +42,14 @@ def health_check(response: Response, db: Session = Depends(get_db)):
     rzp_configured = razorpay_service.is_configured
     ai_configured = bool(settings.GEMINI_API_KEY and not "placeholder" in settings.GEMINI_API_KEY.lower())
 
+    # Check Background Recovery Worker Telemetry
+    worker_telemetry = None
+    try:
+        from app.services.background_worker import background_worker
+        worker_telemetry = background_worker.get_metrics(db)
+    except Exception as e:
+        logger.warning(f"Could not retrieve worker metrics: {e}")
+
     res = {
         "status": overall_status,
         "service": settings.PROJECT_NAME,
@@ -49,6 +57,8 @@ def health_check(response: Response, db: Session = Depends(get_db)):
         "environment": settings.ENVIRONMENT,
         "database": db_status,
         "database_type": engine.dialect.name if hasattr(engine, "dialect") else "unknown",
+        "worker_status": worker_telemetry.get("status", "STOPPED") if worker_telemetry else "STOPPED",
+        "worker_telemetry": worker_telemetry,
         "razorpay_configured": rzp_configured,
         "ai_configured": ai_configured,
         "ml_model_loaded": ml_loaded,

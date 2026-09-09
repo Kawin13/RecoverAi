@@ -44,10 +44,20 @@ export const AtRiskRevenue: React.FC = () => {
 
   useEffect(() => {
     loadTxs(false)
-    const unsubscribe = subscribe('*', () => {
-      loadTxs(true)
-    })
-    return unsubscribe
+
+    const unsubTx = subscribe('TRANSACTION_UPDATED', () => loadTxs(true))
+    const unsubQueue = subscribe('RECOVERY_QUEUE_UPDATED', () => loadTxs(true))
+    const unsubCase = subscribe('RECOVERY_CASE_UPDATED', () => loadTxs(true))
+    const unsubPay = subscribe('PAYMENT_RECEIVED', () => loadTxs(true))
+    const unsubResync = subscribe('RECONNECT_RESYNC', () => loadTxs(true))
+
+    return () => {
+      unsubTx()
+      unsubQueue()
+      unsubCase()
+      unsubPay()
+      unsubResync()
+    }
   }, [subscribe])
 
   // Subsets strictly derived from all active at-risk cases in current scope
@@ -104,13 +114,13 @@ export const AtRiskRevenue: React.FC = () => {
           title="At-Risk Revenue Operations"
           subtitle="Prioritized queues of failed payments and abandoned carts pending autonomous or manual intervention"
         />
-        <div className="p-10 text-center bg-surface border border-border rounded-md shadow-fintech-card space-y-4">
-          <AlertOctagon className="w-9 h-9 text-burnt-orange mx-auto" />
+        <div className="p-10 text-center bg-surface border border-border/80 rounded-2xl shadow-fintech-card space-y-4">
+          <AlertOctagon className="w-10 h-10 text-rose-500 mx-auto" />
           <div className="space-y-1">
-            <h3 className="text-base font-semibold text-graphite font-display">
+            <h3 className="text-base font-bold text-navy font-display">
               Unable to load at-risk revenue.
             </h3>
-            <p className="text-xs text-warm-gray-600 max-w-md mx-auto">
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
               There was a problem communicating with the recovery operations service. Please verify your connection or try again.
             </p>
           </div>
@@ -118,7 +128,7 @@ export const AtRiskRevenue: React.FC = () => {
             <button
               type="button"
               onClick={() => loadTxs(false)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded-sm text-xs font-medium transition-colors shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Try again</span>
@@ -135,9 +145,9 @@ export const AtRiskRevenue: React.FC = () => {
         title="At-Risk Revenue Operations"
         subtitle="Prioritized queues of failed payments and abandoned carts pending autonomous or manual intervention"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {ENV.DEMO_MODE && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-muted-amber-light text-muted-amber-dark border border-muted-amber/30">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                 Demo Data
               </span>
             )}
@@ -145,7 +155,7 @@ export const AtRiskRevenue: React.FC = () => {
               type="button"
               onClick={handleBatchExecute}
               disabled={isExecutingBatch || batchEligibleCount === 0}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple disabled:opacity-50 cursor-pointer"
             >
               {isExecutingBatch ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
               <span>Batch Dispatch Best Interventions ({batchEligibleCount})</span>
@@ -160,28 +170,30 @@ export const AtRiskRevenue: React.FC = () => {
           title="Total Pipeline At Risk"
           value={<MoneyValue amount={totalPipelineAtRisk} />}
           subtitle={`${criticalTxs.length} critical cases require priority routing`}
-          highlightColor="burnt-orange"
+          highlightColor="muted-amber"
           icon={AlertOctagon}
+          variant="standard"
         />
         <MetricCard
           title="Estimated ERV Realizable"
           value={<MoneyValue amount={totalErvRealizable} />}
           subtitle={`${recoveryYieldPercent}% potential recovery yield`}
-          highlightColor="moss-green"
           icon={Sparkles}
+          variant="soft-blue"
         />
         <MetricCard
           title="Average Inactivity Window"
           value={transactions.length > 0 ? "18.4 mins" : "0.0 mins"}
           subtitle={transactions.length > 0 ? "Median response time: 2.3 mins" : "All cases resolved"}
-          highlightColor="muted-amber"
+          highlightColor="purple"
           icon={ShieldAlert}
+          variant="standard"
         />
       </div>
 
       {/* Queue Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2 text-xs">
-        <span className="text-warm-gray-500 font-medium mr-2">Queue:</span>
+      <div className="flex items-center gap-2.5 border-b border-border/70 pb-3 text-xs overflow-x-auto">
+        <span className="text-slate-500 font-bold mr-1">Queue:</span>
         {[
           { key: 'ALL', label: 'All At-Risk', count: transactions.length },
           { key: 'CRITICAL', label: 'High Value / Urgent (≥ ₹25,000)', count: criticalTxs.length },
@@ -192,14 +204,16 @@ export const AtRiskRevenue: React.FC = () => {
             key={tab.key}
             type="button"
             onClick={() => setSelectedQueue(tab.key as any)}
-            className={`px-3 py-1.5 rounded-sm font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-xl font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               selectedQueue === tab.key
-                ? 'bg-graphite text-surface font-semibold shadow-xs'
-                : 'bg-surface text-warm-gray-600 hover:text-graphite border border-border'
+                ? 'bg-primary text-white shadow-2xs font-bold'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-border'
             }`}
           >
             <span>{tab.label}</span>
-            <span className="px-1.5 py-0.2 bg-warm-gray-700/20 rounded-xs text-[10px] font-mono">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              selectedQueue === tab.key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
               {tab.count}
             </span>
           </button>
@@ -208,15 +222,15 @@ export const AtRiskRevenue: React.FC = () => {
 
       {/* Content: Honest Empty State vs Table View */}
       {loading ? (
-        <div className="p-12 text-center bg-surface border border-border rounded-md shadow-fintech-card space-y-3">
-          <RefreshCw className="w-6 h-6 text-burnt-orange animate-spin mx-auto" />
-          <p className="text-xs text-warm-gray-500">Loading at-risk cases from pipeline...</p>
+        <div className="p-12 text-center bg-surface border border-border/80 rounded-2xl shadow-fintech-card space-y-3">
+          <RefreshCw className="w-6 h-6 text-primary animate-spin mx-auto" />
+          <p className="text-xs text-slate-500 font-medium">Loading at-risk cases from pipeline...</p>
         </div>
       ) : transactions.length === 0 ? (
-        <div className="p-12 text-center bg-surface border border-border rounded-md shadow-fintech-card space-y-2">
-          <CheckCircle2 className="w-8 h-8 text-moss-green mx-auto" />
-          <h3 className="text-sm font-semibold text-graphite font-display">No active at-risk cases.</h3>
-          <p className="text-xs text-warm-gray-500 max-w-sm mx-auto">
+        <div className="p-12 text-center bg-surface border border-border/80 rounded-2xl shadow-fintech-card space-y-2">
+          <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+          <h3 className="text-base font-bold text-navy font-display">No active at-risk cases.</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
             All failed transactions and payment attempts in this workspace have been resolved or reached terminal status.
           </p>
         </div>

@@ -20,21 +20,21 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`flex flex-col items-center justify-center p-12 text-center bg-surface rounded-md border border-dashed border-border ${className}`}>
-      <div className="w-12 h-12 rounded-md bg-warm-gray-100 border border-border flex items-center justify-center text-warm-gray-500 mb-3">
-        <Icon className="w-6 h-6" />
+    <div className={`flex flex-col items-center justify-center p-12 text-center bg-surface rounded-2xl border border-dashed border-border ${className}`}>
+      <div className="w-14 h-14 rounded-2xl bg-surface-blue border border-surface-blue-border flex items-center justify-center text-primary mb-4 shadow-xs">
+        <Icon className="w-7 h-7" />
       </div>
-      <h3 className="text-sm font-semibold text-graphite font-display">
+      <h3 className="text-base font-bold text-navy font-display">
         {title}
       </h3>
-      <p className="mt-1 text-xs text-warm-gray-600 max-w-sm">
+      <p className="mt-1.5 text-xs text-slate-500 max-w-sm">
         {description}
       </p>
       {action && (
         <button
           type="button"
           onClick={action.onClick}
-          className="mt-4 px-3.5 py-1.5 bg-graphite text-surface hover:bg-dark-surface rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
+          className="mt-5 px-4 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-semibold transition-all shadow-fintech-purple focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
         >
           {action.label}
         </button>

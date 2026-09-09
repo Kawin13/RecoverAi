@@ -78,10 +78,8 @@ export const Signup: React.FC = () => {
       }
 
       if (session) {
-        // Auto-confirmed workspace session
         navigate('/overview', { replace: true })
       } else if (user) {
-        // Confirmation email dispatched
         setConfirmationSent(true)
       }
     } catch {
@@ -92,30 +90,30 @@ export const Signup: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8 antialiased">
+    <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-navy antialiased font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-9 h-9 rounded-sm bg-burnt-orange flex items-center justify-center shadow-fintech-subtle">
+        <Link to="/" className="flex items-center justify-center gap-2.5 mb-6 group">
+          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center text-white font-bold font-display shadow-fintech-purple group-hover:scale-105 transition-all">
             <Shield className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-graphite text-2xl tracking-tight font-display">
-            Recover<span className="text-burnt-orange">AI</span>
+          <span className="font-bold text-navy text-2xl tracking-tight font-display">
+            Recover<span className="text-primary">AI</span>
           </span>
         </Link>
 
-        <div className="bg-surface py-8 px-6 sm:px-8 border border-border rounded-md shadow-fintech-card space-y-6">
+        <div className="bg-surface py-8 px-6 sm:px-8 border border-border/80 rounded-2xl shadow-fintech-card space-y-6">
           {confirmationSent ? (
             <div className="space-y-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-moss-green-light border border-moss-green/30 flex items-center justify-center text-moss-green mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mx-auto shadow-2xs">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-base font-bold font-display text-graphite">
+                <h3 className="text-lg font-bold font-display text-navy">
                   Confirmation Link Dispatched
                 </h3>
-                <p className="text-xs text-warm-gray-600 leading-relaxed">
-                  We've transmitted a verification link to <strong className="font-mono text-graphite">{email}</strong>.
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  We've transmitted a verification link to <strong className="font-mono text-navy">{email}</strong>.
                   Please confirm your email address to access your recovery workspace.
                 </p>
               </div>
@@ -123,7 +121,7 @@ export const Signup: React.FC = () => {
               <div className="pt-3">
                 <Link
                   to="/login"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-medium rounded-sm shadow-sm transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-fintech-purple transition-all"
                 >
                   <span>Proceed to Sign In</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -132,9 +130,18 @@ export const Signup: React.FC = () => {
             </div>
           ) : (
             <>
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-bold font-display text-navy tracking-tight">
+                  Create Your Merchant Workspace
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Deploy autonomous payment recovery and prevent customer drop-off
+                </p>
+              </div>
+
               {errorMessage && (
-                <div className="p-3.5 bg-brick-red-light border border-brick-red/30 rounded-sm text-xs text-brick-red-dark flex items-start gap-2 animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 text-brick-red flex-shrink-0 mt-0.5" />
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2 animate-in fade-in shadow-2xs">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                   <span>{errorMessage}</span>
                 </div>
               )}
@@ -145,7 +152,7 @@ export const Signup: React.FC = () => {
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={isSubmitting || isGoogleLoading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-surface hover:bg-warm-gray-50 border border-border rounded-sm text-xs font-medium text-graphite transition-colors shadow-2xs disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-surface hover:bg-slate-50 border border-border rounded-xl text-xs font-semibold text-navy transition-all shadow-2xs disabled:opacity-60 cursor-pointer"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -170,8 +177,8 @@ export const Signup: React.FC = () => {
               </div>
 
               <div className="relative flex items-center justify-center">
-                <div className="border-t border-border w-full" />
-                <span className="bg-surface px-3 text-[11px] text-warm-gray-400 uppercase font-mono">
+                <div className="border-t border-border/80 w-full" />
+                <span className="bg-surface px-3 text-[10px] text-slate-400 uppercase font-mono font-bold tracking-wider">
                   or workspace email
                 </span>
               </div>
@@ -179,7 +186,7 @@ export const Signup: React.FC = () => {
               {/* Email / Password Sign Up Form */}
               <form onSubmit={handleSubmit} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-xs font-medium text-graphite mb-1">
+                  <label className="block text-xs font-semibold text-navy mb-1.5">
                     Full Name
                   </label>
                   <div className="relative">
@@ -189,14 +196,14 @@ export const Signup: React.FC = () => {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       disabled={isSubmitting}
-                      className="w-full px-3 py-2 bg-bg border border-border rounded-sm text-xs text-graphite focus:outline-none focus:border-burnt-orange disabled:opacity-60"
+                      className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-navy focus:outline-none focus:border-primary disabled:opacity-60 shadow-2xs font-medium"
                       placeholder="e.g. Monish B"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-graphite mb-1">
+                  <label className="block text-xs font-semibold text-navy mb-1.5">
                     Business Email
                   </label>
                   <div className="relative">
@@ -206,14 +213,14 @@ export const Signup: React.FC = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       disabled={isSubmitting}
-                      className="w-full px-3 py-2 bg-bg border border-border rounded-sm text-xs text-graphite focus:outline-none focus:border-burnt-orange font-mono disabled:opacity-60"
+                      className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-navy focus:outline-none focus:border-primary font-mono disabled:opacity-60 shadow-2xs"
                       placeholder="operator@company.com"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-graphite mb-1">
+                  <label className="block text-xs font-semibold text-navy mb-1.5">
                     Password (min 8 characters)
                   </label>
                   <div className="relative">
@@ -224,13 +231,13 @@ export const Signup: React.FC = () => {
                       required
                       minLength={8}
                       disabled={isSubmitting}
-                      className="w-full px-3 py-2 bg-bg border border-border rounded-sm text-xs text-graphite focus:outline-none focus:border-burnt-orange font-mono pr-9 disabled:opacity-60"
+                      className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-navy focus:outline-none focus:border-primary font-mono pr-10 disabled:opacity-60 shadow-2xs"
                       placeholder="••••••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2.5 top-2.5 text-warm-gray-400 hover:text-graphite"
+                      className="absolute right-3 top-3 text-slate-400 hover:text-navy cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -238,7 +245,7 @@ export const Signup: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-graphite mb-1">
+                  <label className="block text-xs font-semibold text-navy mb-1.5">
                     Confirm Password
                   </label>
                   <div className="relative">
@@ -249,27 +256,27 @@ export const Signup: React.FC = () => {
                       required
                       minLength={8}
                       disabled={isSubmitting}
-                      className="w-full px-3 py-2 bg-bg border border-border rounded-sm text-xs text-graphite focus:outline-none focus:border-burnt-orange font-mono pr-9 disabled:opacity-60"
+                      className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-navy focus:outline-none focus:border-primary font-mono pr-10 disabled:opacity-60 shadow-2xs"
                       placeholder="••••••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-2.5 top-2.5 text-warm-gray-400 hover:text-graphite"
+                      className="absolute right-3 top-3 text-slate-400 hover:text-navy cursor-pointer"
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-warm-gray-500 leading-normal">
+                <div className="text-[11px] text-slate-500 leading-normal">
                   By registering, you agree to payment recovery safety guardrails and Razorpay test-mode guidelines.
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-medium rounded-sm shadow-sm transition-colors disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-fintech-purple transition-all disabled:opacity-60 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -285,9 +292,9 @@ export const Signup: React.FC = () => {
                 </button>
               </form>
 
-              <div className="pt-2 text-center text-xs text-warm-gray-600">
+              <div className="pt-2 text-center text-xs text-slate-500">
                 <span>Already have a merchant workspace? </span>
-                <Link to="/login" className="text-burnt-orange font-medium hover:underline">
+                <Link to="/login" className="text-primary font-bold hover:underline">
                   Sign in
                 </Link>
               </div>
@@ -298,7 +305,7 @@ export const Signup: React.FC = () => {
         <div className="mt-6 text-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs text-warm-gray-500 hover:text-graphite transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-navy font-medium transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Return to Public Homepage</span>

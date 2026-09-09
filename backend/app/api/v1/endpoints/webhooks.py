@@ -19,9 +19,12 @@ from app.models import (
     RecoveryOutcome,
     PaymentLink,
     AuditLog,
-    WebhookEvent
+    WebhookEvent,
+    InternalEvent,
+    RecoveryJob
 )
 from app.services.razorpay_service import razorpay_service
+from app.services.background_worker import background_worker, JobType
 
 router = APIRouter()
 
@@ -263,6 +266,39 @@ async def razorpay_webhook_receiver(
             )
         )
 
+        # Persistent Internal Event
+        db.add(
+            InternalEvent(
+                id=f"evt_{uuid.uuid4().hex[:12]}",
+                workspace_id=ws_id or "00000000-0000-0000-0000-000000000001",
+                event_type="PAYMENT_CAPTURED",
+                entity_type="transaction",
+                entity_id=tx.id if tx else (order_id or payment_id or "unknown"),
+                idempotency_key=f"cap_{event_id}",
+                processing_status="PROCESSED",
+                attempt_count=1,
+                payload_json=json.dumps({"event_id": event_id, "amount": amount_inr, "method": normalized_method, "payment_id": payment_id}),
+                created_at=datetime.now(timezone.utc),
+                processed_at=datetime.now(timezone.utc)
+            )
+        )
+        if case:
+            db.add(
+                InternalEvent(
+                    id=f"evt_{uuid.uuid4().hex[:12]}",
+                    workspace_id=ws_id or "00000000-0000-0000-0000-000000000001",
+                    event_type="RECOVERY_SUCCEEDED",
+                    entity_type="recovery_case",
+                    entity_id=case.id,
+                    idempotency_key=f"rec_succ_{case.id}_{event_id}",
+                    processing_status="PROCESSED",
+                    attempt_count=1,
+                    payload_json=json.dumps({"case_id": case.id, "amount": case.risk_amount, "method": normalized_method}),
+                    created_at=datetime.now(timezone.utc),
+                    processed_at=datetime.now(timezone.utc)
+                )
+            )
+
         # Real-Time SSE Broadcasts
         if tx:
             event_broadcaster.broadcast_sync("TRANSACTION_UPDATED", {
@@ -364,7 +400,8 @@ async def razorpay_webhook_receiver(
             )
             db.add(attempt)
 
-            # Ensure recovery case provisioned
+            # Ensure recovery case provisioned in DETECTED state for autonomous background processing
+            created_new_case = False
             if not tx.recovery_case:
                 case = RecoveryCase(
                     id=f"case_{uuid.uuid4().hex[:8]}",
@@ -372,15 +409,49 @@ async def razorpay_webhook_receiver(
                     transaction_id=tx.id,
                     risk_amount=tx.amount,
                     failure_category=error_reason,
-                    recovery_probability=0.76,
-                    selected_strategy="INSTANT_RETRY_FALLBACK",
-                    expected_recovery_value=round(tx.amount * 0.76, 2),
-                    status="PENDING_APPROVAL",
-                    attempt_count=1,
+                    recovery_probability=0.0,
+                    selected_strategy="PENDING",
+                    expected_recovery_value=0.0,
+                    status="DETECTED",
+                    current_step="DETECTED",
+                    attempt_count=0,
+                    max_attempts=3,
+                    channel="IN_APP",
                     created_at=datetime.now(timezone.utc),
                     updated_at=datetime.now(timezone.utc)
                 )
                 db.add(case)
+                db.flush()
+                created_new_case = True
+            else:
+                case = tx.recovery_case
+
+            # Persistent Internal Event for Payment Failure
+            db.add(
+                InternalEvent(
+                    id=f"evt_{uuid.uuid4().hex[:12]}",
+                    workspace_id=tx.workspace_id,
+                    event_type="PAYMENT_FAILED",
+                    entity_type="transaction",
+                    entity_id=tx.id,
+                    idempotency_key=f"fail_{event_id}",
+                    processing_status="PROCESSED",
+                    attempt_count=1,
+                    payload_json=json.dumps({"error_code": error_code, "error_description": error_description, "amount": tx.amount}),
+                    created_at=datetime.now(timezone.utc),
+                    processed_at=datetime.now(timezone.utc)
+                )
+            )
+
+            # Enqueue Background Autonomous Recovery Job
+            background_worker.enqueue_job(
+                db=db,
+                job_type=JobType.PROCESS_RECOVERY_CASE.value,
+                entity_id=case.id,
+                workspace_id=str(tx.workspace_id),
+                payload={"case_id": case.id, "transaction_id": tx.id, "failure_reason": error_reason},
+                idempotency_key=f"job_rec_{case.id}"
+            )
 
             # Audit trail
             db.add(

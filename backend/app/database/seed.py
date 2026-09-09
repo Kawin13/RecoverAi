@@ -35,60 +35,68 @@ def seed_database(db: Session):
         db.commit()
 
     # Ensure default Admin Profile exists
-    admin_prof = db.query(Profile).filter(Profile.id == "597289a7-e26e-415d-ab4d-fa587e32899a").first()
-    if not admin_prof:
-        db.add(Profile(
-            id="597289a7-e26e-415d-ab4d-fa587e32899a",
-            email="test.ops@recoverai.io",
-            full_name="Revenue Ops Admin",
-            role="admin",
-            created_at=now,
-            updated_at=now
-        ))
-        db.commit()
+    try:
+        admin_prof = db.query(Profile).filter(Profile.id == "597289a7-e26e-415d-ab4d-fa587e32899a").first()
+        if not admin_prof:
+            db.add(Profile(
+                id="597289a7-e26e-415d-ab4d-fa587e32899a",
+                email="test.ops@recoverai.io",
+                full_name="Revenue Ops Admin",
+                role="admin",
+                created_at=now,
+                updated_at=now
+            ))
+            db.commit()
 
-    admin_member = db.query(WorkspaceMember).filter(
-        WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
-        WorkspaceMember.user_id == "597289a7-e26e-415d-ab4d-fa587e32899a"
-    ).first()
-    if not admin_member:
-        db.add(WorkspaceMember(
-            id="00000000-0000-0000-0000-000000000010",
-            workspace_id=DEFAULT_WORKSPACE_ID,
-            user_id="597289a7-e26e-415d-ab4d-fa587e32899a",
-            role="admin",
-            created_at=now,
-            updated_at=now
-        ))
-        db.commit()
+        admin_member = db.query(WorkspaceMember).filter(
+            WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+            WorkspaceMember.user_id == "597289a7-e26e-415d-ab4d-fa587e32899a"
+        ).first()
+        if not admin_member:
+            db.add(WorkspaceMember(
+                id="00000000-0000-0000-0000-000000000010",
+                workspace_id=DEFAULT_WORKSPACE_ID,
+                user_id="597289a7-e26e-415d-ab4d-fa587e32899a",
+                role="admin",
+                created_at=now,
+                updated_at=now
+            ))
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.debug(f"Admin profile seed notice: {e}")
 
     # Ensure test Operator Profile and Membership exist
-    op_prof = db.query(Profile).filter(Profile.id == "00000000-0000-0000-0000-000000000002").first()
-    if not op_prof:
-        db.add(Profile(
-            id="00000000-0000-0000-0000-000000000002",
-            email="operator.user@recoverai.io",
-            full_name="Operator User",
-            role="operator",
-            created_at=now,
-            updated_at=now
-        ))
-        db.commit()
+    try:
+        op_prof = db.query(Profile).filter(Profile.id == "00000000-0000-0000-0000-000000000002").first()
+        if not op_prof:
+            db.add(Profile(
+                id="00000000-0000-0000-0000-000000000002",
+                email="operator.user@recoverai.io",
+                full_name="Operator User",
+                role="operator",
+                created_at=now,
+                updated_at=now
+            ))
+            db.commit()
 
-    op_member = db.query(WorkspaceMember).filter(
-        WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
-        WorkspaceMember.user_id == "00000000-0000-0000-0000-000000000002"
-    ).first()
-    if not op_member:
-        db.add(WorkspaceMember(
-            id="00000000-0000-0000-0000-000000000020",
-            workspace_id=DEFAULT_WORKSPACE_ID,
-            user_id="00000000-0000-0000-0000-000000000002",
-            role="operator",
-            created_at=now,
-            updated_at=now
-        ))
-        db.commit()
+        op_member = db.query(WorkspaceMember).filter(
+            WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+            WorkspaceMember.user_id == "00000000-0000-0000-0000-000000000002"
+        ).first()
+        if not op_member:
+            db.add(WorkspaceMember(
+                id="00000000-0000-0000-0000-000000000020",
+                workspace_id=DEFAULT_WORKSPACE_ID,
+                user_id="00000000-0000-0000-0000-000000000002",
+                role="operator",
+                created_at=now,
+                updated_at=now
+            ))
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.debug(f"Operator profile seed notice: {e}")
 
     # Check if database already has records
     if db.query(Customer).count() > 0:

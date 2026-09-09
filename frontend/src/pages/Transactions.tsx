@@ -23,7 +23,7 @@ export const Transactions: React.FC = () => {
     try {
       const res = await api.getTransactions({ limit: 50 })
       setTransactions(res.items)
-    } catch (e: any) {
+    } catch {
       if (!silent) setError('Unable to load transactions. Please check your connection and try again.')
     } finally {
       if (!silent) setLoading(false)
@@ -32,10 +32,18 @@ export const Transactions: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions()
-    const unsubscribe = subscribe('*', () => {
-      fetchTransactions(true)
-    })
-    return unsubscribe
+
+    const unsubTx = subscribe('TRANSACTION_UPDATED', () => fetchTransactions(true))
+    const unsubPay = subscribe('PAYMENT_RECEIVED', () => fetchTransactions(true))
+    const unsubCase = subscribe('RECOVERY_CASE_UPDATED', () => fetchTransactions(true))
+    const unsubResync = subscribe('RECONNECT_RESYNC', () => fetchTransactions(true))
+
+    return () => {
+      unsubTx()
+      unsubPay()
+      unsubCase()
+      unsubResync()
+    }
   }, [subscribe])
 
   const handleExportCSV = () => {
@@ -67,24 +75,24 @@ export const Transactions: React.FC = () => {
         title="Transaction & Recovery Ledger"
         subtitle="Complete chronological record of all processed payment attempts, drop-offs, and recovery outcomes"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {ENV.DEMO_MODE && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-muted-amber-light text-muted-amber-dark border border-muted-amber/30">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                 Demo Data
               </span>
             )}
             <button
               type="button"
               onClick={() => fetchTransactions(false)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border text-graphite rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className="w-3.5 h-3.5 text-primary" />
               <span>Refresh</span>
             </button>
             <button
               type="button"
               onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border text-graphite rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export CSV</span>
@@ -94,16 +102,16 @@ export const Transactions: React.FC = () => {
       />
 
       {loading ? (
-        <div className="bg-surface p-6 rounded-md border border-border">
+        <div className="bg-surface p-6 rounded-2xl border border-border shadow-fintech-card">
           <SkeletonLoader variant="row" count={8} />
         </div>
       ) : error ? (
         <ErrorState message={error} onRetry={fetchTransactions} />
       ) : transactions.length === 0 ? (
-        <div className="p-12 text-center bg-surface border border-border rounded-md shadow-fintech-card space-y-2">
-          <CheckCircle2 className="w-8 h-8 text-moss-green mx-auto" />
-          <h3 className="text-sm font-semibold text-graphite font-display">No transactions found.</h3>
-          <p className="text-xs text-warm-gray-500 max-w-sm mx-auto">
+        <div className="p-12 text-center bg-surface border border-border/80 rounded-2xl shadow-fintech-card space-y-2">
+          <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+          <h3 className="text-base font-bold text-navy font-display">No transactions found.</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
             There are no recorded transactions or payment attempts in this workspace yet.
           </p>
         </div>

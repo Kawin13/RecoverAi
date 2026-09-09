@@ -92,29 +92,29 @@ export const AuthCallback: React.FC = () => {
   }, [location, navigate])
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-graphite antialiased font-sans">
+    <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-navy antialiased font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Brand Header */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-9 h-9 rounded-sm bg-burnt-orange flex items-center justify-center text-white font-bold font-display shadow-sm">
+        <div className="flex items-center justify-center gap-2.5 mb-6">
+          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center text-white font-bold font-display shadow-fintech-purple">
             <Shield className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-graphite text-2xl tracking-tight font-display">
-            Recover<span className="text-burnt-orange">AI</span>
+          <span className="font-bold text-navy text-2xl tracking-tight font-display">
+            Recover<span className="text-primary">AI</span>
           </span>
         </div>
 
-        <div className="bg-surface py-8 px-6 sm:px-8 border border-border rounded-md shadow-fintech-card text-center space-y-4">
+        <div className="bg-surface py-8 px-6 sm:px-8 border border-border/80 rounded-2xl shadow-fintech-card text-center space-y-4">
           {status === 'loading' && (
             <div className="space-y-4 py-4">
-              <div className="w-12 h-12 rounded-full bg-burnt-orange/10 flex items-center justify-center text-burnt-orange mx-auto">
-                <Loader2 className="w-6 h-6 animate-spin text-burnt-orange" />
+              <div className="w-12 h-12 rounded-2xl bg-primary-light flex items-center justify-center text-primary mx-auto shadow-2xs">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
               <div>
-                <h3 className="text-base font-bold font-display text-graphite">
+                <h3 className="text-base font-bold font-display text-navy">
                   Synchronizing Google Session
                 </h3>
-                <p className="text-xs text-warm-gray-600 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Validating OAuth identity and establishing secure workspace tokens...
                 </p>
               </div>
@@ -123,14 +123,14 @@ export const AuthCallback: React.FC = () => {
 
           {status === 'success' && (
             <div className="space-y-4 py-4">
-              <div className="w-12 h-12 rounded-full bg-moss-green-light border border-moss-green/30 flex items-center justify-center text-moss-green mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mx-auto shadow-2xs">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold font-display text-graphite">
+                <h3 className="text-base font-bold font-display text-navy">
                   Authentication Successful
                 </h3>
-                <p className="text-xs text-warm-gray-600 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Redirecting to your RecoverAI revenue operations cockpit...
                 </p>
               </div>
@@ -139,14 +139,14 @@ export const AuthCallback: React.FC = () => {
 
           {status === 'error' && (
             <div className="space-y-4 py-2">
-              <div className="p-3 bg-brick-red-light border border-brick-red/30 rounded-sm text-xs text-brick-red-dark flex items-start gap-2 text-left">
-                <AlertCircle className="w-4 h-4 text-brick-red flex-shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2 text-left shadow-2xs">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                 <span>{errorMessage || 'Google Authentication failed.'}</span>
               </div>
               <div className="pt-2">
                 <Link
                   to="/login"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-medium rounded-sm shadow-sm transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-fintech-purple transition-all"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Return to Sign In</span>

@@ -65,7 +65,20 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       eventSourceRef.current = es
 
       es.onopen = () => {
-        setStatus('LIVE')
+        setStatus((prev) => {
+          if (prev === 'OFFLINE' || prev === 'RECONNECTING') {
+            const resyncEvt: RealtimeEvent = {
+              type: 'RECONNECT_RESYNC',
+              data: { reconnected: true },
+              timestamp: new Date().toISOString()
+            }
+            const specific = listenersRef.current.get('RECONNECT_RESYNC')
+            if (specific) specific.forEach(cb => cb(resyncEvt))
+            const wildcards = listenersRef.current.get('*')
+            if (wildcards) wildcards.forEach(cb => cb(resyncEvt))
+          }
+          return 'LIVE'
+        })
       }
 
       es.onmessage = (e) => {

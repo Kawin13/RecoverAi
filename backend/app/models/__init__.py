@@ -12,6 +12,8 @@ from app.models.webhook_events import WebhookEvent
 from app.models.payment_links import PaymentLink
 from app.models.profiles import Profile
 from app.models.workspaces import Workspace, WorkspaceMember, DEFAULT_WORKSPACE_ID
+from app.models.internal_events import InternalEvent
+from app.models.recovery_jobs import RecoveryJob, JobType, JobStatus
 
 __all__ = [
     "Customer",
@@ -30,5 +32,9 @@ __all__ = [
     "Workspace",
     "WorkspaceMember",
     "DEFAULT_WORKSPACE_ID",
+    "InternalEvent",
+    "RecoveryJob",
+    "JobType",
+    "JobStatus",
 ]
 

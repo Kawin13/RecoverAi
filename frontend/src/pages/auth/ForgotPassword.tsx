@@ -42,36 +42,36 @@ export const ForgotPassword: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-graphite antialiased font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-navy antialiased font-sans">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         {/* Brand Header */}
-        <Link to="/" className="flex items-center justify-center gap-2 group mb-6">
-          <div className="w-9 h-9 rounded-sm bg-burnt-orange flex items-center justify-center text-white font-bold font-display shadow-sm group-hover:bg-burnt-orange-hover transition-colors">
+        <Link to="/" className="flex items-center justify-center gap-2.5 group mb-6">
+          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center text-white font-bold font-display shadow-fintech-purple group-hover:scale-105 transition-all">
             <Shield className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-graphite text-2xl tracking-tight font-display">
-            Recover<span className="text-burnt-orange">AI</span>
+          <span className="font-bold text-navy text-2xl tracking-tight font-display">
+            Recover<span className="text-primary">AI</span>
           </span>
         </Link>
 
-        <h2 className="text-center text-2xl font-bold font-display text-graphite">
+        <h2 className="text-center text-2xl font-bold font-display text-navy tracking-tight">
           Reset Your Password
         </h2>
-        <p className="mt-1 text-center text-xs text-warm-gray-600">
+        <p className="mt-1 text-center text-xs text-slate-500">
           Enter your registered work email to receive password recovery instructions
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-surface py-8 px-6 sm:px-8 border border-border rounded-md shadow-fintech-card space-y-6">
+        <div className="bg-surface py-8 px-6 sm:px-8 border border-border/80 rounded-2xl shadow-fintech-card space-y-6">
           {successMessage ? (
             <div className="space-y-4">
-              <div className="p-4 bg-moss-green-light border border-moss-green/30 rounded-sm text-xs text-moss-green-dark space-y-2">
-                <div className="flex items-center gap-2 font-semibold font-display">
-                  <CheckCircle2 className="w-4 h-4 text-moss-green flex-shrink-0" />
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 space-y-2 shadow-2xs">
+                <div className="flex items-center gap-2 font-bold font-display">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   <span>Reset Link Dispatched</span>
                 </div>
-                <p className="text-[11px] leading-relaxed">
+                <p className="text-[11px] leading-relaxed text-emerald-800/90">
                   {successMessage}
                 </p>
               </div>
@@ -79,7 +79,7 @@ export const ForgotPassword: React.FC = () => {
               <div className="pt-2">
                 <Link
                   to="/login"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-medium rounded-sm shadow-sm transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-fintech-purple transition-all"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Return to Sign In</span>
@@ -89,14 +89,14 @@ export const ForgotPassword: React.FC = () => {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {errorMessage && (
-                <div className="p-3 bg-brick-red-light border border-brick-red/30 rounded-sm text-xs text-brick-red-dark flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-brick-red flex-shrink-0 mt-0.5" />
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2 shadow-2xs">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-warm-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-navy mb-1.5">
                   Registered Email Address
                 </label>
                 <div className="relative">
@@ -106,17 +106,17 @@ export const ForgotPassword: React.FC = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isSubmitting}
-                    className="w-full px-3 py-2 bg-bg border border-border rounded-sm text-xs text-graphite focus:outline-none focus:border-burnt-orange font-mono"
+                    className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-navy focus:outline-none focus:border-primary font-mono shadow-2xs"
                     placeholder="name@company.com"
                   />
-                  <Mail className="w-4 h-4 text-warm-gray-400 absolute right-3 top-2.5" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-medium rounded-sm shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-fintech-purple transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
@@ -131,8 +131,8 @@ export const ForgotPassword: React.FC = () => {
                 )}
               </button>
 
-              <div className="pt-2 text-center text-xs text-warm-gray-600">
-                <Link to="/login" className="text-burnt-orange font-medium hover:underline inline-flex items-center gap-1">
+              <div className="pt-2 text-center text-xs text-slate-500">
+                <Link to="/login" className="text-primary font-bold hover:underline inline-flex items-center gap-1">
                   <ArrowLeft className="w-3 h-3" />
                   <span>Back to Sign In</span>
                 </Link>
@@ -144,7 +144,7 @@ export const ForgotPassword: React.FC = () => {
         <div className="mt-6 text-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs text-warm-gray-500 hover:text-graphite transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-navy font-medium transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Return to Public Homepage</span>

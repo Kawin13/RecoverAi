@@ -74,10 +74,15 @@ export const Analytics: React.FC = () => {
 
   useEffect(() => {
     fetchAnalytics()
-    const unsubscribe = subscribe('transaction_recovered', () => {
-      fetchAnalytics(true)
-    })
-    return unsubscribe
+    const unsubRecovered = subscribe('transaction_recovered', () => fetchAnalytics(true))
+    const unsubDashboard = subscribe('DASHBOARD_REFRESH', () => fetchAnalytics(true))
+    const unsubResync = subscribe('RECONNECT_RESYNC', () => fetchAnalytics(true))
+
+    return () => {
+      unsubRecovered()
+      unsubDashboard()
+      unsubResync()
+    }
   }, [fetchAnalytics, subscribe])
 
   const handleResetFilters = () => {
@@ -106,7 +111,7 @@ export const Analytics: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Page Header */}
       <SectionHeader
         title="Financial Operations & Revenue Analytics Console"
@@ -114,16 +119,16 @@ export const Analytics: React.FC = () => {
         actions={
           <div className="flex items-center gap-2.5 text-xs">
             {data?.data_mode && (
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase border tracking-wider shadow-xs ${
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-mono font-bold uppercase border shadow-2xs ${
                 data.data_mode === 'SIMULATED DATA'
-                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  ? 'bg-primary-light text-primary border-primary-border'
                   : data.data_mode === 'Demo Dataset'
                   ? 'bg-amber-50 text-amber-800 border-amber-200'
                   : 'bg-emerald-50 text-emerald-800 border-emerald-200'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                   data.data_mode === 'SIMULATED DATA'
-                    ? 'bg-purple-500'
+                    ? 'bg-primary'
                     : data.data_mode === 'Demo Dataset'
                     ? 'bg-amber-500'
                     : 'bg-emerald-500'
@@ -134,9 +139,9 @@ export const Analytics: React.FC = () => {
             <button
               type="button"
               onClick={() => fetchAnalytics(false)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border text-graphite rounded-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-warm-gray-600" />
+              <RefreshCw className="w-3.5 h-3.5 text-primary" />
               <span>Refresh</span>
             </button>
           </div>
@@ -144,24 +149,24 @@ export const Analytics: React.FC = () => {
       />
 
       {/* Global Filter Bar */}
-      <div className="bg-surface p-4 rounded-md border border-border shadow-fintech-card space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+      <div className="bg-surface p-5 rounded-2xl border border-border/80 shadow-fintech-card space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3.5">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-burnt-orange" />
-            <span className="text-xs font-bold font-display uppercase tracking-wider text-graphite">
+            <Filter className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold font-display uppercase tracking-wider text-navy">
               Operations Filter Console
             </span>
           </div>
 
           {/* Time Presets */}
-          <div className="flex items-center gap-1 bg-warm-gray-100 p-1 rounded-sm border border-border/80">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-border/70">
             <button
               type="button"
               onClick={() => setTimeRange('24h')}
-              className={`px-3 py-1 text-xs font-medium rounded-xs transition-colors ${
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 timeRange === '24h' || timeRange === 'today'
-                  ? 'bg-burnt-orange text-white shadow-xs'
-                  : 'text-warm-gray-600 hover:text-graphite'
+                  ? 'bg-primary text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-navy'
               }`}
             >
               24H
@@ -169,10 +174,10 @@ export const Analytics: React.FC = () => {
             <button
               type="button"
               onClick={() => setTimeRange('7d')}
-              className={`px-3 py-1 text-xs font-medium rounded-xs transition-colors ${
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 timeRange === '7d'
-                  ? 'bg-burnt-orange text-white shadow-xs'
-                  : 'text-warm-gray-600 hover:text-graphite'
+                  ? 'bg-primary text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-navy'
               }`}
             >
               7 Days
@@ -180,10 +185,10 @@ export const Analytics: React.FC = () => {
             <button
               type="button"
               onClick={() => setTimeRange('30d')}
-              className={`px-3 py-1 text-xs font-medium rounded-xs transition-colors ${
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 timeRange === '30d'
-                  ? 'bg-burnt-orange text-white shadow-xs'
-                  : 'text-warm-gray-600 hover:text-graphite'
+                  ? 'bg-primary text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-navy'
               }`}
             >
               30 Days
@@ -191,10 +196,10 @@ export const Analytics: React.FC = () => {
             <button
               type="button"
               onClick={() => setTimeRange('custom')}
-              className={`px-3 py-1 text-xs font-medium rounded-xs transition-colors ${
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 timeRange === 'custom'
-                  ? 'bg-burnt-orange text-white shadow-xs'
-                  : 'text-warm-gray-600 hover:text-graphite'
+                  ? 'bg-primary text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-navy'
               }`}
             >
               Custom
@@ -203,30 +208,30 @@ export const Analytics: React.FC = () => {
         </div>
 
         {/* Dynamic Filters Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3.5 pt-1">
           {/* Custom Date Inputs if 'custom' selected */}
           {timeRange === 'custom' && (
             <div className="sm:col-span-2 flex items-center gap-2">
               <div className="flex-1">
-                <label className="block text-[10px] font-semibold uppercase text-warm-gray-500 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   Start Date
                 </label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+                  className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs"
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-[10px] font-semibold uppercase text-warm-gray-500 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   End Date
                 </label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+                  className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs"
                 />
               </div>
             </div>
@@ -234,13 +239,13 @@ export const Analytics: React.FC = () => {
 
           {/* Payment Method */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase text-warm-gray-500 mb-1">
+            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
               Payment Rail
             </label>
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+              className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-medium"
             >
               <option value="ALL">All Payment Rails</option>
               <option value="UPI">UPI</option>
@@ -253,13 +258,13 @@ export const Analytics: React.FC = () => {
 
           {/* Failure Reason */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase text-warm-gray-500 mb-1">
+            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
               Failure Root Cause
             </label>
             <select
               value={failureReason}
               onChange={(e) => setFailureReason(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+              className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-medium"
             >
               <option value="ALL">All Root Causes</option>
               <option value="UPI_TIMEOUT">UPI Timeout</option>
@@ -274,13 +279,13 @@ export const Analytics: React.FC = () => {
 
           {/* Strategy */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase text-warm-gray-500 mb-1">
+            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
               Intervention Strategy
             </label>
             <select
               value={strategy}
               onChange={(e) => setStrategy(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+              className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-medium"
             >
               <option value="ALL">All Strategies</option>
               <option value="SMART_PAYLINK_1CLICK">Dynamic 1-Click Paylink</option>
@@ -294,13 +299,13 @@ export const Analytics: React.FC = () => {
 
           {/* Status */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase text-warm-gray-500 mb-1">
+            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
               Recovery Status
             </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+              className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-medium"
             >
               <option value="ALL">All Statuses</option>
               <option value="RECOVERED">Recovered</option>
@@ -317,7 +322,7 @@ export const Analytics: React.FC = () => {
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-burnt-orange bg-burnt-orange-light/50 hover:bg-burnt-orange-light border border-burnt-orange/30 rounded-sm transition-colors"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-primary bg-primary-light hover:bg-primary-subtle border border-primary-border rounded-xl transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset Filters</span>
@@ -349,47 +354,50 @@ export const Analytics: React.FC = () => {
               delta={{ value: data.kpis.at_risk_delta_percent, label: 'vs last cycle' }}
               highlightColor="muted-amber"
               icon={AlertTriangle}
+              variant="standard"
             />
             <MetricCard
               title="Revenue Recovered"
               value={<MoneyValue amount={data.kpis.revenue_recovered} />}
               subtitle={`${data.kpis.recovery_rate}% overall recovery rate`}
               delta={{ value: data.kpis.recovered_delta_percent, label: 'recovery volume lift' }}
-              highlightColor="moss-green"
+              highlightColor="purple"
               icon={TrendingUp}
+              variant="standard"
             />
             <MetricCard
               title="Net Recovery Value"
               value={<MoneyValue amount={data.kpis.net_recovery_value} />}
-              subtitle="Net value retained after gateway & message costs"
+              subtitle="Net retained after gateway & message costs"
               delta={{ value: data.kpis.recovery_rate_delta_percent, label: 'efficiency delta' }}
-              highlightColor="moss-green"
               icon={DollarSign}
+              variant="soft-blue"
             />
             <MetricCard
               title="Operational Velocity"
               value={`${data.kpis.avg_recovery_time_minutes} mins`}
               subtitle={`Avg ${data.kpis.avg_attempts_before_recovery} attempts before resolution`}
-              highlightColor="burnt-orange"
+              highlightColor="purple"
               icon={Clock}
+              variant="standard"
             />
           </div>
 
           {/* Row 1: Timeline Recovery Trend & Strategy Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue Recovery Timeline */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card">
-              <div className="flex items-center justify-between mb-2">
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/70">
                 <div>
-                  <h3 className="text-sm font-bold text-graphite font-display">
+                  <h3 className="text-base font-bold text-navy font-display">
                     Revenue Recovery Timeline & Attrition
                   </h3>
-                  <p className="text-xs text-warm-gray-500">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Gross at-risk revenue vs recovered collections over {timeRange} window
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-medium bg-moss-green-light text-moss-green-dark border border-moss-green/30">
-                  <Zap className="w-3 h-3" /> Live Attribution
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-primary-light text-primary border border-primary-border shadow-2xs">
+                  <Zap className="w-3.5 h-3.5 text-primary" /> Live Attribution
                 </span>
               </div>
 
@@ -398,36 +406,36 @@ export const Analytics: React.FC = () => {
                   <AreaChart data={data.timeline_trend} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#C08A3E" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#C08A3E" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#94A3B8" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#94A3B8" stopOpacity={0.0} />
                       </linearGradient>
                       <linearGradient id="colorRec" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3F725B" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#3F725B" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#6C00FF" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#6C00FF" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#DDD8CE" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#77736B' }} />
-                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#77736B' }} width={60} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748B' }} />
+                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#64748B' }} width={60} />
                     <Tooltip
                       formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, '']}
-                      contentStyle={{ backgroundColor: '#24231F', borderColor: '#43403B', color: '#FFFDF8', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: '#0B1528', borderColor: '#1E293B', borderRadius: '12px', color: '#F8FAFC', fontSize: '12px' }}
                     />
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                    <Area type="monotone" dataKey="at_risk" stroke="#C08A3E" fillOpacity={1} fill="url(#colorRisk)" name="Revenue at Risk" strokeWidth={2} />
-                    <Area type="monotone" dataKey="recovered" stroke="#3F725B" fillOpacity={1} fill="url(#colorRec)" name="Recovered Revenue" strokeWidth={2} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Area type="monotone" dataKey="at_risk" stroke="#94A3B8" fillOpacity={1} fill="url(#colorRisk)" name="Revenue at Risk" strokeWidth={2} />
+                    <Area type="monotone" dataKey="recovered" stroke="#6C00FF" fillOpacity={1} fill="url(#colorRec)" name="Recovered Revenue" strokeWidth={2.5} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Recovery Rate & Revenue by Strategy */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card">
-              <div className="mb-2">
-                <h3 className="text-sm font-bold text-graphite font-display">
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card">
+              <div className="mb-3 pb-3 border-b border-border/70">
+                <h3 className="text-base font-bold text-navy font-display">
                   Recovery by Strategy Channel
                 </h3>
-                <p className="text-xs text-warm-gray-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Gross recovered revenue and conversion win rate across autonomous strategies
                 </p>
               </div>
@@ -439,12 +447,12 @@ export const Analytics: React.FC = () => {
                     layout="vertical"
                     margin={{ top: 5, right: 25, left: 30, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#DDD8CE" />
-                    <XAxis type="number" tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#77736B' }} />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F1F5F9" />
+                    <XAxis type="number" tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#64748B' }} />
                     <YAxis
                       type="category"
                       dataKey="strategy_name"
-                      tick={{ fontSize: 10, fill: '#1E1D1A' }}
+                      tick={{ fontSize: 10, fill: '#0B1528' }}
                       width={130}
                     />
                     <Tooltip
@@ -452,11 +460,11 @@ export const Analytics: React.FC = () => {
                         name === 'recovered_amount' ? `₹${Number(val).toLocaleString('en-IN')}` : `${val}%`,
                         name === 'recovered_amount' ? 'Recovered Revenue' : 'Recovery Rate'
                       ]}
-                      contentStyle={{ backgroundColor: '#24231F', borderColor: '#43403B', color: '#FFFDF8', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: '#0B1528', borderColor: '#1E293B', borderRadius: '12px', color: '#F8FAFC', fontSize: '12px' }}
                     />
-                    <Bar dataKey="recovered_amount" fill="#3F725B" radius={[0, 3, 3, 0]} name="Recovered Revenue">
+                    <Bar dataKey="recovered_amount" fill="#6C00FF" radius={[0, 6, 6, 0]} name="Recovered Revenue">
                       {data.recovery_by_strategy.map((_, index) => (
-                        <Cell key={`strat-cell-${index}`} fill={index % 2 === 0 ? '#3F725B' : '#4E886D'} />
+                        <Cell key={`strat-cell-${index}`} fill={index % 2 === 0 ? '#6C00FF' : '#8B5CF6'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -468,12 +476,12 @@ export const Analytics: React.FC = () => {
           {/* Row 2: Root Cause Diagnostics & Payment Method Rails */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Failure Root Cause Comparison */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card">
-              <div className="mb-2">
-                <h3 className="text-sm font-bold text-graphite font-display">
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card">
+              <div className="mb-3 pb-3 border-b border-border/70">
+                <h3 className="text-base font-bold text-navy font-display">
                   Recovery by Failure Root Cause
                 </h3>
-                <p className="text-xs text-warm-gray-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Performance across error codes and failure taxonomies
                 </p>
               </div>
@@ -484,28 +492,28 @@ export const Analytics: React.FC = () => {
                     data={data.recovery_by_failure_reason.slice(0, 6)}
                     margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#DDD8CE" />
-                    <XAxis dataKey="failure_reason" tick={{ fontSize: 10, fill: '#77736B' }} interval={0} angle={-15} textAnchor="end" height={45} />
-                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#77736B' }} width={55} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="failure_reason" tick={{ fontSize: 10, fill: '#64748B' }} interval={0} angle={-15} textAnchor="end" height={45} />
+                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#64748B' }} width={55} />
                     <Tooltip
                       formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, '']}
-                      contentStyle={{ backgroundColor: '#24231F', borderColor: '#43403B', color: '#FFFDF8', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: '#0B1528', borderColor: '#1E293B', borderRadius: '12px', color: '#F8FAFC', fontSize: '12px' }}
                     />
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                    <Bar dataKey="at_risk_amount" fill="#D95D39" name="At-Risk" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="recovered_amount" fill="#3F725B" name="Recovered" radius={[3, 3, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Bar dataKey="at_risk_amount" fill="#CBD5E1" name="At-Risk" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="recovered_amount" fill="#6C00FF" name="Recovered" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Payment Method Distribution */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card">
-              <div className="mb-2">
-                <h3 className="text-sm font-bold text-graphite font-display">
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card">
+              <div className="mb-3 pb-3 border-b border-border/70">
+                <h3 className="text-base font-bold text-navy font-display">
                   Recovery by Payment Method Rail
                 </h3>
-                <p className="text-xs text-warm-gray-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Instrument volume and conversion across UPI, Cards, NetBanking, and Wallets
                 </p>
               </div>
@@ -516,16 +524,16 @@ export const Analytics: React.FC = () => {
                     data={data.recovery_by_payment_method}
                     margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#DDD8CE" />
-                    <XAxis dataKey="method" tick={{ fontSize: 11, fill: '#77736B' }} />
-                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#77736B' }} width={55} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="method" tick={{ fontSize: 11, fill: '#64748B' }} />
+                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#64748B' }} width={55} />
                     <Tooltip
                       formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, '']}
-                      contentStyle={{ backgroundColor: '#24231F', borderColor: '#43403B', color: '#FFFDF8', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: '#0B1528', borderColor: '#1E293B', borderRadius: '12px', color: '#F8FAFC', fontSize: '12px' }}
                     />
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                    <Bar dataKey="at_risk_amount" fill="#C08A3E" name="At-Risk Volume" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="recovered_amount" fill="#3F725B" name="Recovered Revenue" radius={[3, 3, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Bar dataKey="at_risk_amount" fill="#CBD5E1" name="At-Risk Volume" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="recovered_amount" fill="#38BDF8" name="Recovered Revenue" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -535,14 +543,14 @@ export const Analytics: React.FC = () => {
           {/* Row 3: Merchant Category & Customer Segment Breakdowns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Merchant Vertical Category */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="w-4 h-4 text-graphite" />
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card">
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/70">
+                <Building2 className="w-5 h-5 text-primary" />
                 <div>
-                  <h3 className="text-sm font-bold text-graphite font-display">
+                  <h3 className="text-base font-bold text-navy font-display">
                     Recovery by Merchant Vertical
                   </h3>
-                  <p className="text-xs text-warm-gray-500">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Cross-industry revenue resilience and recovery yields
                   </p>
                 </div>
@@ -555,33 +563,33 @@ export const Analytics: React.FC = () => {
                     layout="vertical"
                     margin={{ top: 5, right: 30, left: 30, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#DDD8CE" />
-                    <XAxis type="number" tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#77736B' }} />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F1F5F9" />
+                    <XAxis type="number" tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#64748B' }} />
                     <YAxis
                       type="category"
                       dataKey="category"
-                      tick={{ fontSize: 10, fill: '#1E1D1A' }}
+                      tick={{ fontSize: 10, fill: '#0B1528' }}
                       width={130}
                     />
                     <Tooltip
                       formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Recovered']}
-                      contentStyle={{ backgroundColor: '#24231F', borderColor: '#43403B', color: '#FFFDF8', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: '#0B1528', borderColor: '#1E293B', borderRadius: '12px', color: '#F8FAFC', fontSize: '12px' }}
                     />
-                    <Bar dataKey="recovered_amount" fill="#2E5A88" radius={[0, 3, 3, 0]} name="Recovered" />
+                    <Bar dataKey="recovered_amount" fill="#6C00FF" radius={[0, 6, 6, 0]} name="Recovered" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Customer Value Segment */}
-            <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card">
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-graphite" />
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card">
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/70">
+                <Users className="w-5 h-5 text-primary" />
                 <div>
-                  <h3 className="text-sm font-bold text-graphite font-display">
+                  <h3 className="text-base font-bold text-navy font-display">
                     Recovery by Customer Value Segment
                   </h3>
-                  <p className="text-xs text-warm-gray-500">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     High-LTV accounts (Enterprise / VIP) vs Growth & Standard tiers
                   </p>
                 </div>
@@ -593,16 +601,16 @@ export const Analytics: React.FC = () => {
                     data={data.recovery_by_customer_segment}
                     margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#DDD8CE" />
-                    <XAxis dataKey="tier" tick={{ fontSize: 11, fill: '#77736B' }} />
-                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#77736B' }} width={55} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="tier" tick={{ fontSize: 11, fill: '#64748B' }} />
+                    <YAxis tickFormatter={formatCurrencyAxis} tick={{ fontSize: 11, fill: '#64748B' }} width={55} />
                     <Tooltip
                       formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, '']}
-                      contentStyle={{ backgroundColor: '#24231F', borderColor: '#43403B', color: '#FFFDF8', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: '#0B1528', borderColor: '#1E293B', borderRadius: '12px', color: '#F8FAFC', fontSize: '12px' }}
                     />
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                    <Bar dataKey="at_risk_amount" fill="#8C827A" name="At-Risk" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="recovered_amount" fill="#3F725B" name="Recovered" radius={[3, 3, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Bar dataKey="at_risk_amount" fill="#CBD5E1" name="At-Risk" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="recovered_amount" fill="#10B981" name="Recovered" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -610,17 +618,17 @@ export const Analytics: React.FC = () => {
           </div>
 
           {/* Strategy Economics & Performance Matrix */}
-          <div className="bg-surface rounded-md border border-border overflow-hidden shadow-fintech-card">
-            <div className="p-4 border-b border-border/80 flex items-center justify-between">
+          <div className="bg-surface rounded-2xl border border-border/80 overflow-hidden shadow-fintech-card">
+            <div className="p-5 border-b border-border/80 flex items-center justify-between bg-slate-50/70">
               <div>
-                <h3 className="text-sm font-bold text-graphite font-display">
+                <h3 className="text-base font-bold text-navy font-display">
                   Strategy Channel Economics & ROI Matrix
                 </h3>
-                <p className="text-xs text-warm-gray-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Granular financial attribution: attempts, success conversion, channel costs, and net ERV
                 </p>
               </div>
-              <span className="text-xs text-warm-gray-500 font-mono">
+              <span className="text-xs text-slate-400 font-mono font-medium">
                 {data.recovery_by_strategy.length} Autonomous Channels Evaluated
               </span>
             </div>
@@ -628,44 +636,44 @@ export const Analytics: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-warm-gray-100/70 border-b border-border text-warm-gray-600 font-semibold uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-4">Recovery Strategy</th>
-                    <th className="py-3 px-4 text-right">Attempts</th>
-                    <th className="py-3 px-4 text-right">Successes</th>
-                    <th className="py-3 px-4 text-right">Win Rate</th>
-                    <th className="py-3 px-4 text-right">Gross Recovered</th>
-                    <th className="py-3 px-4 text-right">Channel Cost</th>
-                    <th className="py-3 px-4 text-right font-bold text-moss-green-dark">Net Recovery Value</th>
-                    <th className="py-3 px-4 text-right">Avg Speed</th>
+                  <tr className="bg-slate-50 border-b border-border text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3.5 px-4">Recovery Strategy</th>
+                    <th className="py-3.5 px-4 text-right">Attempts</th>
+                    <th className="py-3.5 px-4 text-right">Successes</th>
+                    <th className="py-3.5 px-4 text-right">Win Rate</th>
+                    <th className="py-3.5 px-4 text-right">Gross Recovered</th>
+                    <th className="py-3.5 px-4 text-right">Channel Cost</th>
+                    <th className="py-3.5 px-4 text-right font-bold text-emerald-600">Net Recovery Value</th>
+                    <th className="py-3.5 px-4 text-right">Avg Speed</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {data.recovery_by_strategy.map((row) => (
-                    <tr key={row.strategy_key} className="hover:bg-warm-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-graphite">
+                    <tr key={row.strategy_key} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-navy">
                         {row.strategy_name}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-warm-gray-600">
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-600">
                         {row.attempts.toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-warm-gray-600">
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-600">
                         {row.success_count.toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-xs text-[11px] font-bold bg-moss-green-light text-moss-green-dark">
+                      <td className="py-3.5 px-4 text-right">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono bg-emerald-50 text-emerald-800 border border-emerald-200">
                           {row.recovery_rate}%
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-semibold text-graphite">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-navy">
                         ₹{row.recovered_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-warm-gray-500">
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-400">
                         ₹{row.channel_cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-moss-green-dark">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-600">
                         ₹{row.net_erv.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-warm-gray-600">
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-600">
                         {row.avg_time_minutes}m
                       </td>
                     </tr>
@@ -679,3 +687,4 @@ export const Analytics: React.FC = () => {
     </div>
   )
 }
+export default Analytics

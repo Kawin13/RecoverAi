@@ -147,8 +147,7 @@ export const Abandonment: React.FC = () => {
     if (!activeSimSession) return
     try {
       const updated = await api.transitionCheckoutSession(activeSimSession.id, {
-        new_status: 'PAYMENT_INITIATED',
-        payment_attempted: true
+        new_status: 'PAYMENT_INITIATED'
       })
       setActiveSimSession(updated)
       setSimStep(4)
@@ -163,21 +162,20 @@ export const Abandonment: React.FC = () => {
     if (!activeSimSession) return
     try {
       setIsTimerRunning(false)
-      await api.abandonCheckoutSession(activeSimSession.id)
+      const res = await api.abandonCheckoutSession(activeSimSession.id)
       setSimStep(5)
-      setFeedbackBanner(`Session ${activeSimSession.id} abandoned! RecoverAI immediately computed ERV and scheduled recovery.`)
+      setFeedbackBanner(`Cart marked Abandoned! RecoverAI Case #${res?.case_id || activeSimSession.id} synthesized with ERV: ${formatINR(res?.expected_recovery_value || 0)}`)
       await loadData()
     } catch (err: any) {
-      alert(`Error: ${err.message}`)
+      alert(`Abandonment trigger error: ${err.message}`)
     }
   }
 
-  const handleRunTimeoutScanner = async () => {
+  const handleRunScanner = async () => {
     try {
       setScannerRunning(true)
       const res = await api.checkTimedOutSessions(15)
-      setFeedbackBanner(`Scanned active sessions: ${res.abandoned_count} timed-out session(s) transitioned to ABANDONED.`)
-      setTimeout(() => setFeedbackBanner(null), 5000)
+      setFeedbackBanner(`Abandonment Scanner evaluated active sessions. Dispatched ${res?.abandoned_count ?? 0} new recovery actions.`)
       await loadData()
     } catch (err: any) {
       alert(`Scanner error: ${err.message}`)
@@ -187,17 +185,17 @@ export const Abandonment: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Top Header */}
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* Header */}
       <SectionHeader
-        title="Pre-Payment Cart & Checkout Abandonment Engine"
-        subtitle="Detect pre-payment drop-offs, estimate recovery likelihood & ERV, and trigger smart recovery interventions before revenue is lost"
+        title="Pre-Payment Cart Abandonment & Conversion Recovery"
+        subtitle="Detect buyer drop-off pre-payment, execute 15-second inactivity timeout triggers, and dispatch 1-click recovery paylinks"
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={handleRunTimeoutScanner}
+              onClick={handleRunScanner}
               disabled={scannerRunning}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-burnt-orange hover:bg-burnt-orange-hover text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold shadow-fintech-purple transition-all cursor-pointer disabled:opacity-50"
             >
               <Clock className={`w-3.5 h-3.5 ${scannerRunning ? 'animate-spin' : ''}`} />
               <span>Detect Abandonment (15s Window)</span>
@@ -205,9 +203,9 @@ export const Abandonment: React.FC = () => {
             <button
               onClick={loadData}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-warm-gray-50 border border-border text-graphite rounded-sm text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-primary ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh Funnel</span>
             </button>
           </div>
@@ -216,78 +214,78 @@ export const Abandonment: React.FC = () => {
 
       {/* Banner message */}
       {feedbackBanner && (
-        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-md p-3.5 flex items-center justify-between text-xs animate-in fade-in duration-200">
-          <div className="flex items-center gap-2">
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-2xl p-4 flex items-center justify-between text-xs animate-in fade-in duration-200 shadow-xs">
+          <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>{feedbackBanner}</span>
+            <span className="font-medium">{feedbackBanner}</span>
           </div>
-          <button onClick={() => setFeedbackBanner(null)} className="text-emerald-700 hover:text-emerald-900 text-xs font-medium">
+          <button onClick={() => setFeedbackBanner(null)} className="text-emerald-700 hover:text-emerald-900 text-xs font-bold cursor-pointer">
             Dismiss
           </button>
         </div>
       )}
 
       {/* 5-STAGE ABANDONMENT FUNNEL */}
-      <div className="bg-surface rounded-md border border-border p-6 shadow-fintech-card space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
+      <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-4">
           <div>
-            <h3 className="text-base font-bold text-graphite font-display flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-burnt-orange" />
+            <h3 className="text-base font-bold text-navy font-display flex items-center gap-2.5">
+              <ShoppingCart className="w-5 h-5 text-primary" />
               <span>Pre-Payment Abandonment & Conversion Funnel</span>
             </h3>
-            <p className="text-xs text-warm-gray-600 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Tracks the entire buyer progression from initial cart inception to AI-driven recovery intervention.
             </p>
           </div>
           <div className="flex items-center gap-4 text-xs font-mono">
-            <div>
-              <span className="text-warm-gray-500">At-Risk Cart: </span>
-              <span className="font-bold text-brick-red">{formatINR(funnel?.at_risk_abandoned_inr ?? 0)}</span>
+            <div className="bg-rose-50 px-3 py-1 rounded-xl border border-rose-200">
+              <span className="text-rose-700 font-sans font-medium text-[11px]">At-Risk Cart: </span>
+              <span className="font-bold text-rose-800">{formatINR(funnel?.at_risk_abandoned_inr ?? 0)}</span>
             </div>
-            <div>
-              <span className="text-warm-gray-500">Recovered: </span>
-              <span className="font-bold text-emerald-700">{formatINR(funnel?.recovered_abandoned_inr ?? 0)}</span>
+            <div className="bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200">
+              <span className="text-emerald-700 font-sans font-medium text-[11px]">Recovered: </span>
+              <span className="font-bold text-emerald-800">{formatINR(funnel?.recovered_abandoned_inr ?? 0)}</span>
             </div>
           </div>
         </div>
 
         {/* Visual 5-Stage Stepper Funnel */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
           {funnel?.stages?.map((st, idx) => {
             const colors = [
-              'border-warm-gray-300 bg-warm-gray-50/60',
-              'border-warm-gray-400 bg-white',
-              'border-brick-red/30 bg-brick-red-subtle/50',
-              'border-burnt-orange/30 bg-burnt-orange-subtle/60',
-              'border-emerald-300 bg-emerald-50/70'
+              'border-border/80 bg-slate-50/70',
+              'border-surface-blue-border bg-surface-blue/40',
+              'border-primary-border/60 bg-primary-light/40',
+              'border-amber-200 bg-amber-50/60',
+              'border-emerald-200 bg-emerald-50/70'
             ]
             const textColors = [
-              'text-graphite',
-              'text-graphite',
-              'text-brick-red-dark',
-              'text-burnt-orange',
-              'text-emerald-700'
+              'text-navy',
+              'text-navy',
+              'text-primary font-bold',
+              'text-amber-900 font-bold',
+              'text-emerald-800 font-bold'
             ]
 
             return (
               <div
                 key={st.stage_key}
-                className={`p-4 rounded-md border ${colors[idx % colors.length]} relative flex flex-col justify-between`}
+                className={`p-4 rounded-2xl border ${colors[idx % colors.length]} relative flex flex-col justify-between shadow-2xs`}
               >
                 <div>
-                  <div className="flex items-center justify-between text-[11px] text-warm-gray-500">
-                    <span>Stage 0{idx + 1}</span>
-                    <span className="font-mono font-bold">{st.conversion_rate * 100}% conv</span>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                    <span className="text-primary font-mono font-bold">Stage 0{idx + 1}</span>
+                    <span className="font-mono font-bold text-navy">{st.conversion_rate * 100}% conv</span>
                   </div>
-                  <div className={`text-sm font-bold font-display mt-1 ${textColors[idx % textColors.length]}`}>
+                  <div className={`text-sm font-bold font-display mt-1.5 ${textColors[idx % textColors.length]}`}>
                     {st.stage_name}
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-border/60 flex items-baseline justify-between">
-                  <span className="text-2xl font-bold font-mono text-graphite">{st.count}</span>
+                  <span className="text-2xl font-bold font-mono text-navy">{st.count}</span>
                   {st.drop_off_count > 0 && idx < 4 && (
-                    <span className="text-[10px] text-brick-red font-mono flex items-center gap-0.5">
+                    <span className="text-[10px] text-rose-600 font-mono font-bold flex items-center gap-0.5">
                       <TrendingDown className="w-3 h-3" />
                       -{st.drop_off_count} drop
                     </span>
@@ -301,27 +299,27 @@ export const Abandonment: React.FC = () => {
 
       {/* INTERACTIVE CHECKOUT SIMULATOR & TIMEOUT CONTROLLER */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-surface rounded-md border border-border p-6 shadow-fintech-card space-y-5">
-          <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="lg:col-span-2 bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-5">
+          <div className="flex items-center justify-between border-b border-border/70 pb-4">
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-graphite font-display">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-base font-bold text-navy font-display">
                   Interactive Checkout Session Simulator
                 </h3>
-                <span className="px-2 py-0.5 bg-warm-gray-100 text-warm-gray-700 text-[10px] font-mono rounded-xs border border-border">
-                  SIMULATED DEMO EVENT ({sessions.length} ACTIVE SESSIONS)
+                <span className="px-2.5 py-0.5 bg-surface-blue text-primary border border-surface-blue-border text-[10px] font-mono font-bold rounded-full">
+                  SIMULATED DEMO EVENT ({sessions.length} ACTIVE)
                 </span>
               </div>
-              <p className="text-xs text-warm-gray-600 mt-0.5">
+              <p className="text-xs text-slate-500 mt-1">
                 Step through a simulated customer cart journey. Observe the 15-second inactivity timeout trigger pre-payment recovery.
               </p>
             </div>
 
             {/* Countdown Badge */}
             {isTimerRunning && (
-              <div className="flex items-center gap-2 bg-burnt-orange-subtle border border-burnt-orange/30 px-3 py-1.5 rounded-sm">
-                <Clock className="w-4 h-4 text-burnt-orange animate-spin" />
-                <span className="text-xs font-mono font-bold text-burnt-orange">
+              <div className="flex items-center gap-2 bg-primary-light border border-primary-border px-3.5 py-1.5 rounded-full shadow-xs">
+                <Clock className="w-4 h-4 text-primary animate-spin" />
+                <span className="text-xs font-mono font-bold text-primary">
                   Timeout in {countdownSeconds}s
                 </span>
               </div>
@@ -329,29 +327,29 @@ export const Abandonment: React.FC = () => {
           </div>
 
           {/* Session Progress Stepper */}
-          <div className="flex items-center justify-between px-2 py-3 bg-warm-gray-50 rounded-sm border border-border text-xs">
-            <div className={`flex items-center gap-1.5 ${simStep >= 1 ? 'text-forest-green font-bold' : 'text-warm-gray-400'}`}>
-              <span className="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono">1</span>
+          <div className="flex items-center justify-between px-3 py-3.5 bg-slate-50 rounded-2xl border border-border text-xs">
+            <div className={`flex items-center gap-1.5 ${simStep >= 1 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 1 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>1</span>
               <span>Started</span>
             </div>
-            <ArrowRight className="w-3.5 h-3.5 text-warm-gray-300" />
-            <div className={`flex items-center gap-1.5 ${simStep >= 2 ? 'text-forest-green font-bold' : 'text-warm-gray-400'}`}>
-              <span className="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono">2</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
+            <div className={`flex items-center gap-1.5 ${simStep >= 2 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 2 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>2</span>
               <span>Identified</span>
             </div>
-            <ArrowRight className="w-3.5 h-3.5 text-warm-gray-300" />
-            <div className={`flex items-center gap-1.5 ${simStep >= 3 ? 'text-forest-green font-bold' : 'text-warm-gray-400'}`}>
-              <span className="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono">3</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
+            <div className={`flex items-center gap-1.5 ${simStep >= 3 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 3 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>3</span>
               <span>Method Viewed</span>
             </div>
-            <ArrowRight className="w-3.5 h-3.5 text-warm-gray-300" />
-            <div className={`flex items-center gap-1.5 ${simStep >= 4 ? 'text-forest-green font-bold' : 'text-warm-gray-400'}`}>
-              <span className="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono">4</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
+            <div className={`flex items-center gap-1.5 ${simStep >= 4 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 4 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>4</span>
               <span>Payment Initiated</span>
             </div>
-            <ArrowRight className="w-3.5 h-3.5 text-warm-gray-300" />
-            <div className={`flex items-center gap-1.5 ${simStep === 5 ? 'text-brick-red font-bold' : 'text-warm-gray-400'}`}>
-              <span className="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono">5</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
+            <div className={`flex items-center gap-1.5 ${simStep === 5 ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}`}>
+              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep === 5 ? 'bg-rose-600 text-white border-rose-600' : 'border-slate-300'}`}>5</span>
               <span>Abandoned</span>
             </div>
           </div>
@@ -359,29 +357,29 @@ export const Abandonment: React.FC = () => {
           {/* Interactive Controls */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
             <div>
-              <label className="text-[11px] text-warm-gray-500 font-medium">Customer Name</label>
+              <label className="text-[11px] text-slate-500 font-semibold">Customer Name</label>
               <input
                 type="text"
                 value={simCustomerName}
                 onChange={(e) => setSimCustomerName(e.target.value)}
-                className="mt-1 w-full px-2.5 py-1.5 text-xs border border-border rounded-sm bg-white font-mono text-graphite"
+                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs"
               />
             </div>
             <div>
-              <label className="text-[11px] text-warm-gray-500 font-medium">Customer Email</label>
+              <label className="text-[11px] text-slate-500 font-semibold">Customer Email</label>
               <input
                 type="email"
                 value={simCustomerEmail}
                 onChange={(e) => setSimCustomerEmail(e.target.value)}
-                className="mt-1 w-full px-2.5 py-1.5 text-xs border border-border rounded-sm bg-white font-mono text-graphite"
+                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs"
               />
             </div>
             <div>
-              <label className="text-[11px] text-warm-gray-500 font-medium">Customer Tier</label>
+              <label className="text-[11px] text-slate-500 font-semibold">Customer Tier</label>
               <select
                 value={simCustomerTier}
                 onChange={(e) => setSimCustomerTier(e.target.value)}
-                className="mt-1 w-full px-2.5 py-1.5 text-xs border border-border rounded-sm bg-white font-mono text-graphite"
+                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs"
               >
                 <option value="STANDARD">STANDARD</option>
                 <option value="GROWTH">GROWTH</option>
@@ -390,20 +388,20 @@ export const Abandonment: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="text-[11px] text-warm-gray-500 font-medium">Cart Amount (INR)</label>
+              <label className="text-[11px] text-slate-500 font-semibold">Cart Amount (INR)</label>
               <input
                 type="number"
                 value={simCartAmount}
                 onChange={(e) => setSimCartAmount(Number(e.target.value))}
-                className="mt-1 w-full px-2.5 py-1.5 text-xs border border-border rounded-sm bg-white font-mono text-graphite"
+                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs"
               />
             </div>
             <div>
-              <label className="text-[11px] text-warm-gray-500 font-medium">Preferred Method</label>
+              <label className="text-[11px] text-slate-500 font-semibold">Preferred Method</label>
               <select
                 value={simSelectedMethod}
                 onChange={(e) => setSimSelectedMethod(e.target.value)}
-                className="mt-1 w-full px-2.5 py-1.5 text-xs border border-border rounded-sm bg-white font-mono text-graphite"
+                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs"
               >
                 <option value="UPI">UPI (QR / Intent)</option>
                 <option value="CARD">Credit / Debit Card</option>
@@ -413,11 +411,11 @@ export const Abandonment: React.FC = () => {
           </div>
 
           {/* Action Step Buttons */}
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+          <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/70">
             <button
               onClick={handleSimStartCheckout}
               disabled={simStep !== 0 && simStep !== 5}
-              className="px-3 py-1.5 bg-graphite hover:bg-graphite/90 text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-40"
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold shadow-fintech-purple transition-all disabled:opacity-40 cursor-pointer"
             >
               1. Start Checkout
             </button>
@@ -425,7 +423,7 @@ export const Abandonment: React.FC = () => {
             <button
               onClick={handleSimIdentifyCustomer}
               disabled={simStep !== 1}
-              className="px-3 py-1.5 bg-surface hover:bg-warm-gray-50 border border-border text-graphite rounded-sm text-xs font-medium transition-colors disabled:opacity-40"
+              className="px-4 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer"
             >
               2. Enter Contact Info
             </button>
@@ -433,7 +431,7 @@ export const Abandonment: React.FC = () => {
             <button
               onClick={handleSimViewPaymentMethod}
               disabled={simStep !== 2}
-              className="px-3 py-1.5 bg-surface hover:bg-warm-gray-50 border border-border text-graphite rounded-sm text-xs font-medium transition-colors disabled:opacity-40"
+              className="px-4 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer"
             >
               3. View Payment Instrument
             </button>
@@ -441,7 +439,7 @@ export const Abandonment: React.FC = () => {
             <button
               onClick={handleSimInitiatePayment}
               disabled={simStep !== 3}
-              className="px-3 py-1.5 bg-surface hover:bg-warm-gray-50 border border-border text-graphite rounded-sm text-xs font-medium transition-colors disabled:opacity-40"
+              className="px-4 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer"
             >
               4. Initiate Payment Switch
             </button>
@@ -449,7 +447,7 @@ export const Abandonment: React.FC = () => {
             <button
               onClick={handleSimulateAbandon}
               disabled={simStep === 0 || simStep === 5}
-              className="px-3 py-1.5 bg-brick-red hover:bg-brick-red-dark text-white rounded-sm text-xs font-semibold shadow-sm transition-colors disabled:opacity-40 ml-auto"
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors disabled:opacity-40 ml-auto cursor-pointer"
             >
               Trigger Abandonment Now
             </button>
@@ -457,25 +455,25 @@ export const Abandonment: React.FC = () => {
         </div>
 
         {/* Attribution & Protocol Information */}
-        <div className="bg-surface rounded-md border border-border p-5 shadow-fintech-card space-y-4 text-xs">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <Shield className="w-4 h-4 text-burnt-orange" />
-            <h4 className="font-bold text-graphite font-display">Transaction Source & Mode</h4>
+        <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-4 text-xs">
+          <div className="flex items-center gap-2 border-b border-border/70 pb-3">
+            <Shield className="w-4 h-4 text-primary" />
+            <h4 className="font-bold text-navy font-display">Transaction Source & Mode</h4>
           </div>
 
           <div className="space-y-3">
-            <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-sm">
-              <div className="flex items-center gap-1.5 text-blue-900 font-bold text-[11px] uppercase">
-                <span className="w-2 h-2 rounded-full bg-blue-600" />
+            <div className="p-3.5 bg-surface-blue/50 border border-surface-blue-border rounded-xl">
+              <div className="flex items-center gap-1.5 text-navy font-bold text-[11px] uppercase">
+                <span className="w-2 h-2 rounded-full bg-primary" />
                 <span>Simulated Demo Checkout Event</span>
               </div>
-              <p className="text-blue-800 mt-1 leading-relaxed text-[11px]">
+              <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
                 Pre-payment browser checkouts and cart drop-off sessions. Simulated safely for testing without live charges.
               </p>
             </div>
 
-            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-sm">
-              <div className="flex items-center gap-1.5 text-emerald-900 font-bold text-[11px] uppercase">
+            <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+              <div className="flex items-center gap-1.5 text-emerald-950 font-bold text-[11px] uppercase">
                 <span className="w-2 h-2 rounded-full bg-emerald-600" />
                 <span>Real Razorpay Test Transaction</span>
               </div>
@@ -485,103 +483,104 @@ export const Abandonment: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-2 text-[11px] text-warm-gray-500 border-t border-border flex items-center justify-between">
+          <div className="pt-2 text-[11px] text-slate-500 border-t border-border/70 flex items-center justify-between">
             <span>Demo Inactivity Window:</span>
-            <span className="font-bold font-mono text-graphite">15 Seconds</span>
+            <span className="font-bold font-mono text-primary">15 Seconds</span>
           </div>
         </div>
       </div>
 
       {/* DETAILED ABANDONMENT CASES TABLE & DETAIL DRAWER */}
-      <div className="bg-surface rounded-md border border-border shadow-fintech-card overflow-hidden">
-        <div className="p-4 border-b border-border bg-warm-gray-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-surface rounded-2xl border border-border/80 shadow-fintech-card overflow-hidden">
+        <div className="p-5 border-b border-border bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-graphite font-display">Pre-Payment Abandoned Cases</h3>
-              <span className="px-2 py-0.5 bg-brick-red/10 text-brick-red border border-brick-red/30 text-[10px] font-mono font-bold rounded-xs">
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-base font-bold text-navy font-display">Pre-Payment Abandoned Cases</h3>
+              <span className="px-2.5 py-0.5 bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-mono font-bold rounded-full">
                 {abandonmentCases.length} DETECTED
               </span>
             </div>
-            <p className="text-xs text-warm-gray-600 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Sessions that dropped off during checkout and triggered automated ERV valuation and recovery strategy dispatch.
             </p>
           </div>
         </div>
 
         {abandonmentCases.length === 0 ? (
-          <div className="p-8 text-center text-xs text-warm-gray-500">
-            <ShoppingCart className="w-8 h-8 text-warm-gray-400 mx-auto mb-2 opacity-60" />
-            <p className="font-medium text-graphite">No Abandonment Cases Detected</p>
-            <p className="text-warm-gray-500 mt-1">
+          <div className="p-12 text-center text-xs text-slate-500">
+            <ShoppingCart className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="font-bold text-navy text-sm">No Abandonment Cases Detected</p>
+            <p className="text-slate-500 mt-1">
               Use the Interactive Checkout Session Simulator above to trigger an abandoned cart event.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-warm-gray-50/60 text-warm-gray-600 border-b border-border">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50 border-b border-border text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                 <tr>
-                  <th className="p-3 font-semibold">Case / Session</th>
-                  <th className="p-3 font-semibold">Customer</th>
-                  <th className="p-3 font-semibold">Cart Amount</th>
-                  <th className="p-3 font-semibold">AI Strategy Selected</th>
-                  <th className="p-3 font-semibold">ERV (INR)</th>
-                  <th className="p-3 font-semibold">Channel</th>
-                  <th className="p-3 font-semibold">Event Type</th>
-                  <th className="p-3 font-semibold">Detected</th>
-                  <th className="p-3 font-semibold text-right">Action</th>
+                  <th className="p-3.5 font-semibold">Case / Session</th>
+                  <th className="p-3.5 font-semibold">Customer</th>
+                  <th className="p-3.5 font-semibold">Cart Amount</th>
+                  <th className="p-3.5 font-semibold">AI Strategy Selected</th>
+                  <th className="p-3.5 font-semibold">ERV (INR)</th>
+                  <th className="p-3.5 font-semibold">Channel</th>
+                  <th className="p-3.5 font-semibold">Event Type</th>
+                  <th className="p-3.5 font-semibold">Detected</th>
+                  <th className="p-3.5 font-semibold text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/60">
                 {abandonmentCases.map((c) => (
                   <tr
                     key={c.case_id}
-                    className={`hover:bg-warm-gray-50/50 transition-colors ${
-                      selectedCase?.case_id === c.case_id ? 'bg-warm-gray-50' : ''
+                    className={`hover:bg-slate-50/80 transition-colors cursor-pointer group ${
+                      selectedCase?.case_id === c.case_id ? 'bg-primary-subtle/50' : ''
                     }`}
                   >
-                    <td className="p-3 font-mono font-bold text-graphite">
-                      {c.case_id}
-                      <div className="text-[10px] text-warm-gray-400 font-mono">
+                    <td className="p-3.5 font-mono font-bold text-navy">
+                      <span className="group-hover:text-primary transition-colors">{c.case_id}</span>
+                      <div className="text-[10px] text-slate-400 font-mono font-normal">
                         {c.session_id || c.order_id}
                       </div>
                     </td>
-                    <td className="p-3">
-                      <div className="font-semibold text-graphite">{c.customer_name}</div>
-                      <div className="text-[11px] text-warm-gray-500">Tier: {c.customer_tier}</div>
+                    <td className="p-3.5">
+                      <div className="font-semibold text-navy">{c.customer_name}</div>
+                      <div className="text-[11px] text-slate-500">Tier: {c.customer_tier}</div>
                     </td>
-                    <td className="p-3 font-mono font-bold text-graphite">
+                    <td className="p-3.5 font-mono font-bold text-navy">
                       {formatINR(c.cart_amount)}
                     </td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 bg-burnt-orange/10 text-burnt-orange border border-burnt-orange/30 text-[10px] font-mono font-bold rounded-xs">
-                        {c.selected_strategy}
+                    <td className="p-3.5">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-primary-subtle text-primary border border-primary/40 shadow-2xs">
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        {c.selected_strategy.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td className="p-3 font-mono font-bold text-forest-green">
+                    <td className="p-3.5 font-mono font-bold text-emerald-600">
                       {formatINR(c.expected_recovery_value)}
-                      <div className="text-[10px] text-warm-gray-400 font-mono">
+                      <div className="text-[10px] text-slate-400 font-mono font-normal">
                         {(c.recovery_probability * 100).toFixed(0)}% likelihood
                       </div>
                     </td>
-                    <td className="p-3 font-mono text-[11px] text-warm-gray-700">
+                    <td className="p-3.5 font-mono text-[11px] text-slate-600">
                       {c.channel}
                     </td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-mono rounded-xs">
+                    <td className="p-3.5">
+                      <span className="px-2.5 py-0.5 bg-surface-blue text-primary border border-surface-blue-border text-[10px] font-mono rounded-full font-bold">
                         DEMO CHECKOUT
                       </span>
                     </td>
-                    <td className="p-3 text-warm-gray-500 font-mono text-[11px]">
+                    <td className="p-3.5 text-slate-500 font-mono text-[11px]">
                       {formatTimeAgo(c.created_at)}
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="p-3.5 text-right">
                       <button
                         onClick={() => setSelectedCase(c)}
-                        className="px-2.5 py-1 bg-surface hover:bg-warm-gray-100 border border-border rounded-sm text-xs font-medium text-graphite inline-flex items-center gap-1"
+                        className="px-3 py-1.5 bg-surface hover:bg-slate-100 border border-border rounded-xl text-xs font-semibold text-navy inline-flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
                       >
                         <span>Details</span>
-                        <ChevronRight className="w-3 h-3" />
+                        <ChevronRight className="w-3.5 h-3.5 text-primary" />
                       </button>
                     </td>
                   </tr>
@@ -594,58 +593,58 @@ export const Abandonment: React.FC = () => {
 
       {/* SELECTED CASE FORENSIC DRAWER */}
       {selectedCase && (
-        <div className="bg-surface rounded-md border border-border p-6 shadow-fintech-card space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-burnt-orange" />
-              <h4 className="text-sm font-bold text-graphite font-display">
+        <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-4">
+          <div className="flex items-center justify-between border-b border-border/70 pb-3">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <h4 className="text-base font-bold text-navy font-display">
                 Abandonment Case Diagnostics: {selectedCase.case_id}
               </h4>
             </div>
-            <span className="text-xs font-mono text-warm-gray-500">
+            <span className="text-xs font-mono text-slate-400 font-medium">
               Session Ref: {selectedCase.session_id}
             </span>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-              <span className="text-[11px] text-warm-gray-500">Customer Profile</span>
-              <div className="font-bold text-graphite mt-1">{selectedCase.customer_name}</div>
-              <div className="text-[11px] text-warm-gray-600">{selectedCase.customer_email}</div>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-border">
+              <span className="text-[11px] text-slate-500 font-semibold">Customer Profile</span>
+              <div className="font-bold text-navy mt-1 text-sm">{selectedCase.customer_name}</div>
+              <div className="text-[11px] text-slate-500">{selectedCase.customer_email}</div>
             </div>
 
-            <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-              <span className="text-[11px] text-warm-gray-500">Cart Revenue at Risk</span>
-              <div className="font-bold font-mono text-base text-brick-red-dark mt-1">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-border">
+              <span className="text-[11px] text-slate-500 font-semibold">Cart Revenue at Risk</span>
+              <div className="font-bold font-mono text-lg text-rose-600 mt-1">
                 {formatINR(selectedCase.cart_amount)}
               </div>
-              <div className="text-[10px] text-warm-gray-500">Pre-payment abandonment</div>
+              <div className="text-[10px] text-slate-400">Pre-payment abandonment</div>
             </div>
 
-            <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-              <span className="text-[11px] text-warm-gray-500">Expected Recovery Value</span>
-              <div className="font-bold font-mono text-base text-forest-green mt-1">
+            <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200">
+              <span className="text-[11px] text-emerald-800 font-semibold">Expected Recovery Value</span>
+              <div className="font-bold font-mono text-lg text-emerald-600 mt-1">
                 {formatINR(selectedCase.expected_recovery_value)}
               </div>
-              <div className="text-[10px] text-warm-gray-500">
+              <div className="text-[10px] text-emerald-700/80 font-mono">
                 P = {(selectedCase.recovery_probability * 100).toFixed(0)}% statistical likelihood
               </div>
             </div>
 
-            <div className="p-3 bg-warm-gray-50 rounded-sm border border-border">
-              <span className="text-[11px] text-warm-gray-500">Intervention Channel</span>
-              <div className="font-bold text-graphite mt-1">{selectedCase.channel}</div>
-              <div className="text-[10px] text-emerald-700 font-mono">DEMO DELIVERY TAGGED</div>
+            <div className="p-4 bg-surface-blue rounded-2xl border border-surface-blue-border">
+              <span className="text-[11px] text-slate-600 font-semibold">Intervention Channel</span>
+              <div className="font-bold text-navy mt-1 text-sm">{selectedCase.channel}</div>
+              <div className="text-[10px] text-primary font-mono font-bold">DEMO DELIVERY TAGGED</div>
             </div>
           </div>
 
-          <div className="p-3.5 bg-warm-gray-50 rounded-sm border border-border space-y-1 text-xs">
-            <div className="flex items-center gap-1.5 font-bold text-graphite">
-              <MessageSquare className="w-3.5 h-3.5 text-burnt-orange" />
+          <div className="p-4 bg-surface-blue/40 rounded-2xl border border-surface-blue-border space-y-1.5 text-xs">
+            <div className="flex items-center gap-2 font-bold text-navy">
+              <MessageSquare className="w-4 h-4 text-primary" />
               <span>Multi-Lingual Cart Recovery Message Dispatch</span>
             </div>
-            <p className="text-warm-gray-700 leading-relaxed pt-1">
-              "Hi {selectedCase.customer_name}! Your cart items worth {formatINR(selectedCase.cart_amount)} are safely reserved. Complete your order in 1 click using your preferred payment method: http://localhost:3000/demo-checkout?recover=true"
+            <p className="text-slate-700 leading-relaxed pt-1 font-sans text-xs">
+              &ldquo;Hi {selectedCase.customer_name}! Your cart items worth {formatINR(selectedCase.cart_amount)} are safely reserved. Complete your order in 1 click using your preferred payment method: http://localhost:3000/demo-checkout?recover=true&rdquo;
             </p>
           </div>
         </div>

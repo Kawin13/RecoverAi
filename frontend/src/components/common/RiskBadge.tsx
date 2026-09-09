@@ -6,29 +6,33 @@ interface RiskBadgeProps {
 }
 
 export const RiskBadge: React.FC<RiskBadgeProps> = ({ risk }) => {
-  const styles: Record<RiskLevel, { bg: string; text: string; dot: string; label: string }> = {
+  const styles: Record<RiskLevel, { bg: string; text: string; dot: string; border: string; label: string }> = {
     LOW: {
-      bg: 'bg-moss-green-subtle',
-      text: 'text-moss-green-dark',
-      dot: 'bg-moss-green',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      dot: 'bg-emerald-500',
+      border: 'border-emerald-200/80',
       label: 'Low Risk'
     },
     MEDIUM: {
-      bg: 'bg-muted-amber-subtle',
-      text: 'text-muted-amber-dark',
-      dot: 'bg-muted-amber',
+      bg: 'bg-amber-50',
+      text: 'text-amber-800',
+      dot: 'bg-amber-500',
+      border: 'border-amber-200/80',
       label: 'Med Risk'
     },
     HIGH: {
-      bg: 'bg-burnt-orange-subtle',
-      text: 'text-burnt-orange-dark',
-      dot: 'bg-burnt-orange',
+      bg: 'bg-rose-50',
+      text: 'text-rose-800',
+      dot: 'bg-rose-500',
+      border: 'border-rose-200/80',
       label: 'High Risk'
     },
     CRITICAL: {
-      bg: 'bg-brick-red-subtle',
-      text: 'text-brick-red-dark',
-      dot: 'bg-brick-red',
+      bg: 'bg-rose-100',
+      text: 'text-rose-900',
+      dot: 'bg-rose-600',
+      border: 'border-rose-300',
       label: 'Critical'
     }
   }
@@ -36,7 +40,7 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({ risk }) => {
   const s = styles[risk] || styles.LOW
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[11px] font-medium border border-border/60 ${s.bg} ${s.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${s.bg} ${s.text} ${s.border} shadow-2xs`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
       <span>{s.label}</span>
     </span>

@@ -82,7 +82,7 @@ class AbandonmentService:
             "timestamp": now.isoformat()
         })
 
-        logger.info(f"Checkout Session {session.id} started for Customer {customer.name} (₹{session.cart_amount:,.2f})")
+        logger.info(f"Checkout Session {session.id} started for Customer {customer.name} (INR {session.cart_amount:,.2f})")
         return session
 
     def transition_session(
@@ -347,9 +347,35 @@ class AbandonmentService:
             }),
             created_at=now
         )
-        db.add(audit)
+        # Persistent Internal Event
+        from app.models.internal_events import InternalEvent
+        from app.services.background_worker import background_worker, JobType
+        db.add(
+            InternalEvent(
+                id=f"evt_abn_{uuid.uuid4().hex[:10]}",
+                workspace_id="00000000-0000-0000-0000-000000000001",
+                event_type="CHECKOUT_ABANDONED",
+                entity_type="checkout_session",
+                entity_id=session.id,
+                idempotency_key=f"abn_evt_{session.id}",
+                processing_status="PROCESSED",
+                payload_json=json.dumps({"cart_amount": session.cart_amount, "strategy": metrics["selected_strategy"], "recovery_case_id": case.id}),
+                created_at=now,
+                processed_at=now
+            )
+        )
         db.commit()
         db.refresh(case)
+
+        # Enqueue background job to manage recovery workflow
+        background_worker.enqueue_job(
+            db=db,
+            job_type=JobType.PROCESS_RECOVERY_CASE.value,
+            entity_id=case.id,
+            workspace_id="00000000-0000-0000-0000-000000000001",
+            payload={"case_id": case.id, "source": "CART_ABANDONMENT"},
+            idempotency_key=f"job_abn_{case.id}"
+        )
 
         # Broadcast SSE
         event_broadcaster.broadcast_sync("CHECKOUT_ABANDONED", {
@@ -362,7 +388,7 @@ class AbandonmentService:
             "timestamp": now.isoformat()
         })
 
-        logger.info(f"Abandoned session {session.id} converted into RecoveryCase {case.id} (ERV: ₹{metrics['expected_recovery_value']:,.2f})")
+        logger.info(f"Abandoned session {session.id} converted into RecoveryCase {case.id} (ERV: INR {metrics['expected_recovery_value']:,.2f})")
         return case
 
     def get_funnel_metrics(self, db: Session) -> AbandonmentFunnelResponse:

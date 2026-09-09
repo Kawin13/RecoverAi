@@ -16,7 +16,6 @@ import {
   X
 } from 'lucide-react'
 
-
 export const AdminUsers: React.FC = () => {
   const { user: currentAuthUser, refreshProfile } = useAuth()
   const { lastEvent } = useRealtime()
@@ -127,24 +126,23 @@ export const AdminUsers: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
       {/* Page Header */}
       <SectionHeader
         title="User Management"
         subtitle="Manage workspace members, administrative governance, and operator role permissions."
       />
 
-
       {/* Success Notification Banner */}
       {successToast && (
-        <div className="p-4 bg-moss-green-light border border-moss-green/30 rounded-md text-xs text-moss-green-dark flex items-center justify-between shadow-fintech-subtle animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-moss-green flex-shrink-0" />
-            <span className="font-medium">{successToast}</span>
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 flex items-center justify-between shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span className="font-semibold">{successToast}</span>
           </div>
           <button
             onClick={() => setSuccessToast(null)}
-            className="text-moss-green hover:text-moss-green-dark p-1"
+            className="text-emerald-700 hover:text-emerald-900 p-1 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -153,14 +151,14 @@ export const AdminUsers: React.FC = () => {
 
       {/* Error Notification Banner */}
       {errorToast && (
-        <div className="p-4 bg-brick-red-light border border-brick-red/30 rounded-md text-xs text-brick-red-dark flex items-center justify-between shadow-fintech-subtle animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-brick-red flex-shrink-0" />
-            <span className="font-medium">{errorToast}</span>
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center justify-between shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+            <span className="font-semibold">{errorToast}</span>
           </div>
           <button
             onClick={() => setErrorToast(null)}
-            className="text-brick-red hover:text-brick-red-dark p-1"
+            className="text-rose-700 hover:text-rose-900 p-1 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -170,86 +168,86 @@ export const AdminUsers: React.FC = () => {
       {/* Top Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Members */}
-        <div className="bg-surface border border-border rounded-md p-4 shadow-fintech-card flex items-center justify-between">
+        <div className="bg-surface border border-border/80 rounded-2xl p-5 shadow-fintech-card flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-medium text-warm-gray-500 uppercase tracking-wider block mb-1 font-display">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 font-display">
               Total Workspace Users
             </span>
-            <div className="text-2xl font-bold font-mono text-graphite">
+            <div className="text-3xl font-bold font-mono text-navy tracking-tight">
               {loading ? '...' : counts.total}
             </div>
-            <span className="text-[10px] text-warm-gray-400 mt-0.5 block">
+            <span className="text-[11px] text-slate-500 mt-1 block">
               Active system accounts
             </span>
           </div>
-          <div className="w-10 h-10 rounded-sm bg-warm-gray-100 flex items-center justify-center text-warm-gray-600">
-            <Users className="w-5 h-5" />
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600">
+            <Users className="w-6 h-6" />
           </div>
         </div>
 
         {/* Administrators */}
-        <div className="bg-surface border border-border rounded-md p-4 shadow-fintech-card flex items-center justify-between">
+        <div className="bg-surface border border-primary-border/60 rounded-2xl p-5 shadow-fintech-card flex items-center justify-between bg-primary-light/20">
           <div>
-            <span className="text-[11px] font-medium text-warm-gray-500 uppercase tracking-wider block mb-1 font-display">
+            <span className="text-[11px] font-bold text-primary uppercase tracking-wider block mb-1 font-display">
               Administrators
             </span>
-            <div className="text-2xl font-bold font-mono text-burnt-orange">
+            <div className="text-3xl font-bold font-mono text-primary tracking-tight">
               {loading ? '...' : counts.admins}
             </div>
-            <span className="text-[10px] text-warm-gray-400 mt-0.5 block">
+            <span className="text-[11px] text-slate-500 mt-1 block">
               Full governance & approval access
             </span>
           </div>
-          <div className="w-10 h-10 rounded-sm bg-burnt-orange/10 border border-burnt-orange/20 flex items-center justify-center text-burnt-orange">
-            <Shield className="w-5 h-5" />
+          <div className="w-12 h-12 rounded-2xl bg-primary-light border border-primary-border flex items-center justify-center text-primary shadow-xs">
+            <Shield className="w-6 h-6" />
           </div>
         </div>
 
         {/* Revenue Operators */}
-        <div className="bg-surface border border-border rounded-md p-4 shadow-fintech-card flex items-center justify-between">
+        <div className="bg-surface border border-border/80 rounded-2xl p-5 shadow-fintech-card flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-medium text-warm-gray-500 uppercase tracking-wider block mb-1 font-display">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 font-display">
               Revenue Operators
             </span>
-            <div className="text-2xl font-bold font-mono text-moss-green-dark">
+            <div className="text-3xl font-bold font-mono text-navy tracking-tight">
               {loading ? '...' : counts.operators}
             </div>
-            <span className="text-[10px] text-warm-gray-400 mt-0.5 block">
+            <span className="text-[11px] text-slate-500 mt-1 block">
               Operational & execution access
             </span>
           </div>
-          <div className="w-10 h-10 rounded-sm bg-moss-green-subtle border border-moss-green/20 flex items-center justify-center text-moss-green-dark">
-            <ShieldCheck className="w-5 h-5" />
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+            <ShieldCheck className="w-6 h-6" />
           </div>
         </div>
       </div>
 
       {/* Main Users Table Section */}
-      <div className="bg-surface rounded-md border border-border shadow-fintech-card overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-border/80 shadow-fintech-card overflow-hidden">
         {/* Table Filters Header */}
-        <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-warm-gray-50/50">
+        <div className="p-4 border-b border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
           {/* Search Input */}
           <div className="relative flex-1 max-w-sm">
-            <Search className="w-3.5 h-3.5 text-warm-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by name or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-medium"
             />
           </div>
 
           {/* Role Filter & Refresh Button */}
           <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-sm border border-border bg-surface p-0.5 text-xs">
+            <div className="inline-flex rounded-xl border border-border bg-surface p-1 text-xs shadow-2xs">
               <button
                 type="button"
                 onClick={() => setRoleFilter('ALL')}
-                className={`px-2.5 py-1 rounded-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
                   roleFilter === 'ALL'
-                    ? 'bg-warm-gray-200 text-graphite font-semibold'
-                    : 'text-warm-gray-500 hover:text-graphite'
+                    ? 'bg-slate-100 text-navy'
+                    : 'text-slate-500 hover:text-navy'
                 }`}
               >
                 All ({counts.total})
@@ -257,10 +255,10 @@ export const AdminUsers: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRoleFilter('admin')}
-                className={`px-2.5 py-1 rounded-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
                   roleFilter === 'admin'
-                    ? 'bg-burnt-orange/15 text-burnt-orange font-semibold'
-                    : 'text-warm-gray-500 hover:text-graphite'
+                    ? 'bg-primary-light text-primary border border-primary-border'
+                    : 'text-slate-500 hover:text-navy'
                 }`}
               >
                 Admins ({counts.admins})
@@ -268,10 +266,10 @@ export const AdminUsers: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRoleFilter('operator')}
-                className={`px-2.5 py-1 rounded-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
                   roleFilter === 'operator'
-                    ? 'bg-warm-gray-200 text-graphite font-semibold'
-                    : 'text-warm-gray-500 hover:text-graphite'
+                    ? 'bg-slate-100 text-navy'
+                    : 'text-slate-500 hover:text-navy'
                 }`}
               >
                 Operators ({counts.operators})
@@ -283,7 +281,7 @@ export const AdminUsers: React.FC = () => {
               onClick={fetchUsers}
               disabled={loading}
               title="Refresh User Directory"
-              className="p-1.5 rounded-sm border border-border hover:bg-warm-gray-100 text-warm-gray-600 hover:text-graphite transition-colors disabled:opacity-50"
+              className="p-2 rounded-xl border border-border hover:bg-slate-100 text-slate-600 hover:text-navy transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -293,7 +291,7 @@ export const AdminUsers: React.FC = () => {
         {/* User Directory Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-warm-gray-50 border-b border-border text-[11px] font-semibold text-warm-gray-500 uppercase tracking-wider font-display">
+            <thead className="bg-slate-50 border-b border-border text-[10px] font-bold text-slate-500 uppercase tracking-wider font-display">
               <tr>
                 <th className="py-3 px-4">User</th>
                 <th className="py-3 px-4">Authentication</th>
@@ -304,20 +302,20 @@ export const AdminUsers: React.FC = () => {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/60">
               {loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={hasStatusColumn ? 7 : 6} className="py-12 text-center text-warm-gray-500">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-burnt-orange mb-2" />
-                    <span>Loading workspace user directory...</span>
+                  <td colSpan={hasStatusColumn ? 7 : 6} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
+                    <span className="font-medium">Loading workspace user directory...</span>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={hasStatusColumn ? 7 : 6} className="py-10 text-center text-warm-gray-500">
-                    <Users className="w-8 h-8 text-warm-gray-400 mx-auto mb-2 opacity-60" />
-                    <p className="font-semibold text-graphite">No users found</p>
-                    <p className="text-xs text-warm-gray-400 mt-0.5">
+                  <td colSpan={hasStatusColumn ? 7 : 6} className="py-12 text-center text-slate-500">
+                    <Users className="w-8 h-8 text-slate-300 mx-auto mb-2 opacity-60" />
+                    <p className="font-bold text-navy">No users found</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
                       No accounts matched your search or role filter criteria.
                     </p>
                   </td>
@@ -337,34 +335,34 @@ export const AdminUsers: React.FC = () => {
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-warm-gray-50/70 transition-colors"
+                      className="hover:bg-slate-50/60 transition-colors"
                     >
                       {/* Name and Email */}
-                      <td className="py-3 px-4">
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           {item.avatar_url ? (
                             <img
                               src={item.avatar_url}
                               alt={item.full_name || 'User'}
-                              className="w-8 h-8 rounded-sm object-cover border border-border"
+                              className="w-8 h-8 rounded-xl object-cover border border-border"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-sm bg-burnt-orange text-white flex items-center justify-center font-bold text-xs font-display flex-shrink-0">
+                            <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-xs font-display flex-shrink-0 shadow-2xs">
                               {initials}
                             </div>
                           )}
                           <div className="overflow-hidden">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-graphite block truncate">
+                              <span className="font-bold text-navy block truncate">
                                 {item.full_name || item.email?.split('@')[0] || 'RecoverAI User'}
                               </span>
                               {isCurrent && (
-                                <span className="px-1.5 py-0.2 bg-warm-gray-200 text-warm-gray-700 text-[9px] font-mono rounded-xs">
+                                <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[9px] font-mono font-bold rounded-full">
                                   You
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-warm-gray-500 font-mono block truncate">
+                            <span className="text-[11px] text-slate-500 font-mono block truncate">
                               {item.email}
                             </span>
                           </div>
@@ -372,78 +370,78 @@ export const AdminUsers: React.FC = () => {
                       </td>
 
                       {/* Authentication Provider */}
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-warm-gray-100 border border-border rounded-sm text-[11px] font-medium text-warm-gray-700">
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 border border-border rounded-full text-[11px] font-semibold text-slate-700">
                           {item.provider === 'Google' ? (
-                            <span className="font-semibold text-burnt-orange">Google OAuth</span>
+                            <span className="font-bold text-primary">Google OAuth</span>
                           ) : item.provider === 'Email' ? (
-                            <span className="font-mono text-warm-gray-600">Email & Password</span>
+                            <span className="font-mono text-slate-600">Email & Password</span>
                           ) : (
-                            <span className="font-medium text-warm-gray-700">{item.provider}</span>
+                            <span className="font-semibold text-slate-700">{item.provider}</span>
                           )}
                         </span>
                       </td>
 
                       {/* Role */}
-                      <td className="py-3 px-4">
+                      <td className="py-3.5 px-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[11px] font-semibold border ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
                             isItemAdmin
-                              ? 'bg-burnt-orange/15 text-burnt-orange border-burnt-orange/30'
-                              : 'bg-warm-gray-100 text-warm-gray-700 border-warm-gray-200'
+                              ? 'bg-primary-light text-primary border-primary-border'
+                              : 'bg-slate-100 text-slate-700 border-border'
                           }`}
                         >
                           {isItemAdmin ? (
-                            <Shield className="w-3 h-3 text-burnt-orange" />
+                            <Shield className="w-3 h-3 text-primary" />
                           ) : (
-                            <ShieldCheck className="w-3 h-3 text-warm-gray-500" />
+                            <ShieldCheck className="w-3 h-3 text-slate-500" />
                           )}
                           <span>{isItemAdmin ? 'Administrator' : 'Revenue Operator'}</span>
                         </span>
                       </td>
 
                       {/* Created Date */}
-                      <td className="py-3 px-4 font-mono text-[11px] text-warm-gray-600">
+                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500">
                         {formatDate(item.created_at)}
                       </td>
 
                       {/* Last Sign In */}
-                      <td className="py-3 px-4 font-mono text-[11px] text-warm-gray-600">
+                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500">
                         {item.last_sign_in_at ? formatDate(item.last_sign_in_at) : 'Never'}
                       </td>
 
-                      {/* Status (rendered conditionally only when real status exists) */}
+                      {/* Status */}
                       {hasStatusColumn && (
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-4">
                           {item.status === 'Active' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-moss-green-light text-moss-green-dark border border-moss-green/20 text-[10px] font-semibold font-mono">
-                              <span className="w-1.5 h-1.5 rounded-full bg-moss-green animate-pulse" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold font-mono">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                               Active
                             </span>
                           ) : item.status === 'Suspended' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-brick-red-light text-brick-red-dark border border-brick-red/20 text-[10px] font-semibold font-mono">
-                              <span className="w-1.5 h-1.5 rounded-full bg-brick-red" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold font-mono">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                               Suspended
                             </span>
                           ) : item.status === 'Unconfirmed' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold font-mono">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold font-mono">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               Unconfirmed
                             </span>
                           ) : (
-                            <span className="text-warm-gray-400 font-mono text-[11px]">—</span>
+                            <span className="text-slate-400 font-mono text-[11px]">—</span>
                           )}
                         </td>
                       )}
 
                       {/* Actions */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right">
                         {isItemAdmin ? (
                           <button
                             type="button"
                             onClick={() => handleOpenRoleModal(item, 'operator')}
                             disabled={actionInProgressId === item.id}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-warm-gray-600 hover:text-brick-red hover:bg-brick-red-light/60 border border-border hover:border-brick-red/30 rounded-sm transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-border hover:border-rose-200 rounded-xl transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
                           >
                             {actionInProgressId === item.id ? (
                               <RefreshCw className="w-3 h-3 animate-spin" />
@@ -457,7 +455,7 @@ export const AdminUsers: React.FC = () => {
                             type="button"
                             onClick={() => handleOpenRoleModal(item, 'admin')}
                             disabled={actionInProgressId === item.id}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-burnt-orange bg-burnt-orange/10 hover:bg-burnt-orange/20 border border-burnt-orange/30 rounded-sm transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl transition-all shadow-fintech-purple disabled:opacity-50 cursor-pointer"
                           >
                             {actionInProgressId === item.id ? (
                               <RefreshCw className="w-3 h-3 animate-spin" />
@@ -479,18 +477,18 @@ export const AdminUsers: React.FC = () => {
 
       {/* Confirmation Dialog Modal */}
       {selectedUserForRoleChange && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-graphite/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-surface border border-border rounded-md shadow-fintech-modal w-full max-w-md p-6 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-sm bg-burnt-orange/10 border border-burnt-orange/30 flex items-center justify-center text-burnt-orange">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface border border-border/80 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-border/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary-light border border-primary-border flex items-center justify-center text-primary shadow-xs">
                   <Shield className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold font-display text-graphite">
+                  <h3 className="text-base font-bold font-display text-navy">
                     Confirm Role Assignment
                   </h3>
-                  <span className="text-[11px] text-warm-gray-500">
+                  <span className="text-[11px] text-slate-500">
                     Workspace Governance & Access Control
                   </span>
                 </div>
@@ -498,57 +496,57 @@ export const AdminUsers: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedUserForRoleChange(null)}
-                className="p-1 rounded-sm text-warm-gray-400 hover:text-graphite hover:bg-warm-gray-100"
+                className="p-1 rounded-xl text-slate-400 hover:text-navy hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
-              <p className="text-warm-gray-700 leading-relaxed">
+              <p className="text-slate-600 leading-relaxed">
                 Are you sure you want to change the role for{' '}
-                <strong className="text-graphite font-semibold">
+                <strong className="text-navy font-bold">
                   {selectedUserForRoleChange.full_name || selectedUserForRoleChange.email}
                 </strong>
                 ?
               </p>
 
-              <div className="p-3 bg-warm-gray-50 border border-border rounded-sm flex items-center justify-between">
+              <div className="p-3.5 bg-slate-50 border border-border rounded-xl flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-warm-gray-500 block uppercase font-mono">Current Role</span>
-                  <span className="font-semibold text-graphite">
+                  <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Current Role</span>
+                  <span className="font-bold text-navy">
                     {selectedUserForRoleChange.role === 'admin' ? 'Administrator' : 'Revenue Operator'}
                   </span>
                 </div>
-                <ArrowRightLeft className="w-4 h-4 text-warm-gray-400" />
+                <ArrowRightLeft className="w-4 h-4 text-slate-400" />
                 <div>
-                  <span className="text-[10px] text-burnt-orange block uppercase font-mono">New Role</span>
-                  <span className="font-bold text-burnt-orange">
+                  <span className="text-[10px] text-primary block uppercase font-mono font-bold">New Role</span>
+                  <span className="font-bold text-primary">
                     {targetRole === 'admin' ? 'Administrator' : 'Revenue Operator'}
                   </span>
                 </div>
               </div>
 
               {selectedUserForRoleChange.role === 'admin' && targetRole === 'operator' && (
-                <div className="p-3 bg-muted-amber-subtle border border-muted-amber/30 rounded-sm text-[11px] text-muted-amber-dark flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
                   <span>
                     Demoting an Administrator removes their access to the User Management console and high-ticket guardrail approvals.
                   </span>
                 </div>
               )}
 
-              <p className="text-[11px] text-warm-gray-500">
+              <p className="text-[11px] text-slate-500">
                 This modification will be immediately enforced and logged in the immutable Audit Trail.
               </p>
             </div>
 
-            <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
+            <div className="pt-3 border-t border-border/70 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setSelectedUserForRoleChange(null)}
                 disabled={actionInProgressId !== null}
-                className="px-3.5 py-1.5 rounded-sm border border-border text-xs font-medium text-warm-gray-700 hover:bg-warm-gray-100 transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-navy hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -556,7 +554,7 @@ export const AdminUsers: React.FC = () => {
                 type="button"
                 onClick={handleConfirmRoleChange}
                 disabled={actionInProgressId !== null}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-sm bg-burnt-orange hover:bg-burnt-orange-hover text-white text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-fintech-purple transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {actionInProgressId !== null ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />

@@ -19,7 +19,6 @@ import {
 import { useAuth } from '../../context/AuthContext'
 
 interface SidebarProps {
-
   isOpen: boolean
   onCloseMobile?: () => void
 }
@@ -44,36 +43,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { label: 'Account', path: '/account', icon: User },
   ]
 
-
   return (
     <>
       {/* Mobile Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-graphite/50 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-navy/40 backdrop-blur-xs lg:hidden transition-opacity"
           onClick={onCloseMobile}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-dark-surface text-warm-gray-300 border-r border-warm-gray-800 flex flex-col transition-transform duration-normal ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-surface text-navy border-r border-border flex flex-col transition-transform duration-normal ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 px-5 flex items-center justify-between border-b border-warm-gray-800/80">
+        <div className="h-18 px-5 flex items-center justify-between border-b border-border/80 bg-surface">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-sm bg-burnt-orange flex items-center justify-center text-surface font-bold font-display shadow-sm">
-              <Shield className="w-4 h-4 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-white font-bold font-display shadow-fintech-purple">
+              <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center">
-                <span className="font-bold text-surface text-base tracking-tight font-display">
-                  Recover<span className="text-burnt-orange">AI</span>
+                <span className="font-bold text-navy text-lg tracking-tight font-display">
+                  Recover<span className="text-primary font-extrabold">AI</span>
                 </span>
               </div>
-              <span className="text-[10px] text-warm-gray-400 block tracking-tight">
+              <span className="text-[10px] text-slate-500 block tracking-wider uppercase font-mono font-medium">
                 Autonomous Revenue Ops
               </span>
             </div>
@@ -81,9 +79,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         </div>
 
         {/* Navigation List */}
-        <div className="flex-1 py-4 px-3 overflow-y-auto space-y-1">
-          <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-warm-gray-500 font-display">
-            Operations
+        <div className="flex-1 py-5 px-3.5 overflow-y-auto space-y-1">
+          <div className="px-3 pb-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-display">
+            Platform Navigation
           </div>
           {navItems.map((item) => {
             const Icon = item.icon
@@ -93,27 +91,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
                 to={item.path}
                 onClick={onCloseMobile}
                 className={({ isActive }) =>
-                  `flex items-center justify-between px-3 py-2 rounded-sm text-xs font-medium transition-all duration-fast ${
+                  `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all duration-normal group ${
                     isActive
-                      ? 'bg-burnt-orange/15 text-surface border-l-2 border-burnt-orange font-semibold'
-                      : 'text-warm-gray-400 hover:text-surface hover:bg-warm-gray-800/60'
+                      ? 'bg-[#F1EAFE] text-primary font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-primary hover:bg-[#F7F3FF] font-medium'
                   }`
                 }
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span
-                    className={`px-1.5 py-0.2 text-[10px] font-mono rounded-sm ${
-                      item.badge === 'Live'
-                        ? 'bg-moss-green/20 text-moss-green-light border border-moss-green/30 animate-pulse'
-                        : 'bg-burnt-orange/20 text-burnt-orange-light border border-burnt-orange/30'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
+                {({ isActive }) => (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <Icon
+                        className={`w-4 h-4 flex-shrink-0 transition-colors ${
+                          isActive ? 'text-primary' : 'text-slate-500 group-hover:text-primary'
+                        }`}
+                      />
+                      <span className="tracking-normal">{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span
+                        className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-semibold ${
+                          item.badge === 'Live'
+                            ? 'bg-moss-green-light text-moss-green-dark border border-moss-green/30 animate-pulse'
+                            : isActive
+                            ? 'bg-primary text-white font-bold'
+                            : 'bg-surface-blue text-primary border border-surface-blue-border'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
                 )}
               </NavLink>
             )
@@ -121,16 +129,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         </div>
 
         {/* Footer Gateway Status */}
-        <div className="p-3.5 border-t border-warm-gray-800 bg-warm-gray-900/40">
-          <div className="p-2.5 rounded-sm bg-warm-gray-800/70 border border-warm-gray-700/60 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-moss-green animate-pulse" />
+        <div className="p-4 border-t border-border/80 bg-surface">
+          <div className="p-3.5 rounded-xl bg-surface-blue border border-surface-blue-border flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20" />
               <div>
-                <span className="text-[11px] font-medium text-surface block">Razorpay Test Mode</span>
-                <span className="text-[10px] text-warm-gray-400 font-mono">Gateway Sync: Active</span>
+                <span className="text-[11px] font-bold text-navy block font-display">Razorpay Test Mode</span>
+                <span className="text-[10px] text-slate-500 font-mono font-medium">Gateway Sync: Active</span>
               </div>
             </div>
-            <CreditCard className="w-4 h-4 text-warm-gray-400" />
+            <CreditCard className="w-4 h-4 text-primary" />
           </div>
         </div>
       </aside>

@@ -15,23 +15,23 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`flex flex-col items-center justify-center p-8 text-center bg-brick-red-subtle rounded-md border border-brick-red/20 ${className}`}>
-      <div className="w-10 h-10 rounded-full bg-brick-red-light flex items-center justify-center text-brick-red mb-3">
-        <AlertTriangle className="w-5 h-5" />
+    <div className={`flex flex-col items-center justify-center p-8 text-center bg-rose-50/50 rounded-2xl border border-rose-200/80 ${className}`}>
+      <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 mb-3 shadow-xs">
+        <AlertTriangle className="w-6 h-6" />
       </div>
-      <h3 className="text-sm font-semibold text-brick-red-dark">
+      <h3 className="text-base font-bold text-rose-900 font-display">
         {title}
       </h3>
-      <p className="mt-1 text-xs text-warm-gray-700 max-w-md">
+      <p className="mt-1.5 text-xs text-slate-600 max-w-md">
         {message}
       </p>
       {onRetry && (
         <button
           type="button"
           onClick={onRetry}
-          className="mt-3.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface text-graphite hover:bg-warm-gray-100 border border-border rounded-sm text-xs font-medium transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-burnt-orange"
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-surface text-navy hover:bg-slate-50 border border-border rounded-xl text-xs font-semibold transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw className="w-3.5 h-3.5 text-primary" />
           <span>Try Again</span>
         </button>
       )}

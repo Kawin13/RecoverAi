@@ -111,12 +111,30 @@ export const AuditTrail: React.FC = () => {
     }
     init()
 
-    const unsubscribe = subscribe('*', () => {
+    const onAuditRefresh = () => {
       fetchCases(true)
       fetchAuditLogs(true)
+    }
+
+    const unsubAudit = subscribe('AUDIT_LOG_CREATED', onAuditRefresh)
+    const unsubTransition = subscribe('RECOVERY_AGENT_TRANSITION', onAuditRefresh)
+    const unsubCase = subscribe('RECOVERY_CASE_UPDATED', onAuditRefresh)
+    const unsubGuardrail = subscribe('GUARDRAIL_TRIGGERED', onAuditRefresh)
+    const unsubPay = subscribe('PAYMENT_RECEIVED', () => {
+      onAuditRefresh()
+      if (selectedCaseId) fetchChronology(selectedCaseId)
     })
-    return unsubscribe
-  }, [subscribe])
+    const unsubResync = subscribe('RECONNECT_RESYNC', onAuditRefresh)
+
+    return () => {
+      unsubAudit()
+      unsubTransition()
+      unsubCase()
+      unsubGuardrail()
+      unsubPay()
+      unsubResync()
+    }
+  }, [subscribe, selectedCaseId])
 
   useEffect(() => {
     if (selectedCaseId) {
@@ -153,27 +171,27 @@ export const AuditTrail: React.FC = () => {
     switch (actor) {
       case 'AUTONOMOUS_AGENT':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-medium bg-burnt-orange-light text-burnt-orange-dark border border-burnt-orange/30">
-            <Bot className="w-3 h-3" /> Autonomous Agent
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary-light text-primary border border-primary-border">
+            <Bot className="w-3 h-3 text-primary" /> Autonomous Agent
           </span>
         )
       case 'SYSTEM_GUARDRAIL':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-medium bg-muted-amber-light text-muted-amber-dark border border-muted-amber/30">
-            <Shield className="w-3 h-3" /> System Guardrail
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+            <Shield className="w-3 h-3 text-amber-600" /> System Guardrail
           </span>
         )
       case 'MERCHANT_ADMIN':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-medium bg-moss-green-light text-moss-green-dark border border-moss-green/30">
-            <User className="w-3 h-3" /> Customer / Admin
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <User className="w-3 h-3 text-emerald-600" /> Customer / Admin
           </span>
         )
       case 'WEBHOOK_EVENT':
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-medium bg-warm-gray-200 text-warm-gray-800 border border-border">
-            <Webhook className="w-3 h-3" /> Gateway Webhook
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-border">
+            <Webhook className="w-3 h-3 text-slate-500" /> Gateway Webhook
           </span>
         )
     }
@@ -182,33 +200,33 @@ export const AuditTrail: React.FC = () => {
   const getStepIcon = (stepKey: string) => {
     switch (stepKey) {
       case 'PAYMENT_EVENT_RECEIVED':
-        return <AlertCircle className="w-4 h-4 text-burnt-orange" />
+        return <AlertCircle className="w-4 h-4 text-primary" />
       case 'FAILURE_DIAGNOSED':
-        return <Activity className="w-4 h-4 text-muted-amber" />
+        return <Activity className="w-4 h-4 text-primary" />
       case 'FEATURES_CALCULATED':
-        return <Sliders className="w-4 h-4 text-graphite" />
+        return <Sliders className="w-4 h-4 text-navy" />
       case 'MODEL_VERSION':
-        return <Cpu className="w-4 h-4 text-burnt-orange" />
+        return <Cpu className="w-4 h-4 text-primary" />
       case 'PROBABILITIES_GENERATED':
-        return <Calculator className="w-4 h-4 text-graphite" />
+        return <Calculator className="w-4 h-4 text-navy" />
       case 'ERV_VALUES':
-        return <CheckCircle2 className="w-4 h-4 text-moss-green" />
+        return <CheckCircle2 className="w-4 h-4 text-emerald-600" />
       case 'STRATEGY_SELECTED':
-        return <CheckCircle2 className="w-4 h-4 text-burnt-orange" />
+        return <CheckCircle2 className="w-4 h-4 text-primary" />
       case 'GUARDRAIL_RESULT':
-        return <ShieldCheck className="w-4 h-4 text-moss-green" />
+        return <ShieldCheck className="w-4 h-4 text-emerald-600" />
       case 'LLM_EXPLANATION':
-        return <Sparkles className="w-4 h-4 text-burnt-orange" />
+        return <Sparkles className="w-4 h-4 text-primary" />
       case 'ACTION_EXECUTED':
-        return <Send className="w-4 h-4 text-graphite" />
+        return <Send className="w-4 h-4 text-navy" />
       case 'CUSTOMER_INTERACTION':
-        return <Smartphone className="w-4 h-4 text-muted-amber" />
+        return <Smartphone className="w-4 h-4 text-primary" />
       case 'PAYMENT_RESULT':
-        return <CreditCard className="w-4 h-4 text-moss-green" />
+        return <CreditCard className="w-4 h-4 text-emerald-600" />
       case 'CASE_CLOSED':
-        return <CheckCircle2 className="w-4 h-4 text-moss-green" />
+        return <CheckCircle2 className="w-4 h-4 text-emerald-600" />
       default:
-        return <Clock className="w-4 h-4 text-warm-gray-500" />
+        return <Clock className="w-4 h-4 text-slate-400" />
     }
   }
 
@@ -226,21 +244,21 @@ export const AuditTrail: React.FC = () => {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header & Tabs */}
       <SectionHeader
         title="Audit Trail & Decision Traceability Console"
         subtitle="Chronological, second-by-second forensic record of autonomous decisions, guardrails, and financial settlements"
         actions={
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-warm-gray-100 p-1 rounded-sm border border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-border">
               <button
                 type="button"
                 onClick={() => setActiveTab('CASES')}
-                className={`px-3 py-1 text-xs font-medium rounded-xs transition-colors ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === 'CASES'
-                    ? 'bg-burnt-orange text-white shadow-xs'
-                    : 'text-warm-gray-600 hover:text-graphite'
+                    ? 'bg-primary text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-navy'
                 }`}
               >
                 Case Forensics Timeline (13 Stages)
@@ -248,10 +266,10 @@ export const AuditTrail: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('GLOBAL_LOGS')}
-                className={`px-3 py-1 text-xs font-medium rounded-xs transition-colors ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === 'GLOBAL_LOGS'
-                    ? 'bg-burnt-orange text-white shadow-xs'
-                    : 'text-warm-gray-600 hover:text-graphite'
+                    ? 'bg-primary text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-navy'
                 }`}
               >
                 Global System Event Ledger
@@ -263,9 +281,9 @@ export const AuditTrail: React.FC = () => {
                 fetchCases(false)
                 fetchAuditLogs(false)
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border text-graphite rounded-sm text-xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className="w-3.5 h-3.5 text-primary" />
               <span>Sync</span>
             </button>
           </div>
@@ -273,7 +291,7 @@ export const AuditTrail: React.FC = () => {
       />
 
       {loading ? (
-        <div className="bg-surface p-6 rounded-md border border-border">
+        <div className="bg-surface p-6 rounded-2xl border border-border/80 shadow-fintech-card">
           <SkeletonLoader variant="row" count={6} />
         </div>
       ) : error ? (
@@ -284,16 +302,16 @@ export const AuditTrail: React.FC = () => {
           {/* Left Column: Case Browser (4 cols) */}
           <div className="lg:col-span-4 space-y-3">
             {/* Search & Filter Bar */}
-            <div className="bg-surface p-3 rounded-md border border-border shadow-fintech-card space-y-2">
+            <div className="bg-surface p-4 rounded-2xl border border-border/80 shadow-fintech-card space-y-3">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-warm-gray-400" />
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search Tx ID, Customer, Order..."
                   value={caseSearch}
                   onChange={(e) => setCaseSearch(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && fetchCases(false)}
-                  className="w-full text-xs pl-8 pr-2.5 py-1.5 bg-warm-gray-50 border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+                  className="w-full text-xs pl-9 pr-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-medium"
                 />
               </div>
 
@@ -301,7 +319,7 @@ export const AuditTrail: React.FC = () => {
                 <select
                   value={caseStatusFilter}
                   onChange={(e) => setCaseStatusFilter(e.target.value)}
-                  className="w-full text-xs px-2 py-1 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+                  className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-semibold"
                 >
                   <option value="ALL">All Statuses</option>
                   <option value="RECOVERED">Recovered</option>
@@ -314,7 +332,7 @@ export const AuditTrail: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => fetchCases(false)}
-                  className="px-2.5 py-1 bg-warm-gray-100 hover:bg-warm-gray-200 border border-border text-xs rounded-sm text-graphite"
+                  className="px-3.5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-fintech-purple transition-all cursor-pointer"
                 >
                   Filter
                 </button>
@@ -322,9 +340,9 @@ export const AuditTrail: React.FC = () => {
             </div>
 
             {/* Cases List */}
-            <div className="bg-surface rounded-md border border-border shadow-fintech-card divide-y divide-border/60 max-h-[700px] overflow-y-auto">
+            <div className="bg-surface rounded-2xl border border-border/80 shadow-fintech-card p-2 space-y-1.5 max-h-[700px] overflow-y-auto">
               {cases.length === 0 ? (
-                <div className="p-6 text-center text-xs text-warm-gray-500">
+                <div className="p-8 text-center text-xs text-slate-400">
                   No recovery cases match the search criteria.
                 </div>
               ) : (
@@ -334,39 +352,39 @@ export const AuditTrail: React.FC = () => {
                     <div
                       key={c.case_id}
                       onClick={() => setSelectedCaseId(c.case_id)}
-                      className={`p-3.5 cursor-pointer transition-all ${
+                      className={`p-3.5 rounded-xl cursor-pointer transition-all ${
                         isSelected
-                          ? 'bg-burnt-orange-light/30 border-l-4 border-l-burnt-orange'
-                          : 'hover:bg-warm-gray-50'
+                          ? 'bg-surface-blue/40 border-primary ring-2 ring-primary/20 shadow-2xs'
+                          : 'border border-border/40 hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-xs text-graphite font-display">
+                        <span className="font-bold text-xs text-navy font-display">
                           {c.customer_name}
                         </span>
-                        <span className="font-mono text-xs font-bold text-graphite">
+                        <span className="font-mono text-xs font-bold text-navy">
                           ₹{c.amount.toLocaleString('en-IN')}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-warm-gray-500 mb-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
                         <span className="font-mono">{c.order_id}</span>
-                        <span className="px-1.5 py-0.2 bg-warm-gray-100 border border-border text-[10px] rounded-xs font-mono">
+                        <span className="px-2 py-0.5 bg-slate-100 border border-border text-[10px] rounded-full font-mono font-bold text-slate-600">
                           {c.payment_method}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-mono bg-warm-gray-100 text-warm-gray-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-slate-100 text-slate-600">
                           {c.failure_reason}
                         </span>
                         <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             c.status === 'RECOVERED'
-                              ? 'bg-moss-green-light text-moss-green-dark'
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                               : c.status === 'IN_PROGRESS'
-                              ? 'bg-muted-amber-light text-muted-amber-dark'
-                              : 'bg-warm-gray-200 text-warm-gray-700'
+                              ? 'bg-primary-light text-primary border border-primary-border'
+                              : 'bg-slate-100 text-slate-700'
                           }`}
                         >
                           {c.status}
@@ -382,33 +400,33 @@ export const AuditTrail: React.FC = () => {
           {/* Right Column: 13-Stage Chronological Decision Trail (8 cols) */}
           <div className="lg:col-span-8 space-y-4">
             {timelineLoading ? (
-              <div className="bg-surface p-6 rounded-md border border-border shadow-fintech-card">
+              <div className="bg-surface p-6 rounded-2xl border border-border/80 shadow-fintech-card">
                 <SkeletonLoader variant="card" count={3} />
               </div>
             ) : caseTimeline ? (
               <>
                 {/* Case Header Card */}
-                <div className="bg-surface p-4 rounded-md border border-border shadow-fintech-card space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+                <div className="bg-surface p-6 rounded-2xl border border-border/80 shadow-fintech-card space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-base font-bold text-graphite font-display">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-bold text-navy font-display">
                           {caseTimeline.customer_name}
                         </h2>
-                        <span className="px-1.5 py-0.5 rounded-xs text-[10px] font-mono font-bold bg-burnt-orange-light text-burnt-orange-dark border border-burnt-orange/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-primary-light text-primary border border-primary-border">
                           {caseTimeline.customer_tier}
                         </span>
                         <span
-                          className={`px-2 py-0.5 rounded-xs text-[11px] font-bold ${
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                             caseTimeline.status === 'RECOVERED'
-                              ? 'bg-moss-green-light text-moss-green-dark'
-                              : 'bg-muted-amber-light text-muted-amber-dark'
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                              : 'bg-primary-light text-primary border border-primary-border'
                           }`}
                         >
                           {caseTimeline.status}
                         </span>
                       </div>
-                      <p className="text-xs text-warm-gray-500 font-mono mt-0.5">
+                      <p className="text-xs text-slate-500 font-mono mt-1">
                         Case ID: {caseTimeline.case_id} • Order: {caseTimeline.order_id}
                       </p>
                     </div>
@@ -418,16 +436,16 @@ export const AuditTrail: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleCopyTxId(caseTimeline.transaction_id)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-surface hover:bg-warm-gray-100 border border-border rounded-sm text-xs font-medium text-graphite transition-colors shadow-xs"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface hover:bg-slate-50 border border-border rounded-xl text-xs font-semibold text-navy transition-colors shadow-2xs cursor-pointer"
                       >
                         {copiedTxId ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-moss-green" />
-                            <span className="text-moss-green font-semibold">Copied!</span>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-700 font-bold">Copied!</span>
                           </>
                         ) : (
                           <>
-                            <Copy className="w-3.5 h-3.5 text-warm-gray-500" />
+                            <Copy className="w-3.5 h-3.5 text-slate-400" />
                             <span>Copy Tx ID</span>
                           </>
                         )}
@@ -436,7 +454,7 @@ export const AuditTrail: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleExportJSON}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-graphite hover:bg-graphite/90 text-white rounded-sm text-xs font-medium transition-colors shadow-xs"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span>Export Audit (JSON)</span>
@@ -445,28 +463,28 @@ export const AuditTrail: React.FC = () => {
                   </div>
 
                   {/* Summary Bar */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div>
-                      <span className="text-warm-gray-500 block text-[10px] uppercase font-semibold">At-Risk Amount</span>
-                      <span className="font-mono font-bold text-graphite">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 text-xs">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-border">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">At-Risk Amount</span>
+                      <span className="font-mono font-bold text-navy text-sm mt-0.5 block">
                         ₹{caseTimeline.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-warm-gray-500 block text-[10px] uppercase font-semibold">Recovery Likelihood</span>
-                      <span className="font-mono font-bold text-moss-green-dark">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-border">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Recovery Likelihood</span>
+                      <span className="font-mono font-bold text-primary text-sm mt-0.5 block">
                         {Math.round(caseTimeline.recovery_probability * 100)}%
                       </span>
                     </div>
-                    <div>
-                      <span className="text-warm-gray-500 block text-[10px] uppercase font-semibold">Expected Net ERV</span>
-                      <span className="font-mono font-bold text-moss-green-dark">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-border">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Expected Net ERV</span>
+                      <span className="font-mono font-bold text-emerald-600 text-sm mt-0.5 block">
                         ₹{caseTimeline.expected_recovery_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-warm-gray-500 block text-[10px] uppercase font-semibold">Selected Strategy</span>
-                      <span className="font-medium text-graphite truncate block">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-border">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Selected Strategy</span>
+                      <span className="font-bold text-navy truncate block mt-0.5">
                         {caseTimeline.selected_strategy.replace(/_/g, ' ')}
                       </span>
                     </div>
@@ -474,33 +492,33 @@ export const AuditTrail: React.FC = () => {
                 </div>
 
                 {/* Security Redaction Guarantee Banner */}
-                <div className="bg-moss-green-light/40 border border-moss-green/30 rounded-md p-3 flex items-start gap-2.5">
-                  <Lock className="w-4 h-4 text-moss-green-dark mt-0.5 shrink-0" />
-                  <div className="text-xs text-moss-green-dark leading-relaxed">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
+                  <Lock className="w-4 h-4 text-emerald-700 mt-0.5 shrink-0" />
+                  <div className="text-xs text-emerald-900 leading-relaxed">
                     <span className="font-bold">PCI-DSS & RBI Digital Governance Compliance: </span>
                     All raw payment credentials, CVVs, and gateway API keys are strictly redacted.
-                    Card instruments are masked (<code className="font-mono">**** 4242</code>). Every autonomous decision is fully reproducible and traceable.
+                    Card instruments are masked (<code className="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200">**** 4242</code>). Every autonomous decision is fully reproducible and traceable.
                   </div>
                 </div>
 
                 {/* The 13 Chronological Audit Stages Timeline */}
-                <div className="bg-surface p-5 rounded-md border border-border shadow-fintech-card space-y-4">
-                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
-                    <h3 className="text-sm font-bold text-graphite font-display">
+                <div className="bg-surface p-6 rounded-2xl border border-border/80 shadow-fintech-card space-y-5">
+                  <div className="flex items-center justify-between border-b border-border/70 pb-3">
+                    <h3 className="text-base font-bold text-navy font-display">
                       Chronological Decision Chain (13 Traceable Events)
                     </h3>
-                    <span className="text-xs font-mono text-warm-gray-500">
+                    <span className="text-xs font-mono text-slate-500 font-medium">
                       Precision Second-by-Second Logging
                     </span>
                   </div>
 
-                  <div className="relative border-l-2 border-border/80 ml-4 space-y-6 pt-2 pb-2">
+                  <div className="relative border-l-2 border-slate-200 ml-4 space-y-6 pt-2 pb-2">
                     {caseTimeline.chronological_entries.map((entry) => {
                       const isExpanded = expandedPayloads[entry.step] || false
                       return (
                         <div key={entry.step} className="relative pl-6">
                           {/* Dot / Icon */}
-                          <div className="absolute -left-[17px] top-0.5 bg-surface border-2 border-border rounded-full p-1 shadow-xs">
+                          <div className="absolute -left-[17px] top-0.5 bg-surface border-2 border-primary/40 rounded-full p-1 shadow-2xs">
                             {getStepIcon(entry.step_key)}
                           </div>
 
@@ -508,17 +526,17 @@ export const AuditTrail: React.FC = () => {
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs font-bold text-burnt-orange">
+                                <span className="font-mono text-xs font-bold text-primary">
                                   {entry.timestamp}
                                 </span>
-                                <span className="font-semibold text-xs text-graphite">
+                                <span className="font-bold text-xs text-navy font-display">
                                   {entry.title}
                                 </span>
                               </div>
                               {getActorBadge(entry.actor)}
                             </div>
 
-                            <p className="text-xs text-warm-gray-600 leading-relaxed">
+                            <p className="text-xs text-slate-600 leading-relaxed">
                               {entry.summary}
                             </p>
 
@@ -528,18 +546,18 @@ export const AuditTrail: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => togglePayload(entry.step)}
-                                  className="inline-flex items-center gap-1 text-[11px] text-warm-gray-500 hover:text-graphite transition-colors"
+                                  className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-hover font-bold transition-colors cursor-pointer"
                                 >
                                   {isExpanded ? (
-                                    <ChevronDown className="w-3 h-3" />
+                                    <ChevronDown className="w-3.5 h-3.5" />
                                   ) : (
-                                    <ChevronRight className="w-3 h-3" />
+                                    <ChevronRight className="w-3.5 h-3.5" />
                                   )}
                                   <span>{isExpanded ? 'Hide Details' : 'View Details & Evidence'}</span>
                                 </button>
 
                                 {isExpanded && (
-                                  <div className="mt-1.5 bg-warm-gray-900 text-warm-gray-200 p-3 rounded-sm font-mono text-[11px] overflow-x-auto border border-warm-gray-800">
+                                  <div className="mt-2 bg-navy text-slate-200 p-4 rounded-xl font-mono text-[11px] overflow-x-auto border border-slate-800 shadow-md">
                                     <pre>{JSON.stringify(entry.details, null, 2)}</pre>
                                   </div>
                                 )}
@@ -553,7 +571,7 @@ export const AuditTrail: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="bg-surface p-12 text-center rounded-md border border-border text-warm-gray-500 text-xs">
+              <div className="bg-surface p-12 text-center rounded-2xl border border-border/80 text-slate-400 text-xs shadow-fintech-card">
                 Select a recovery case on the left to inspect its complete 13-stage decision trail.
               </div>
             )}
@@ -562,24 +580,24 @@ export const AuditTrail: React.FC = () => {
       ) : (
         /* Global System Audit Log Ledger */
         <div className="space-y-4">
-          <div className="bg-surface p-4 rounded-md border border-border shadow-fintech-card flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-surface p-4 rounded-2xl border border-border/80 shadow-fintech-card flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <Search className="w-3.5 h-3.5 text-warm-gray-400" />
+              <Search className="w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search details, target resources, action types..."
                 value={logSearch}
                 onChange={(e) => setLogSearch(e.target.value)}
-                className="w-full text-xs px-2.5 py-1.5 bg-warm-gray-50 border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+                className="w-full text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-medium"
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-warm-gray-500" />
+              <Filter className="w-3.5 h-3.5 text-slate-500" />
               <select
                 value={filterActor}
                 onChange={(e) => setFilterActor(e.target.value)}
-                className="text-xs px-2.5 py-1.5 bg-surface border border-border rounded-sm text-graphite focus:outline-none focus:border-burnt-orange"
+                className="text-xs px-3 py-2 bg-surface border border-border rounded-xl text-navy focus:outline-none focus:border-primary shadow-2xs font-semibold"
               >
                 <option value="ALL">All Actors</option>
                 <option value="AUTONOMOUS_AGENT">Autonomous Agent</option>
@@ -590,41 +608,41 @@ export const AuditTrail: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-surface rounded-md border border-border overflow-hidden shadow-fintech-card">
+          <div className="bg-surface rounded-2xl border border-border/80 overflow-hidden shadow-fintech-card">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-warm-gray-100/70 border-b border-border text-warm-gray-600 font-semibold uppercase tracking-wider text-[11px]">
-                    <th className="py-3 px-4">Timestamp</th>
-                    <th className="py-3 px-4">Actor</th>
-                    <th className="py-3 px-4">Action Type</th>
-                    <th className="py-3 px-4">Target Resource</th>
-                    <th className="py-3 px-4">Event Details</th>
+                  <tr className="bg-slate-50 border-b border-border text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3.5 px-4">Timestamp</th>
+                    <th className="py-3.5 px-4">Actor</th>
+                    <th className="py-3.5 px-4">Action Type</th>
+                    <th className="py-3.5 px-4">Target Resource</th>
+                    <th className="py-3.5 px-4">Event Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {filteredLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-warm-gray-500">
+                      <td colSpan={5} className="py-10 text-center text-slate-400">
                         No audit logs match the current filters.
                       </td>
                     </tr>
                   ) : (
                     filteredLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-warm-gray-50 transition-colors">
-                        <td className="py-3 px-4 font-mono text-[11px] text-warm-gray-500 whitespace-nowrap">
+                      <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400 whitespace-nowrap">
                           {formatTimeAgo(log.timestamp)}
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-4">
                           {getActorBadge(log.actor)}
                         </td>
-                        <td className="py-3 px-4 font-mono font-semibold text-graphite text-[11px]">
+                        <td className="py-3.5 px-4 font-mono font-bold text-navy text-[11px]">
                           {log.actionType}
                         </td>
-                        <td className="py-3 px-4 font-mono text-warm-gray-600 text-[11px]">
+                        <td className="py-3.5 px-4 font-mono text-slate-600 text-[11px]">
                           {log.targetResource}
                         </td>
-                        <td className="py-3 px-4 text-warm-gray-700 leading-relaxed">
+                        <td className="py-3.5 px-4 text-slate-700 leading-relaxed font-medium">
                           {log.details}
                         </td>
                       </tr>
@@ -639,3 +657,5 @@ export const AuditTrail: React.FC = () => {
     </div>
   )
 }
+
+export default AuditTrail

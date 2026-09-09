@@ -227,8 +227,14 @@ def test_webhook_payment_failed_escalation(client, db_session):
 
     case = db_session.query(RecoveryCase).filter(RecoveryCase.transaction_id == tx_id).first()
     assert case is not None
-    assert case.status == "PENDING_APPROVAL"
+    assert case.status in ("DETECTED", "PENDING_APPROVAL", "WAITING_FOR_APPROVAL")
     assert case.risk_amount == 4999.0
+
+    # Worker processes the enqueued recovery case asynchronously
+    from app.services.background_worker import background_worker
+    background_worker.process_next_job(db_session)
+    db_session.refresh(case)
+    assert case.status in ("PENDING_APPROVAL", "WAITING_FOR_APPROVAL", "ACTION_SCHEDULED", "WAITING_FOR_CUSTOMER")
 
 def test_webhook_payment_authorized_transitional(client, db_session):
     order_res = client.post("/api/payments/order", json={

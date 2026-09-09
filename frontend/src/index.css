@@ -4,21 +4,45 @@
 
 @layer base {
   :root {
-    --color-bg: #F4F1EA;
-    --color-surface: #FFFDF8;
-    --color-dark-surface: #24231F;
-    --color-graphite: #1E1D1A;
-    --color-burnt-orange: #D95D39;
-    --color-moss-green: #3F725B;
-    --color-muted-amber: #C08A3E;
-    --color-brick-red: #A6423A;
-    --color-warm-gray: #77736B;
-    --color-border: #DDD8CE;
+    --color-primary: #6C00FF;
+    --color-primary-hover: #5900D9;
+    --color-primary-light: #F3EBFF;
+    --color-primary-subtle: #F8F4FF;
+
+    --color-navy: #0B122F;
+    --color-navy-light: #162044;
+
+    --color-surface-blue: #EEF4FF;
+    --color-surface-blue-light: #F6F9FF;
+
+    --color-bg: #F8FAFC;
+    --color-surface: #FFFFFF;
+    --color-border: #E2E8F0;
+
+    --color-text-main: #0B122F;
+    --color-text-secondary: #5B647A;
+    --color-text-muted: #94A3B8;
+
+    --color-success: #10B981;
+    --color-success-light: #ECFDF5;
+    --color-warning: #F59E0B;
+    --color-warning-light: #FFFBEB;
+    --color-danger: #EF4444;
+    --color-danger-light: #FEF2F2;
+
+    /* Legacy semantic mapping to prevent breakage */
+    --color-burnt-orange: #6C00FF;
+    --color-moss-green: #10B981;
+    --color-muted-amber: #F59E0B;
+    --color-brick-red: #EF4444;
+    --color-warm-gray: #64748B;
+    --color-graphite: #0B122F;
+    --color-dark-surface: #0B122F;
   }
 
   body {
     background-color: var(--color-bg);
-    color: var(--color-graphite);
+    color: var(--color-navy);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
@@ -31,11 +55,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #DDD8CE;
-    border-radius: 3px;
+    background: #E2E8F0;
+    border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #B5AFA4;
+    background: #CBD5E1;
   }
 }
 
@@ -45,13 +69,21 @@
   }
   
   .fintech-glass {
-    background-color: rgba(255, 253, 248, 0.94);
-    backdrop-filter: blur(8px);
+    background-color: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+  }
+
+  .purple-hero-gradient {
+    background: linear-gradient(135deg, #6C00FF 0%, #7B18FF 50%, #8E2EFF 100%);
+  }
+
+  .soft-blue-gradient {
+    background: linear-gradient(135deg, #EEF4FF 0%, #F5F8FF 100%);
   }
 }
 
 /* Accessible focus ring styling */
 *:focus-visible {
-  outline: 2px solid #D95D39;
+  outline: 2px solid #6C00FF;
   outline-offset: 2px;
 }
