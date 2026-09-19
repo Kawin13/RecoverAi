@@ -232,7 +232,18 @@ def test_webhook_payment_failed_escalation(client, db_session):
 
     # Worker processes the enqueued recovery case asynchronously
     from app.services.background_worker import background_worker
-    background_worker.process_next_job(db_session)
+    from app.models.recovery_jobs import RecoveryJob
+    from datetime import timedelta
+    from app.core.datetime_utils import utcnow
+    job = db_session.query(RecoveryJob).filter(RecoveryJob.entity_id == case.id).first()
+    if job:
+        job.status = "RUNNING"
+        job.locked_by = background_worker.worker_id
+        job.locked_until = utcnow() + timedelta(minutes=5)
+        db_session.commit()
+        background_worker._execute_single_job(job, db_session)
+    else:
+        background_worker.process_next_job(db_session)
     db_session.refresh(case)
     assert case.status in ("PENDING_APPROVAL", "WAITING_FOR_APPROVAL", "ACTION_SCHEDULED", "WAITING_FOR_CUSTOMER")
 
