@@ -18,6 +18,9 @@ router = APIRouter()
 # --- Request / Response Schemas ---
 class WorkspaceCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Name of the new workspace")
+    business_type: Optional[str] = Field("SAAS", description="Business vertical (e.g. E-COMMERCE, SAAS)")
+    timezone: Optional[str] = Field("Asia/Kolkata", description="Workspace timezone")
+    currency: Optional[str] = Field("INR", description="Workspace primary currency")
 
 class WorkspaceSettingsUpdateRequest(BaseModel):
     business_type: Optional[str] = None
@@ -71,7 +74,10 @@ def create_new_workspace(
     return workspace_service.create_workspace(
         user_id=current_user["id"],
         name=payload.name,
-        db=db
+        db=db,
+        business_type=payload.business_type,
+        timezone=payload.timezone,
+        currency=payload.currency
     )
 
 def _verify_workspace_membership(workspace_id: str, user_id: str, db: Session) -> str:

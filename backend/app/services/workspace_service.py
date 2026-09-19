@@ -20,7 +20,14 @@ from app.models.workspace_integrations import WorkspaceIntegration
 from app.models.workspace_invitations import WorkspaceInvitation
 from app.models.profiles import Profile
 
-def create_workspace(user_id: str, name: str, db: Session) -> Dict[str, Any]:
+def create_workspace(
+    user_id: str,
+    name: str,
+    db: Session,
+    business_type: Optional[str] = "SAAS",
+    timezone: Optional[str] = "Asia/Kolkata",
+    currency: Optional[str] = "INR"
+) -> Dict[str, Any]:
     cleaned_name = (name or "").strip()
     if not cleaned_name:
         raise HTTPException(
@@ -35,6 +42,20 @@ def create_workspace(user_id: str, name: str, db: Session) -> Dict[str, Any]:
     integration_id = str(uuid.uuid4())
 
     try:
+        # Ensure a Profile exists for user_id to satisfy foreign key constraints
+        profile = db.query(Profile).filter(Profile.id == user_id).first()
+        if not profile:
+            profile = Profile(
+                id=user_id,
+                email=f"merchant_{str(user_id)[:8]}@recoverai.local",
+                full_name=f"{cleaned_name} Admin",
+                role="operator",
+                created_at=now,
+                updated_at=now
+            )
+            db.add(profile)
+            db.flush()
+
         ws = Workspace(
             id=ws_id,
             name=cleaned_name,
@@ -53,12 +74,13 @@ def create_workspace(user_id: str, name: str, db: Session) -> Dict[str, Any]:
         )
         db.add(member)
 
+        resolved_business_type = (business_type or "SAAS").upper()
         ws_settings = WorkspaceSettings(
             id=settings_id,
             workspace_id=ws_id,
-            business_type="SAAS",
-            timezone="Asia/Kolkata",
-            currency="INR",
+            business_type=resolved_business_type,
+            timezone=timezone or "Asia/Kolkata",
+            currency=currency or "INR",
             human_approval_threshold=10000.0,
             urgent_value_threshold=25000.0,
             max_recovery_attempts=3,

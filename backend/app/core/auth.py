@@ -224,7 +224,12 @@ async def get_current_user(
     active workspace membership.
     """
     user = await get_authenticated_user(request=request, credentials=credentials, db=db)
-    requested_ws = request.headers.get("x-workspace-id") or request.query_params.get("workspace_id")
+    requested_ws = (
+        request.headers.get("x-workspace-id")
+        or request.query_params.get("workspace_id")
+        or request.path_params.get("id")
+        or request.path_params.get("workspace_id")
+    )
     workspace_id, ws_role = resolve_user_workspace(
         user_id=user["id"],
         requested_workspace_id=requested_ws,
