@@ -598,7 +598,7 @@ def test_razorpay_webhook_derives_workspace_internally(multi_tenant_setup, clien
     from app.services.razorpay_service import razorpay_service
 
     # Monkeypatch signature verification to true for this test
-    monkeypatch.setattr(razorpay_service, "verify_webhook_signature", lambda raw, sig: True)
+    monkeypatch.setattr(razorpay_service, "verify_webhook_signature", lambda raw, sig, **kwargs: True)
 
     webhook_payload = {
         "event": "payment.captured",
@@ -624,7 +624,7 @@ def test_razorpay_webhook_derives_workspace_internally(multi_tenant_setup, clien
         "Content-Type": "application/json"
     }
 
-    res = client.post("/api/v1/webhooks/razorpay", data=raw_json, headers=headers)
+    res = client.post("/api/v1/webhooks/razorpay", content=raw_json, headers=headers)
     assert res.status_code == 200
 
     # Verify AuditLog created for this event has workspace_id == WORKSPACE_A_ID (derived from tx_alpha_01)
@@ -638,21 +638,15 @@ def test_razorpay_webhook_derives_workspace_internally(multi_tenant_setup, clien
 
 
 def test_unassigned_user_safely_bounded_to_default_workspace(multi_tenant_setup, client, db_session):
-    """17. Authenticated user with no pre-assigned workspace is safely placed into bounded DEFAULT_WORKSPACE_ID and cannot access other tenants."""
+    """17. Authenticated user with no pre-assigned workspace is rejected with 403 NO_WORKSPACE_MEMBERSHIP and cannot access other tenants."""
     headers_c = {"Authorization": f"Bearer {multi_tenant_setup['user_c_token']}"}
 
-    # 1. User C requests transactions -> bounded to DEFAULT_WORKSPACE_ID
+    # 1. User C requests transactions -> 403 Forbidden (NO_WORKSPACE_MEMBERSHIP)
     res = client.get("/api/v1/transactions", headers=headers_c)
-    assert res.status_code == 200
-    tx_ids = [t["id"] for t in res.json()["items"]]
-    assert multi_tenant_setup["tx_a_id"] not in tx_ids
-    assert multi_tenant_setup["tx_b_id"] not in tx_ids
+    assert res.status_code == 403
+    assert res.json()["detail"] == "NO_WORKSPACE_MEMBERSHIP"
 
-    # 2. User C direct read of Workspace A transaction -> 404 Not Found
-    res_direct = client.get(f"/api/v1/transactions/{multi_tenant_setup['tx_a_id']}", headers=headers_c)
-    assert res_direct.status_code == 404
-
-    # 3. User C attempt to switch to Workspace A via header -> 403 Forbidden
+    # 2. User C attempt to switch to Workspace A via header -> 403 Forbidden
     res_tamper = client.get(
         "/api/v1/transactions",
         headers={**headers_c, "X-Workspace-Id": multi_tenant_setup["workspace_a_id"]}

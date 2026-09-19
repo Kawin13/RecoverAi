@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
 
+    # Encryption & Webhook Configuration (Product V1)
+    APP_ENCRYPTION_KEY: str = "jkDMwKjKhGqBIzlMuaA7x93oX_Wp8q02athk0R-Sivk="
+    PUBLIC_API_URL: str = "http://localhost:8000"
+    RUN_BACKGROUND_WORKER: bool = True
+
     # Data Seeding Control
     SEED_DEMO_DATA: bool = False
 

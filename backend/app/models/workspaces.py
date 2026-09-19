@@ -16,6 +16,9 @@ class Workspace(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     members = relationship("WorkspaceMember", back_populates="workspace", cascade="all, delete-orphan")
+    settings = relationship("WorkspaceSettings", back_populates="workspace", uselist=False, cascade="all, delete-orphan")
+    integrations = relationship("WorkspaceIntegration", back_populates="workspace", cascade="all, delete-orphan")
+    invitations = relationship("WorkspaceInvitation", back_populates="workspace", cascade="all, delete-orphan")
 
 
 class WorkspaceMember(Base):

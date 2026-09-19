@@ -17,12 +17,14 @@ from app.api.v1.endpoints import (
     simulation,
     analytics,
     admin_users,
-    profile
+    profile,
+    workspaces
 )
 
 api_router = APIRouter()
 
 api_router.include_router(health.router)
+api_router.include_router(workspaces.router, prefix="/workspaces", tags=["Workspace Management"])
 api_router.include_router(dashboard.router)
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Financial Recovery Analytics"])
 api_router.include_router(transactions.router)

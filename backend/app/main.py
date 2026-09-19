@@ -54,10 +54,12 @@ async def lifespan(app: FastAPI):
             raise RuntimeError(f"FATAL: Production ML model startup validation failed: {exc}")
         logger.warning(f"ML model startup validation notice: {exc}")
         
-    # 4. Start Autonomous Background Recovery Worker (non-test runtime)
+    # 4. Start Autonomous Background Recovery Worker (non-test runtime, controlled by RUN_BACKGROUND_WORKER)
     import os
     is_testing = bool(os.environ.get("PYTEST_CURRENT_TEST") or getattr(settings, "TESTING", False))
-    if not is_testing:
+    should_run_worker = getattr(settings, "RUN_BACKGROUND_WORKER", True) and not is_testing
+
+    if should_run_worker:
         logger.info("Starting Autonomous Background Recovery Worker...")
         from app.services.background_worker import background_worker
         background_worker.start()
@@ -66,7 +68,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     logger.info(f"Shutting down {settings.PROJECT_NAME}...")
-    if not is_testing:
+    if should_run_worker:
         await background_worker.stop()
 
 app = FastAPI(

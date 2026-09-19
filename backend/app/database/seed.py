@@ -21,10 +21,19 @@ from app.models import (
 from app.core.logging import logger
 from app.core.config import settings
 
-def seed_database(db: Session):
+def seed_database(db: Session, force_demo: bool = False):
+    """
+    Seeds demo fixtures strictly when SEED_DEMO_DATA=true or force_demo=True.
+    In production (SEED_DEMO_DATA=false), creates ZERO demo users, memberships,
+    or financial records.
+    """
+    if not (getattr(settings, "SEED_DEMO_DATA", False) or force_demo):
+        logger.info("SEED_DEMO_DATA is disabled (default). Zero demo identities or records created.")
+        return
+
     now = datetime.now(timezone.utc)
 
-    # Ensure default Workspace exists
+    # Ensure default Demo Workspace exists ONLY during demo/testing
     default_ws = db.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
     if not default_ws:
         db.add(Workspace(
@@ -98,11 +107,6 @@ def seed_database(db: Session):
     except Exception as e:
         db.rollback()
         logger.debug(f"Operator profile seed notice: {e}")
-
-    # Check if demo seeding is enabled
-    if not getattr(settings, "SEED_DEMO_DATA", False):
-        logger.info("SEED_DEMO_DATA is disabled (default). Skipping synthetic customer and transaction seeding.")
-        return
 
     # Check if database already has records
     if db.query(Customer).count() > 0:

@@ -129,9 +129,14 @@ class BackgroundWorker:
                 logger.info(f"Idempotent job hit: returning existing job {existing.id} ({job_type})")
                 return existing
 
+        # Enforce workspace_id requirement (Phase 21)
+        if not workspace_id:
+            logger.error(f"[Durable Job] Rejected enqueue for job {job_type}: missing workspace_id.")
+            raise ValueError("workspace_id is required to enqueue a recovery job.")
+
         job = RecoveryJob(
             id=f"job_{uuid.uuid4().hex[:12]}",
-            workspace_id=workspace_id or "00000000-0000-0000-0000-000000000001",
+            workspace_id=workspace_id,
             job_type=job_type,
             entity_id=entity_id,
             payload_json=json.dumps(payload or {}),
@@ -525,22 +530,50 @@ class BackgroundWorker:
         job.locked_until = None
 
     def _run_cart_abandonment_scan(self):
-        """Thread worker runner to scan checkout sessions without blocking the event loop."""
+        """
+        Thread worker runner to scan checkout sessions without blocking the event loop.
+        Uses PostgreSQL advisory lock for leader safety across multi-instance worker replicas (Phase 23).
+        """
         db = SessionLocal()
+        dialect_name = engine.dialect.name.lower()
+        has_lock = True
+        advisory_lock_id = 894210
+
+        if "postgres" in dialect_name:
+            try:
+                res = db.execute(text(f"SELECT pg_try_advisory_lock({advisory_lock_id});")).scalar()
+                has_lock = bool(res)
+            except Exception:
+                has_lock = True
+
+        if not has_lock:
+            db.close()
+            return
+
         try:
             abandoned = abandonment_service.check_and_mark_abandoned(db, timeout_seconds=self.cart_scan_interval_seconds)
             for s in abandoned:
                 if s.recovery_case_id:
-                    self.enqueue_job(
-                        db=db,
-                        job_type=JobType.PROCESS_RECOVERY_CASE.value,
-                        entity_id=s.recovery_case_id,
-                        workspace_id="00000000-0000-0000-0000-000000000001",
-                        idempotency_key=f"auto_abn_{s.id}"
-                    )
+                    ws_id = str(s.workspace_id) if getattr(s, "workspace_id", None) else None
+                    if not ws_id:
+                        case = db.query(RecoveryCase).filter(RecoveryCase.id == s.recovery_case_id).first()
+                        ws_id = str(case.workspace_id) if case else None
+                    if ws_id:
+                        self.enqueue_job(
+                            db=db,
+                            job_type=JobType.PROCESS_RECOVERY_CASE.value,
+                            entity_id=s.recovery_case_id,
+                            workspace_id=ws_id,
+                            idempotency_key=f"auto_abn_{s.id}"
+                        )
         except Exception as e:
             logger.warning(f"Notice during automated cart abandonment scan: {e}")
         finally:
+            if "postgres" in dialect_name and has_lock:
+                try:
+                    db.execute(text(f"SELECT pg_advisory_unlock({advisory_lock_id});"))
+                except Exception:
+                    pass
             db.close()
 
     def _record_internal_event(
@@ -552,10 +585,14 @@ class BackgroundWorker:
         workspace_id: str,
         payload: Dict[str, Any]
     ) -> InternalEvent:
-        """Helper to log an immutable event in internal_events table."""
+        """Helper to log an immutable event in internal_events table scoped to workspace."""
+        if not workspace_id:
+            logger.error(f"[Internal Event] Missing workspace_id for event {event_type}.")
+            raise ValueError("workspace_id is required for internal event logging.")
+
         evt = InternalEvent(
             id=f"evt_{uuid.uuid4().hex[:12]}",
-            workspace_id=workspace_id or "00000000-0000-0000-0000-000000000001",
+            workspace_id=workspace_id,
             event_type=event_type,
             entity_type=entity_type,
             entity_id=entity_id,

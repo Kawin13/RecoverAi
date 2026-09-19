@@ -12,6 +12,9 @@ from app.models.webhook_events import WebhookEvent
 from app.models.payment_links import PaymentLink
 from app.models.profiles import Profile
 from app.models.workspaces import Workspace, WorkspaceMember, DEFAULT_WORKSPACE_ID
+from app.models.workspace_settings import WorkspaceSettings
+from app.models.workspace_integrations import WorkspaceIntegration
+from app.models.workspace_invitations import WorkspaceInvitation
 from app.models.internal_events import InternalEvent
 from app.models.recovery_jobs import RecoveryJob, JobType, JobStatus
 
@@ -31,6 +34,9 @@ __all__ = [
     "Profile",
     "Workspace",
     "WorkspaceMember",
+    "WorkspaceSettings",
+    "WorkspaceIntegration",
+    "WorkspaceInvitation",
     "DEFAULT_WORKSPACE_ID",
     "InternalEvent",
     "RecoveryJob",

@@ -1,15 +1,32 @@
 import React, { useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, Navigate } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopNavigation } from './TopNavigation'
 import { ErrorBoundary } from '../common/ErrorBoundary'
 import { useRealtime } from '../../lib/useRealtime'
-import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react'
+import { useWorkspace } from '../../context/WorkspaceContext'
+import { AlertTriangle, RefreshCw, WifiOff, Loader2 } from 'lucide-react'
 import { ENV } from '../../config/env'
 
 export const AppShell: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { status, reconnect } = useRealtime()
+  const { isOnboarding, workspaces, loading: wsLoading } = useWorkspace()
+
+  if (wsLoading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm font-medium text-slate-500">Loading workspace...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isOnboarding || workspaces.length === 0) {
+    return <Navigate to="/onboarding" replace />
+  }
 
   return (
     <div className="min-h-screen bg-bg flex text-navy antialiased font-sans">

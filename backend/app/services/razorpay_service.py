@@ -14,10 +14,40 @@ class RazorpayService:
     def __init__(
         self,
         key_id: Optional[str] = None,
-        key_secret: Optional[str] = None
+        key_secret: Optional[str] = None,
+        workspace_id: Optional[str] = None
     ):
         self.key_id = key_id or settings.RAZORPAY_KEY_ID
         self.key_secret = key_secret or settings.RAZORPAY_KEY_SECRET
+        self.workspace_id = workspace_id
+
+    @classmethod
+    def from_workspace(cls, db: Any, workspace_id: str) -> "RazorpayService":
+        """
+        Instantiates RazorpayService loaded with decrypted merchant credentials
+        specifically for the provided workspace_id.
+        """
+        from app.models.workspace_integrations import WorkspaceIntegration
+        from app.core.vault import decrypt_secret
+        integration = db.query(WorkspaceIntegration).filter(
+            WorkspaceIntegration.workspace_id == workspace_id,
+            WorkspaceIntegration.provider == "razorpay"
+        ).first()
+        if not integration or not integration.encrypted_key_secret:
+            if workspace_id == "00000000-0000-0000-0000-000000000001":
+                return cls(workspace_id=workspace_id)
+            return cls(key_id=None, key_secret=None, workspace_id=workspace_id)
+
+        try:
+            dec_secret = decrypt_secret(integration.encrypted_key_secret)
+            return cls(
+                key_id=integration.public_key_id,
+                key_secret=dec_secret,
+                workspace_id=workspace_id
+            )
+        except Exception as exc:
+            logger.error(f"[RazorpayService] Failed to decrypt credentials for workspace {workspace_id}: {exc}")
+            return cls(key_id=None, key_secret=None, workspace_id=workspace_id)
 
     @property
     def is_configured(self) -> bool:

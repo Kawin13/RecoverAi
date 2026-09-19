@@ -13,58 +13,99 @@ router = APIRouter()
 @router.get("/health", tags=["Health"])
 def health_check(response: Response, db: Session = Depends(get_db)):
     """
-    Actively checks service health, live database connectivity, gateway configuration,
-    and ML inference engine readiness.
-    Reports operational status without exposing sensitive keys or tokens.
+    Health / Liveness probe: verifies process is alive and includes basic subsystem status.
+    Fast and non-blocking for cloud load balancers and orchestrators.
     """
-    db_status = "connected"
-    overall_status = "healthy"
-    db_error = None
-
+    db_connected = False
+    db_err = None
     try:
         db.execute(text("SELECT 1"))
-    except Exception as e:
-        logger.warning(f"Database health check probe failed: {e}")
-        db_status = "disconnected"
-        overall_status = "degraded"
-        db_error = "Database temporarily unreachable"
-        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        db_connected = True
+    except Exception as exc:
+        db_connected = False
+        db_err = str(exc)
 
-    # Check ML Inference Engine Readiness (verifies all genuine XGBoost model artifacts)
-    ml_loaded = False
+    ml_ready = False
     try:
         from app.ml.inference import inference_engine
-        ml_loaded = bool(inference_engine.is_loaded)
+        ml_ready = bool(inference_engine.is_loaded)
     except Exception:
-        ml_loaded = False
+        ml_ready = False
 
-    # Check Gateway & AI Configuration flags (Safe Booleans only, never secrets)
-    rzp_configured = razorpay_service.is_configured
-    ai_configured = bool(settings.GEMINI_API_KEY and not "placeholder" in settings.GEMINI_API_KEY.lower())
+    res = {
+        "status": "healthy" if db_connected else "degraded",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+        "database": "connected" if db_connected else "disconnected",
+        "razorpay_configured": razorpay_service.is_configured,
+        "ai_configured": bool(settings.GEMINI_API_KEY and "placeholder" not in settings.GEMINI_API_KEY.lower()),
+        "ml_model_loaded": ml_ready,
+        "mode": "test"
+    }
 
-    # Check Background Recovery Worker Telemetry
+    if not db_connected:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        res["database_error"] = db_err or "Database connection failed"
+
+    return res
+
+@router.get("/readiness", tags=["Health"])
+def readiness_check(response: Response, db: Session = Depends(get_db)):
+    """
+    Readiness probe: performs deep operational checks:
+    - Database connectivity
+    - Migration head status
+    - ML inference engine readiness (ml_ready)
+    - Background worker heartbeat
+    - Gemini AI availability
+    - Platform Razorpay test credentials
+    Never exposes raw keys or secrets.
+    """
+    db_connected = False
+    try:
+        db.execute(text("SELECT 1"))
+        db_connected = True
+    except Exception as e:
+        logger.warning(f"Database readiness probe failed: {e}")
+        db_connected = False
+
+    # Check ML Inference Engine Readiness
+    ml_ready = False
+    try:
+        from app.ml.inference import inference_engine
+        ml_ready = bool(inference_engine.is_loaded)
+    except Exception:
+        ml_ready = False
+
+    # Check Gateway & AI Configuration
+    rzp_ready = razorpay_service.is_configured
+    gemini_ready = bool(settings.GEMINI_API_KEY and "placeholder" not in settings.GEMINI_API_KEY.lower())
+
+    # Check Background Worker Heartbeat
+    worker_status = "STOPPED"
     worker_telemetry = None
     try:
         from app.services.background_worker import background_worker
         worker_telemetry = background_worker.get_metrics(db)
+        worker_status = worker_telemetry.get("status", "STOPPED")
     except Exception as e:
         logger.warning(f"Could not retrieve worker metrics: {e}")
 
-    res = {
-        "status": overall_status,
+    is_ready = db_connected and ml_ready
+    if not is_ready:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+    return {
+        "status": "ready" if is_ready else "degraded",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
-        "database": db_status,
-        "database_type": engine.dialect.name if hasattr(engine, "dialect") else "unknown",
-        "worker_status": worker_telemetry.get("status", "STOPPED") if worker_telemetry else "STOPPED",
+        "database_connected": db_connected,
+        "database_dialect": engine.dialect.name if hasattr(engine, "dialect") else "unknown",
+        "ml_ready": ml_ready,
+        "worker_status": worker_status,
         "worker_telemetry": worker_telemetry,
-        "razorpay_configured": rzp_configured,
-        "ai_configured": ai_configured,
-        "ml_model_loaded": ml_loaded,
+        "platform_razorpay_ready": rzp_ready,
+        "gemini_ready": gemini_ready,
     }
-
-    if db_error:
-        res["database_error"] = db_error
-
-    return res

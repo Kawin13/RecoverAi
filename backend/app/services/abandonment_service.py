@@ -73,6 +73,7 @@ class AbandonmentService:
         db.refresh(session)
 
         # Emit real-time telemetry
+        ws_id = str(getattr(session, "workspace_id", None) or "00000000-0000-0000-0000-000000000001")
         event_broadcaster.broadcast_sync("CHECKOUT_STARTED", {
             "checkout_session_id": session.id,
             "order_id": session.order_id,
@@ -80,7 +81,7 @@ class AbandonmentService:
             "customer_name": customer.name,
             "is_demo_simulation": session.is_demo_simulation,
             "timestamp": now.isoformat()
-        })
+        }, workspace_id=ws_id)
 
         logger.info(f"Checkout Session {session.id} started for Customer {customer.name} (INR {session.cart_amount:,.2f})")
         return session
@@ -118,6 +119,7 @@ class AbandonmentService:
         db.commit()
         db.refresh(session)
 
+        ws_id = str(getattr(session, "workspace_id", None) or "00000000-0000-0000-0000-000000000001")
         event_broadcaster.broadcast_sync("CHECKOUT_TRANSITION", {
             "checkout_session_id": session.id,
             "prev_status": prev_status,
@@ -126,7 +128,7 @@ class AbandonmentService:
             "payment_attempted": session.payment_attempted,
             "is_demo_simulation": session.is_demo_simulation,
             "timestamp": now.isoformat()
-        })
+        }, workspace_id=ws_id)
 
         # If transitioning to ABANDONED, automatically create recovery case
         if new_status == "ABANDONED" and not session.recovery_case_id:
@@ -248,13 +250,12 @@ class AbandonmentService:
         Creates a bounded RecoveryCase for an abandoned checkout session.
         Preserves complete relational integrity with transactions and audit trails.
         """
-        if getattr(session, "is_demo_simulation", False):
-            return None
-
         if session.recovery_case_id:
             existing = db.query(RecoveryCase).filter(RecoveryCase.id == session.recovery_case_id).first()
             if existing:
                 return existing
+
+        ws_id = str(getattr(session, "workspace_id", None) or "00000000-0000-0000-0000-000000000001")
 
         customer = db.query(Customer).filter(Customer.id == session.customer_id).first()
         if not customer:
@@ -277,6 +278,7 @@ class AbandonmentService:
         if not tx:
             tx = Transaction(
                 id=tx_id,
+                workspace_id=ws_id,
                 order_id=session.order_id,
                 customer_id=customer.id,
                 amount=session.cart_amount,
@@ -290,6 +292,7 @@ class AbandonmentService:
         now = datetime.now(timezone.utc)
         case = RecoveryCase(
             id=case_id,
+            workspace_id=ws_id,
             transaction_id=tx.id,
             risk_amount=session.cart_amount,
             failure_category="ABANDONMENT",
@@ -330,6 +333,7 @@ class AbandonmentService:
         # Log into AuditLog
         audit = AuditLog(
             id=f"aud_abn_{uuid.uuid4().hex[:8]}",
+            workspace_id=ws_id,
             recovery_case_id=case.id,
             transaction_id=tx.id,
             actor="ABANDONMENT_DETECTOR",
@@ -356,7 +360,7 @@ class AbandonmentService:
         db.add(
             InternalEvent(
                 id=f"evt_abn_{uuid.uuid4().hex[:10]}",
-                workspace_id="00000000-0000-0000-0000-000000000001",
+                workspace_id=ws_id,
                 event_type="CHECKOUT_ABANDONED",
                 entity_type="checkout_session",
                 entity_id=session.id,
@@ -375,7 +379,7 @@ class AbandonmentService:
             db=db,
             job_type=JobType.PROCESS_RECOVERY_CASE.value,
             entity_id=case.id,
-            workspace_id="00000000-0000-0000-0000-000000000001",
+            workspace_id=ws_id,
             payload={"case_id": case.id, "source": "CART_ABANDONMENT"},
             idempotency_key=f"job_abn_{case.id}"
         )
@@ -389,7 +393,7 @@ class AbandonmentService:
             "erv": metrics["expected_recovery_value"],
             "is_demo_simulation": session.is_demo_simulation,
             "timestamp": now.isoformat()
-        })
+        }, workspace_id=ws_id)
 
         logger.info(f"Abandoned session {session.id} converted into RecoveryCase {case.id} (ERV: INR {metrics['expected_recovery_value']:,.2f})")
         return case

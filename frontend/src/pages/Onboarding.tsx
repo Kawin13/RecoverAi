@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { workspaceApi } from '../services/workspaceApi'
+import { ENV } from '../config/env'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ const STEPS = [
 
 export const Onboarding: React.FC = () => {
   const navigate = useNavigate()
-  const { createWorkspace, refreshWorkspaces } = useWorkspace()
+  const { createWorkspace, refreshWorkspaces, workspaces } = useWorkspace()
 
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
@@ -87,6 +88,7 @@ export const Onboarding: React.FC = () => {
   const [showSecret, setShowSecret] = useState(false)
   const [showWebhookSecret, setShowWebhookSecret] = useState(false)
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false)
+  const [serverWebhookUrl, setServerWebhookUrl] = useState<string>('')
 
   const [step1, setStep1] = useState<Step1Data>({
     workspaceName: '',
@@ -110,9 +112,9 @@ export const Onboarding: React.FC = () => {
   })
 
   // Derived webhook URL (shown after workspace creation in step 2)
-  const webhookUrl = createdWorkspaceId
-    ? `${window.location.origin.replace('3000', '8000')}/api/v1/webhooks/razorpay/${createdWorkspaceId}`
-    : ''
+  const webhookUrl = serverWebhookUrl || (createdWorkspaceId
+    ? `${ENV.API_BASE_URL}/api/v1/webhooks/razorpay/${createdWorkspaceId}`
+    : '')
 
   const copyWebhookUrl = () => {
     navigator.clipboard.writeText(webhookUrl).then(() => {
@@ -130,6 +132,12 @@ export const Onboarding: React.FC = () => {
     try {
       const ws = await createWorkspace(step1.workspaceName.trim(), step1.businessType || undefined)
       setCreatedWorkspaceId(ws.id)
+      try {
+        const status = await workspaceApi.getRazorpayStatus(ws.id)
+        if (status.webhook_url) setServerWebhookUrl(status.webhook_url)
+      } catch {
+        // Fallback to constructed URL
+      }
       setStep(1)
     } catch (err: any) {
       setGlobalError(err.message || 'Failed to create workspace')
@@ -144,11 +152,14 @@ export const Onboarding: React.FC = () => {
     setTestingRazorpay(true)
     setRazorpayTestResult(null)
     try {
-      await workspaceApi.connectRazorpay(createdWorkspaceId, {
+      const res = await workspaceApi.connectRazorpay(createdWorkspaceId, {
         key_id: step2.keyId.trim(),
         key_secret: step2.keySecret.trim(),
         webhook_secret: step2.webhookSecret.trim() || undefined,
       })
+      if (res?.webhook_url) {
+        setServerWebhookUrl(res.webhook_url)
+      }
       setRazorpayTestResult('success')
     } catch (err: any) {
       setRazorpayTestResult('error')
@@ -216,6 +227,15 @@ export const Onboarding: React.FC = () => {
           </span>
         </div>
         <p className="text-sm text-slate-500">Set up your merchant workspace in 3 quick steps</p>
+        {workspaces.length > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/overview')}
+            className="mt-2 text-xs font-semibold text-primary hover:text-primary-hover hover:underline transition-colors cursor-pointer"
+          >
+            ← Return to Dashboard ({workspaces[0].name})
+          </button>
+        )}
       </div>
 
       {/* Step Indicator */}

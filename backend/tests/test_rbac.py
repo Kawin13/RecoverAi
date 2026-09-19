@@ -22,18 +22,33 @@ def _setup_users_and_case(db_session):
         full_name=f"Operator User {s}",
         role="operator"
     )
+    from app.models.workspaces import WorkspaceMember, DEFAULT_WORKSPACE_ID
+    mem_admin = WorkspaceMember(
+        id=str(uuid.uuid4()),
+        workspace_id=DEFAULT_WORKSPACE_ID,
+        user_id=admin_prof.id,
+        role="admin"
+    )
+    mem_operator = WorkspaceMember(
+        id=str(uuid.uuid4()),
+        workspace_id=DEFAULT_WORKSPACE_ID,
+        user_id=operator_prof.id,
+        role="operator"
+    )
+
     # Setup a Pending Case
-    cust = Customer(id=f"c_rbac_{s}", name=f"RBAC Customer {s}", email=f"rbac_{s}@customer.io", ltv=10000.0)
-    tx = Transaction(id=f"tx_rbac_{s}", order_id=f"ord_rbac_{s}", customer_id=cust.id, amount=15000.0, status="FAILED")
+    cust = Customer(id=f"c_rbac_{s}", workspace_id=DEFAULT_WORKSPACE_ID, name=f"RBAC Customer {s}", email=f"rbac_{s}@customer.io", ltv=10000.0)
+    tx = Transaction(id=f"tx_rbac_{s}", workspace_id=DEFAULT_WORKSPACE_ID, order_id=f"ord_rbac_{s}", customer_id=cust.id, amount=15000.0, status="FAILED")
     case = RecoveryCase(
         id=f"case_rbac_{s}",
+        workspace_id=DEFAULT_WORKSPACE_ID,
         transaction_id=tx.id,
         risk_amount=15000.0,
         failure_category="GATEWAY_TIMEOUT",
         status="PENDING_APPROVAL",
         current_step="PENDING_APPROVAL"
     )
-    db_session.add_all([admin_prof, operator_prof, cust, tx, case])
+    db_session.add_all([admin_prof, operator_prof, mem_admin, mem_operator, cust, tx, case])
     db_session.commit()
     return admin_prof, operator_prof, case
 
@@ -145,7 +160,14 @@ def test_last_admin_protection(client, db_session, monkeypatch):
         full_name=f"Solo Admin {s}",
         role="admin"
     )
-    db_session.add(solo_admin)
+    from app.models.workspaces import WorkspaceMember, DEFAULT_WORKSPACE_ID
+    mem = WorkspaceMember(
+        id=str(uuid.uuid4()),
+        workspace_id=DEFAULT_WORKSPACE_ID,
+        user_id=solo_admin.id,
+        role="admin"
+    )
+    db_session.add_all([solo_admin, mem])
     db_session.commit()
 
     from app.core import auth

@@ -152,59 +152,35 @@ def resolve_user_workspace(
         # Query all workspace memberships for user
         members = db.query(WorkspaceMember).filter(WorkspaceMember.user_id == user_id).all()
         if not members:
-            # Safely place into strictly bounded default workspace (Option B architectural decision)
-            default_ws = db.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
-            if not default_ws:
-                default_ws = Workspace(
-                    id=DEFAULT_WORKSPACE_ID,
-                    name="RecoverAI Demo Workspace",
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                )
-                db.add(default_ws)
-                db.commit()
-
-            profile = db.query(Profile).filter(Profile.id == user_id).first()
-            user_role = profile.role if profile and profile.role in ("admin", "operator") else "operator"
-
-            member = WorkspaceMember(
-                id=str(uuid.uuid4()),
-                workspace_id=DEFAULT_WORKSPACE_ID,
-                user_id=user_id,
-                role=user_role,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
+            logger.info(f"[Tenant Isolation] User '{user_id}' has 0 workspace memberships. Onboarding required.")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="NO_WORKSPACE_MEMBERSHIP"
             )
-            db.add(member)
-            db.commit()
-            db.refresh(member)
-            members = [member]
 
         if len(members) == 1:
             return str(members[0].workspace_id), members[0].role
 
-        # User belongs to multiple workspaces but did not specify which one
-        logger.info(f"[Tenant Isolation] User '{user_id}' belongs to {len(members)} workspaces. Explicit selection required.")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Multiple workspace memberships found. Please specify target workspace via 'X-Workspace-Id' header."
-        )
+        if len(members) > 1:
+            logger.warning(f"[Tenant Isolation] User '{user_id}' has {len(members)} workspaces. Explicit X-Workspace-Id required.")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Multiple workspace memberships found. Please specify target workspace via 'X-Workspace-Id' header."
+            )
     finally:
         if owns_db:
             db.close()
 
-async def get_current_user(
+async def get_authenticated_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
-    FastAPI dependency for authenticating user-facing API endpoints.
-    Validates Supabase session token, loads authoritative role from public.profiles,
-    and enforces verified workspace isolation membership.
+    Dependency that authenticates the user via Supabase session without requiring
+    pre-existing workspace membership. Used for onboarding and workspace creation.
     """
     token = credentials.credentials if credentials else None
-    
     if token:
         user = verify_supabase_jwt(token)
         if user:
@@ -221,19 +197,10 @@ async def get_current_user(
                 avatar_url=avatar_url,
                 db=db
             )
-            requested_ws = request.headers.get("x-workspace-id") or request.query_params.get("workspace_id")
-            workspace_id, ws_role = resolve_user_workspace(
-                user_id=user_id,
-                requested_workspace_id=requested_ws,
-                db=db
-            )
             user["role"] = role
             user["profile"] = profile_data
-            user["workspace_id"] = workspace_id
-            user["workspace_role"] = ws_role
             return user
 
-        # If token was explicitly provided but invalid/expired, reject with 401
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired session token. Please sign in again.",
@@ -246,20 +213,42 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+async def get_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    FastAPI dependency for authenticating user-facing API endpoints.
+    Validates Supabase session token, loads profile, and enforces verified
+    active workspace membership.
+    """
+    user = await get_authenticated_user(request=request, credentials=credentials, db=db)
+    requested_ws = request.headers.get("x-workspace-id") or request.query_params.get("workspace_id")
+    workspace_id, ws_role = resolve_user_workspace(
+        user_id=user["id"],
+        requested_workspace_id=requested_ws,
+        db=db
+    )
+    user["workspace_id"] = workspace_id
+    user["workspace_role"] = ws_role
+    return user
+
 
 async def require_admin(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Enforces that the authenticated user possesses the authoritative 'admin' role in public.profiles.
+    Enforces that the authenticated user possesses the 'admin' role
+    specifically within the ACTIVE workspace (workspace_members.role).
     Returns 403 Forbidden otherwise.
     """
-    user_role = current_user.get("role")
-    if user_role != "admin":
-        logger.warning(f"[RBAC] Access denied: User '{current_user.get('email')}' has role '{user_role}', requires 'admin'.")
+    ws_role = current_user.get("workspace_role")
+    if ws_role != "admin":
+        logger.warning(f"[RBAC] Access denied: User '{current_user.get('email')}' has workspace role '{ws_role}', requires 'admin'.")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Administrator privileges required. Permission denied."
+            detail="Workspace Administrator privileges required. Permission denied."
         )
     return current_user
 
@@ -267,11 +256,12 @@ async def require_operator_or_admin(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Enforces that the authenticated user has either 'admin' or 'operator' role.
+    Enforces that the authenticated user has either 'admin' or 'operator' role
+    in the ACTIVE workspace.
     """
-    user_role = current_user.get("role")
-    if user_role not in ("admin", "operator"):
-        logger.warning(f"[RBAC] Access denied: User '{current_user.get('email')}' has unauthorized role '{user_role}'.")
+    ws_role = current_user.get("workspace_role")
+    if ws_role not in ("admin", "operator"):
+        logger.warning(f"[RBAC] Access denied: User '{current_user.get('email')}' has unauthorized workspace role '{ws_role}'.")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Operational access required. Permission denied."
@@ -313,5 +303,11 @@ def get_current_workspace_id(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> str:
     """Helper dependency to extract current verified workspace_id."""
-    return str(current_user.get("workspace_id", DEFAULT_WORKSPACE_ID))
+    ws_id = current_user.get("workspace_id")
+    if not ws_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Active workspace required."
+        )
+    return str(ws_id)
 

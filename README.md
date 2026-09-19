@@ -252,19 +252,20 @@ RecoverAI/
    SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
    SUPABASE_JWKS_URL=https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
 
-   # Payment Gateway (Razorpay Sandbox)
+   # Payment Gateway (Razorpay Test Mode Only)
    RAZORPAY_KEY_ID=rzp_test_...
    RAZORPAY_KEY_SECRET=...
    RAZORPAY_WEBHOOK_SECRET=...
+   WORKSPACE_ENCRYPTION_KEY=... # 32-byte base64 AES-256-GCM key for encrypted merchant credentials
 
    # Google Gemini AI SDK
    GEMINI_API_KEY=...
    GEMINI_MODEL=gemini-2.5-flash
    ```
 
-5. **Run database migration and seed data**:
+5. **Run database migrations**:
    ```bash
-   python migrate_live.py
+   alembic upgrade head
    ```
 
 6. **Start the FastAPI server**:
@@ -274,6 +275,12 @@ RecoverAI/
    - API Server: `http://localhost:8000`
    - Interactive Swagger Docs: `http://localhost:8000/docs`
    - Health Check: `http://localhost:8000/health`
+
+7. **Start the Standalone Background Worker Process**:
+   ```bash
+   python -m app.worker
+   ```
+   Runs the autonomous recovery queue, retry clocks, and webhook escalation handlers independently of browser or web server lifecycles.
 
 ---
 
@@ -308,61 +315,60 @@ RecoverAI/
 
 ## 🧪 Testing & Verification
 
-RecoverAI includes a comprehensive test suite covering unit tests, state machine transitions, API endpoints, RBAC enforcement, failure injection, and E2E recovery flows:
+RecoverAI includes a comprehensive test suite covering unit tests, state machine transitions, API endpoints, multi-tenant isolation, RBAC enforcement, failure injection, and SaaS security:
 
 ```bash
 # Run all backend tests
 cd backend
-pytest -v
+python -m pytest -v
 
-# Run state machine recovery executor tests
-pytest tests/test_recovery_executor.py -v
+# Run multi-tenant SaaS security suite
+python -m pytest tests/test_saas_security_suite.py -v
+
+# Run tenant isolation & cross-workspace tests
+python -m pytest tests/test_phase4_tenant_isolation.py -v
 
 # Run fintech guardrails & governance tests
-pytest tests/test_guardrails.py -v
+python -m pytest tests/test_guardrails.py -v
 
 # Run RBAC security and role tests
-pytest tests/test_rbac.py -v
+python -m pytest tests/test_rbac.py -v
 
-# Run payment gateway & Razorpay link tests
-pytest tests/test_payments.py tests/test_razorpay_payment_links.py -v
-
-# Run full E2E verification
-python tests/e2e_demo_runner.py
+# Run webhook ingestion & HMAC signature tests
+python -m pytest tests/test_webhooks.py -v
 ```
 
 ---
 
-## 📡 API Endpoint Overview
+## 📡 SaaS Multi-Merchant Architecture & Webhooks
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/health` | Service health status and live database connectivity. |
-| `GET` | `/api/dashboard` | Aggregated executive KPIs, recovery rate, and trend series. |
-| `GET` | `/api/transactions` | Paginated transaction logs with filtering by status/method. |
-| `GET` | `/api/recovery-cases` | Active recovery cases with probability and strategy metadata. |
-| `POST` | `/api/recovery/analyze/{id}` | Analyzes a failed transaction and generates ERV strategy rankings. |
-| `POST` | `/api/recovery/workflows/{id}/step` | Advances a recovery case to the next state machine step. |
-| `POST` | `/api/recovery/workflows/{id}/execute` | Fully executes the autonomous recovery pipeline for a case. |
-| `POST` | `/api/recovery/workflows/{id}/payment-link` | Generates a 1-click Razorpay dynamic payment link. |
-| `GET` | `/api/guardrails/policies` | Fetches central fintech governance rules and thresholds. |
-| `GET` | `/api/guardrails/approval-queue` | Retrieves cases flagged for human review. |
-| `POST` | `/api/ai/message/{id}` | Generates localized multi-lingual recovery communications via Gemini. |
-| `POST` | `/api/ai/explain/{id}` | Returns natural language reasoning explaining agent strategy choice. |
-| `GET` | `/events/stream` | Server-Sent Events (SSE) live real-time event bus. |
-| `POST` | `/webhooks/razorpay` | Ingestion endpoint for Razorpay webhook notifications. |
+| `GET` | `/api/v1/workspaces/current` | Active workspace details and merchant tier settings. |
+| `POST` | `/api/v1/workspaces` | Creates an isolated merchant workspace (caller assigned as Admin). |
+| `POST` | `/api/v1/workspaces/integrations/razorpay` | Connects merchant Razorpay Test credentials (AES-256 encrypted; `rzp_test_...` strictly required). |
+| `POST` | `/api/v1/webhooks/razorpay/{endpoint_id}` | Dedicated per-merchant webhook endpoint with HMAC verification and workspace isolation. |
+| `GET` | `/api/v1/events/ticket` | Generates short-lived, single-use cryptographic SSE ticket. |
+| `GET` | `/api/v1/events/stream` | Multi-tenant Server-Sent Events (SSE) live bus scoped by `workspace_id`. |
+| `GET` | `/api/v1/guardrails/policies` | Per-workspace fintech governance rules and thresholds. |
+| `POST` | `/api/v1/guardrails/policies` | Updates workspace guardrails (requires `ADMIN` role). |
+| `POST` | `/api/checkout/check-abandoned` | Autonomous checkout abandonment detector and recovery launcher. |
 
 ---
 
-## 🔒 Security & Privacy
+## 🔒 Security & Compliance
 
-- **Cryptographic Webhook Signatures**: All incoming webhook events verify HMAC-SHA256 signatures before ingestion.
-- **Strict Idempotency**: Actions and payments enforce idempotency keys to prevent duplicate dunning or charges.
-- **Row Level Security (RLS)**: Sensitive merchant and customer records are protected at the database tier.
-- **Zero Plaintext Secrets**: Sensitive API keys and tokens are strictly configured via environment variables.
+- **Strict Razorpay Test Mode Only**: Real-money processing is strictly forbidden. Live API keys (`rzp_live_...`) are rejected with `400 Bad Request`.
+- **Tenant Isolation**: Every database query, SSE broadcast, audit record, and recovery action is strictly partitioned by `workspace_id`. Zero-membership users receive `403 Forbidden` (`NO_WORKSPACE_MEMBERSHIP`).
+- **AES-256-GCM Vault**: Merchant secrets and webhook tokens are encrypted at rest using AES-256-GCM with PBKDF2 key derivation.
+- **Cryptographic Webhook Ingestion**: Per-merchant HMAC-SHA256 signatures are validated before payload processing.
+- **Single-Use Stream Tickets**: SSE stream connections require short-lived, single-use signed cryptographic tickets, mitigating URL token leakage.
+- **Durable Background Processing**: Independent worker architecture ensures background jobs continue uninterrupted across client disconnects.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+

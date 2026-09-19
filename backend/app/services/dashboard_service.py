@@ -8,7 +8,6 @@ from app.models.recovery_cases import RecoveryCase
 from app.models.recovery_outcomes import RecoveryOutcome
 from app.models.transactions import Transaction
 from app.models.customers import Customer
-from app.models.workspaces import DEFAULT_WORKSPACE_ID
 from app.schemas.dashboard import (
     DashboardResponse,
     DashboardMetrics,

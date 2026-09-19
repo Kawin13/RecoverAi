@@ -72,7 +72,14 @@ def test_valid_admin_login_works(client, db_session, monkeypatch):
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    db_session.add(admin_prof)
+    from app.models.workspaces import WorkspaceMember, DEFAULT_WORKSPACE_ID
+    mem_admin = WorkspaceMember(
+        id=str(uuid.uuid4()),
+        workspace_id=DEFAULT_WORKSPACE_ID,
+        user_id=admin_id,
+        role="admin"
+    )
+    db_session.add_all([admin_prof, mem_admin])
     db_session.commit()
 
     monkeypatch.setattr(auth, "verify_supabase_jwt", lambda token: {
@@ -105,7 +112,14 @@ def test_valid_operator_login_works_and_admin_blocked(client, db_session, monkey
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    db_session.add(operator_prof)
+    from app.models.workspaces import WorkspaceMember, DEFAULT_WORKSPACE_ID
+    mem_operator = WorkspaceMember(
+        id=str(uuid.uuid4()),
+        workspace_id=DEFAULT_WORKSPACE_ID,
+        user_id=operator_id,
+        role="operator"
+    )
+    db_session.add_all([operator_prof, mem_operator])
     db_session.commit()
 
     monkeypatch.setattr(auth, "verify_supabase_jwt", lambda token: {

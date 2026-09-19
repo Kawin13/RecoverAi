@@ -4,7 +4,6 @@ import json
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Set, Dict, Any, Optional
 from app.core.logging import logger
-from app.models.workspaces import DEFAULT_WORKSPACE_ID
 
 class EventBroadcaster:
     """
@@ -22,12 +21,14 @@ class EventBroadcaster:
     def workspace_listener_count(self, workspace_id: str) -> int:
         return len(self._listeners.get(str(workspace_id), set()))
 
-    async def subscribe(self, workspace_id: str = DEFAULT_WORKSPACE_ID, max_events: Optional[int] = None) -> AsyncGenerator[str, None]:
+    async def subscribe(self, workspace_id: str, max_events: Optional[int] = None) -> AsyncGenerator[str, None]:
         """
         Subscribes a client to the event bus scoped strictly to a specific workspace_id.
         Includes a 15-second heartbeat ping (: ping\n\n) to prevent HTTP connection timeouts.
         If max_events is specified, terminates cleanly after yielding the requested number of events.
         """
+        if not workspace_id:
+            raise ValueError("workspace_id is required for SSE subscription.")
         ws_key = str(workspace_id)
         queue: asyncio.Queue = asyncio.Queue(maxsize=200)
         self._listeners[ws_key].add(queue)
@@ -76,10 +77,14 @@ class EventBroadcaster:
 
     def broadcast_sync(self, event_type: str, data: Dict[str, Any], workspace_id: Optional[str] = None):
         """
-        Synchronous wrapper to broadcast an event scoped to a target workspace.
+        Synchronous wrapper to broadcast an event scoped strictly to a target workspace.
         Safe to call from sync FastAPI route handlers or background workers.
         """
-        target_ws = workspace_id or data.get("workspace_id")
+        target_ws = str(workspace_id) if workspace_id is not None else (str(data.get("workspace_id")) if data.get("workspace_id") is not None else None)
+        if not target_ws:
+            logger.error(f"[SSE Security] Dropping sync event '{event_type}': workspace_id is required.")
+            return
+
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.broadcast(event_type, data, workspace_id=target_ws))
@@ -88,10 +93,14 @@ class EventBroadcaster:
 
     async def broadcast(self, event_type: str, data: Dict[str, Any], workspace_id: Optional[str] = None):
         """
-        Broadcasts an event message non-blockingly to clients in the specified workspace.
-        If workspace_id is provided, delivers ONLY to listeners in that workspace.
+        Broadcasts an event message strictly to clients in the specified workspace.
+        Fails closed: if workspace_id is missing, logs error and does NOT broadcast.
         """
         target_ws = str(workspace_id) if workspace_id is not None else (str(data.get("workspace_id")) if data.get("workspace_id") is not None else None)
+        if not target_ws:
+            logger.error(f"[SSE Security] Dropping event '{event_type}': workspace_id is required to prevent cross-tenant leaks.")
+            return
+
         payload = {
             "type": event_type,
             "data": data,
@@ -99,12 +108,10 @@ class EventBroadcaster:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
-        # Determine target queues
-        if target_ws is not None:
-            queues_to_notify = list(self._listeners.get(target_ws, set()))
-        else:
-            # Global broadcast fallback if no workspace is designated
-            queues_to_notify = [q for queues in self._listeners.values() for q in queues]
+        queues_to_notify = list(self._listeners.get(target_ws, set()))
+        if not queues_to_notify:
+            logger.debug(f"Broadcast event '{event_type}' dropped: 0 listeners in workspace '{target_ws}'.")
+            return
 
         dead_queues = []
         for queue in queues_to_notify:
