@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
 
+    # Data Seeding Control
+    SEED_DEMO_DATA: bool = False
+
     model_config = SettingsConfigDict(
         env_file=[backend_env, root_env, ".env"],
         env_file_encoding="utf-8",

@@ -22,7 +22,7 @@ export const AppShell: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
         <TopNavigation onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        
+
         {/* Explicit Demo Mode Banner */}
         {ENV.DEMO_MODE && (
           <div className="bg-amber-500/10 text-amber-900 border-b border-amber-500/20 px-4 py-2 text-xs flex items-center justify-between">

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -11,36 +11,157 @@ import {
   ShieldCheck,
   User,
   Shield,
-  CreditCard,
   ShoppingBag,
   ShoppingCart,
-  Users
+  Users,
+  Zap,
+  Settings
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useRealtime } from '../../lib/useRealtime'
+import { api } from '../../services/api'
 
 interface SidebarProps {
   isOpen: boolean
   onCloseMobile?: () => void
 }
 
+interface NavSection {
+  label: string
+  items: NavItem[]
+}
+
+interface NavItem {
+  label: string
+  path: string
+  icon: React.ElementType
+  badge?: string
+  adminOnly?: boolean
+}
+
+const NavItemRow: React.FC<{ item: NavItem; onClose?: () => void }> = ({ item, onClose }) => {
+  const Icon = item.icon
+  return (
+    <NavLink
+      to={item.path}
+      onClick={onClose}
+      className={({ isActive }) =>
+        `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all duration-normal group ${
+          isActive
+            ? 'bg-[#F1EAFE] text-primary font-bold shadow-2xs'
+            : 'text-slate-600 hover:text-primary hover:bg-[#F7F3FF] font-medium'
+        }`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <div className="flex items-center gap-3">
+            <Icon className={`w-4 h-4 flex-shrink-0 transition-colors ${
+              isActive ? 'text-primary' : 'text-slate-500 group-hover:text-primary'
+            }`} />
+            <span className="tracking-normal">{item.label}</span>
+          </div>
+          {item.badge && (
+            <span className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-semibold ${
+              item.badge === 'Live'
+                ? 'bg-moss-green-light text-moss-green-dark border border-moss-green/30 animate-pulse'
+                : item.badge === 'Admin'
+                ? 'bg-primary-light text-primary border border-primary-border'
+                : isActive
+                ? 'bg-primary text-white font-bold'
+                : 'bg-surface-blue text-primary border border-surface-blue-border'
+            }`}>
+              {item.badge}
+            </span>
+          )}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
   const { role } = useAuth()
+  const { subscribe } = useRealtime()
+  const [atRiskCount, setAtRiskCount] = useState<number | null>(null)
 
-  const navItems = [
-    { label: 'Overview', path: '/overview', icon: LayoutDashboard },
-    { label: 'Demo Store', path: '/demo-checkout', icon: ShoppingBag, badge: 'Sandbox' },
-    { label: 'Cart Recovery', path: '/abandonment', icon: ShoppingCart, badge: 'Pre-Pay' },
-    { label: 'At-Risk Revenue', path: '/at-risk', icon: AlertOctagon, badge: '8' },
-    { label: 'Transactions', path: '/transactions', icon: Receipt },
-    { label: 'Recovery Agent', path: '/agent', icon: Bot, badge: 'Live' },
-    { label: 'Simulation', path: '/simulation', icon: PlayCircle },
-    { label: 'Analytics', path: '/analytics', icon: BarChart3 },
-    { label: 'Audit Trail', path: '/audit', icon: ScrollText },
-    { label: 'Guardrails', path: '/guardrails', icon: ShieldCheck },
-    ...(role === 'admin'
-      ? [{ label: 'User Management', path: '/admin/users', icon: Users, badge: 'Admin' }]
-      : []),
-    { label: 'Account', path: '/account', icon: User },
+  const loadAtRiskCount = useCallback(async () => {
+    try {
+      const count = await api.getAtRiskCount()
+      setAtRiskCount(count)
+    } catch (err) {
+      console.warn('[Sidebar] Failed to retrieve dynamic at-risk revenue count:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAtRiskCount()
+    const unsubTx = subscribe('TRANSACTION_UPDATED', () => loadAtRiskCount())
+    const unsubQueue = subscribe('RECOVERY_QUEUE_UPDATED', () => loadAtRiskCount())
+    const unsubCase = subscribe('RECOVERY_CASE_UPDATED', () => loadAtRiskCount())
+    const unsubPay = subscribe('PAYMENT_RECEIVED', () => loadAtRiskCount())
+    const unsubRecovered = subscribe('transaction_recovered', () => loadAtRiskCount())
+    const unsubResync = subscribe('RECONNECT_RESYNC', () => loadAtRiskCount())
+    const interval = setInterval(loadAtRiskCount, 30000)
+    return () => {
+      unsubTx(); unsubQueue(); unsubCase(); unsubPay(); unsubRecovered(); unsubResync()
+      clearInterval(interval)
+    }
+  }, [loadAtRiskCount, subscribe])
+
+  const atRiskBadge = atRiskCount !== null
+    ? (atRiskCount > 999 ? '999+' : atRiskCount > 0 ? String(atRiskCount) : undefined)
+    : undefined
+
+  const sections: NavSection[] = [
+    {
+      label: 'Overview',
+      items: [
+        { label: 'Dashboard', path: '/overview', icon: LayoutDashboard },
+      ],
+    },
+    {
+      label: 'Revenue',
+      items: [
+        { label: 'Demo Store', path: '/demo-checkout', icon: ShoppingBag, badge: 'Sandbox' },
+        { label: 'Cart Recovery', path: '/abandonment', icon: ShoppingCart, badge: 'Pre-Pay' },
+        { label: 'At-Risk Revenue', path: '/at-risk', icon: AlertOctagon, badge: atRiskBadge },
+        { label: 'Transactions', path: '/transactions', icon: Receipt },
+      ],
+    },
+    {
+      label: 'Recovery',
+      items: [
+        { label: 'Recovery Agent', path: '/agent', icon: Bot, badge: 'Live' },
+        { label: 'Simulation', path: '/simulation', icon: PlayCircle },
+      ],
+    },
+    {
+      label: 'Insights',
+      items: [
+        { label: 'Analytics', path: '/analytics', icon: BarChart3 },
+        { label: 'Audit Trail', path: '/audit', icon: ScrollText },
+      ],
+    },
+    {
+      label: 'Operations',
+      items: [
+        { label: 'Guardrails', path: '/guardrails', icon: ShieldCheck },
+        ...(role === 'admin'
+          ? [{ label: 'User Management', path: '/admin/users', icon: Users, badge: 'Admin' }]
+          : []),
+      ],
+    },
+    {
+      label: 'Workspace',
+      items: [
+        { label: 'Integrations', path: '/integrations', icon: Zap },
+        { label: 'Account', path: '/account', icon: User },
+        ...(role === 'admin'
+          ? [{ label: 'Settings', path: '/guardrails', icon: Settings }]
+          : []),
+      ],
+    },
   ]
 
   return (
@@ -78,68 +199,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           </div>
         </div>
 
-        {/* Navigation List */}
-        <div className="flex-1 py-5 px-3.5 overflow-y-auto space-y-1">
-          <div className="px-3 pb-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-display">
-            Platform Navigation
-          </div>
-          {navItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={onCloseMobile}
-                className={({ isActive }) =>
-                  `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all duration-normal group ${
-                    isActive
-                      ? 'bg-[#F1EAFE] text-primary font-bold shadow-2xs'
-                      : 'text-slate-600 hover:text-primary hover:bg-[#F7F3FF] font-medium'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <Icon
-                        className={`w-4 h-4 flex-shrink-0 transition-colors ${
-                          isActive ? 'text-primary' : 'text-slate-500 group-hover:text-primary'
-                        }`}
-                      />
-                      <span className="tracking-normal">{item.label}</span>
-                    </div>
-                    {item.badge && (
-                      <span
-                        className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-semibold ${
-                          item.badge === 'Live'
-                            ? 'bg-moss-green-light text-moss-green-dark border border-moss-green/30 animate-pulse'
-                            : isActive
-                            ? 'bg-primary text-white font-bold'
-                            : 'bg-surface-blue text-primary border border-surface-blue-border'
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            )
-          })}
-        </div>
-
-        {/* Footer Gateway Status */}
-        <div className="p-4 border-t border-border/80 bg-surface">
-          <div className="p-3.5 rounded-xl bg-surface-blue border border-surface-blue-border flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20" />
-              <div>
-                <span className="text-[11px] font-bold text-navy block font-display">Razorpay Test Mode</span>
-                <span className="text-[10px] text-slate-500 font-mono font-medium">Gateway Sync: Active</span>
+        {/* Navigation Sections */}
+        <div className="flex-1 py-4 px-3.5 overflow-y-auto space-y-4">
+          {sections.map((section) => (
+            <div key={section.label}>
+              <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-display">
+                {section.label}
+              </div>
+              <div className="space-y-0.5">
+                {section.items.map((item) => (
+                  <NavItemRow key={item.path} item={item} onClose={onCloseMobile} />
+                ))}
               </div>
             </div>
-            <CreditCard className="w-4 h-4 text-primary" />
-          </div>
+          ))}
         </div>
       </aside>
     </>

@@ -19,6 +19,7 @@ from app.models import (
     DEFAULT_WORKSPACE_ID
 )
 from app.core.logging import logger
+from app.core.config import settings
 
 def seed_database(db: Session):
     now = datetime.now(timezone.utc)
@@ -97,6 +98,11 @@ def seed_database(db: Session):
     except Exception as e:
         db.rollback()
         logger.debug(f"Operator profile seed notice: {e}")
+
+    # Check if demo seeding is enabled
+    if not getattr(settings, "SEED_DEMO_DATA", False):
+        logger.info("SEED_DEMO_DATA is disabled (default). Skipping synthetic customer and transaction seeding.")
+        return
 
     # Check if database already has records
     if db.query(Customer).count() > 0:

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { profileApi } from '../services/api'
 
 export interface UserProfile {
   id: string
@@ -24,6 +25,7 @@ export interface AuthContextType {
   signOut: () => Promise<{ error: AuthError | null }>
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>
   refreshProfile: () => Promise<UserProfile | null>
+  updateProfile: (updates: { full_name?: string; avatar_url?: string | null }) => Promise<{ error: any; profile: UserProfile | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -240,6 +242,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const updateProfile = async (updates: { full_name?: string; avatar_url?: string | null }) => {
+    try {
+      if (!user) {
+        return { error: new Error('Operator is not authenticated.'), profile: null }
+      }
+
+      const cleanName = updates.full_name !== undefined ? updates.full_name.trim() : undefined
+      const cleanAvatar = updates.avatar_url !== undefined ? (updates.avatar_url ? updates.avatar_url.trim() : null) : undefined
+
+      // 1. Direct Supabase auth user metadata update
+      const metaUpdates: Record<string, any> = {}
+      if (cleanName !== undefined) {
+        metaUpdates.full_name = cleanName
+        metaUpdates.name = cleanName
+      }
+      if (cleanAvatar !== undefined) {
+        metaUpdates.avatar_url = cleanAvatar
+        metaUpdates.picture = cleanAvatar
+      }
+
+      if (Object.keys(metaUpdates).length > 0) {
+        const { error: authErr } = await supabase.auth.updateUser({
+          data: metaUpdates
+        })
+        if (authErr) {
+          console.warn('[RecoverAI Auth] Supabase auth metadata update notice:', authErr.message)
+        }
+      }
+
+      // 2. Direct Supabase public.profiles table update
+      const profileUpdates: Record<string, any> = {
+        updated_at: new Date().toISOString()
+      }
+      if (cleanName !== undefined) profileUpdates.full_name = cleanName
+      if (cleanAvatar !== undefined) profileUpdates.avatar_url = cleanAvatar
+
+      const { error: dbErr } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', user.id)
+
+      if (dbErr) {
+        console.warn('[RecoverAI Auth] Supabase profiles table update notice:', dbErr.message)
+      }
+
+      // 3. Backend API authoritative database update (bypasses RLS limits if any)
+      try {
+        await profileApi.updateProfile({
+          ...(cleanName !== undefined ? { full_name: cleanName } : {}),
+          ...(cleanAvatar !== undefined ? { avatar_url: cleanAvatar } : {})
+        })
+      } catch (apiErr) {
+        console.warn('[RecoverAI Auth] Backend profile API sync notice:', apiErr)
+      }
+
+      // 4. Update React state immediately so UI updates instantly across layout
+      const updatedProf: UserProfile = {
+        ...(profile || {
+          id: user.id,
+          email: user.email || '',
+          role: role
+        }),
+        ...(cleanName !== undefined ? { full_name: cleanName } : {}),
+        ...(cleanAvatar !== undefined ? { avatar_url: cleanAvatar || undefined } : {}),
+        role: profile?.role || role,
+        updated_at: new Date().toISOString()
+      }
+      setProfile(updatedProf)
+
+      // 5. Re-fetch profile to ensure persistence verification
+      const refreshed = await fetchProfile(user.id, user.email, {
+        ...(user.user_metadata || {}),
+        ...metaUpdates
+      })
+
+      return { error: null, profile: refreshed || updatedProf }
+    } catch (err: any) {
+      console.error('[RecoverAI Auth] Failed to update profile:', err)
+      return { error: err, profile: null }
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -254,6 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         resetPassword,
         refreshProfile,
+        updateProfile,
       }}
     >
       {children}

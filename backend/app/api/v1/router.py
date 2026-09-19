@@ -16,7 +16,8 @@ from app.api.v1.endpoints import (
     checkout,
     simulation,
     analytics,
-    admin_users
+    admin_users,
+    profile
 )
 
 api_router = APIRouter()
@@ -38,4 +39,5 @@ api_router.include_router(checkout.router, prefix="/checkout", tags=["Pre-Paymen
 api_router.include_router(ai.router, prefix="/ai", tags=["Gemini GenAI & Multi-Lingual Communications"])
 api_router.include_router(simulation.router, prefix="/simulation", tags=["Batch Recovery Simulator"])
 api_router.include_router(admin_users.router, prefix="/admin/users", tags=["Admin User Management & RBAC"])
+api_router.include_router(profile.router, prefix="/profile", tags=["User Profile & Settings"])
 

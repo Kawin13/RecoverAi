@@ -55,6 +55,15 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
     }
   }
 
+  if (activities.length === 0) {
+    return (
+      <div className={`p-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-border/80 ${className}`}>
+        <p className="text-xs font-semibold text-navy">No recent agent activity</p>
+        <p className="text-[11px] text-slate-500 mt-1">Autonomous decisions and actions will appear here in real-time as transactions are processed.</p>
+      </div>
+    )
+  }
+
   return (
     <div className={`space-y-4 ${className}`}>
       {activities.map((item, idx) => {

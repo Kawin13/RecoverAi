@@ -19,6 +19,7 @@ import {
 } from '../data/mockData'
 import { supabase } from '../lib/supabase'
 import { ENV } from '../config/env'
+import { isTerminalState } from '../lib/utils'
 
 export const API_BASE_URL = ENV.API_BASE_URL
 
@@ -183,19 +184,54 @@ export const api = {
     batch_dispatch_eligible: number
   }> {
     try {
-      const res = await authFetch(`${API_BASE_URL}/api/recovery-cases/queue-counts`)
+      const res = await authFetch(`${API_BASE_URL}/api/v1/recovery-cases/queue-counts`)
       if (res.ok) {
-        return res.json()
+        return await res.json()
+      }
+      const fallbackRes = await authFetch(`${API_BASE_URL}/api/recovery-cases/queue-counts`)
+      if (fallbackRes.ok) {
+        return await fallbackRes.json()
       }
     } catch (e) {
       console.warn('API getQueueCounts unreachable:', e)
     }
+
+    if (ENV.DEMO_MODE) {
+      const activeMock = mockTransactions.filter(t => !isTerminalState(t.status))
+      return {
+        all_at_risk: activeMock.length,
+        high_value_urgent: activeMock.filter(t => t.riskLevel === 'HIGH' || (t.amount || 0) >= 25000).length,
+        vip_enterprise: activeMock.filter(t => t.customer?.tier === 'VIP' || t.customer?.tier === 'ENTERPRISE').length,
+        gateway_bank_outages: activeMock.filter(t => t.failureCategory === 'BANK_TIMEOUT').length,
+        batch_dispatch_eligible: activeMock.length
+      }
+    }
+
     return {
       all_at_risk: 0,
       high_value_urgent: 0,
       vip_enterprise: 0,
       gateway_bank_outages: 0,
       batch_dispatch_eligible: 0
+    }
+  },
+
+  async getAtRiskCount(): Promise<number> {
+    try {
+      const counts = await this.getQueueCounts()
+      if (counts && typeof counts.all_at_risk === 'number') {
+        return counts.all_at_risk
+      }
+    } catch (e) {
+      console.warn('[API] getAtRiskCount queue counts error:', e)
+    }
+
+    try {
+      const res = await this.getTransactions({ limit: 100 })
+      const active = (res.items || []).filter(t => !isTerminalState(t.status))
+      return active.length
+    } catch {
+      return 0
     }
   },
 
@@ -1506,6 +1542,40 @@ export const adminApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.detail || 'Failed to update user role')
+    }
+    return await res.json()
+  }
+}
+
+export interface ProfileData {
+  id: string
+  full_name?: string
+  email?: string
+  avatar_url?: string | null
+  role: 'admin' | 'operator'
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export const profileApi = {
+  async getProfile(): Promise<ProfileData> {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/profile/me`)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to retrieve operator profile')
+    }
+    return await res.json()
+  },
+
+  async updateProfile(updates: { full_name?: string; avatar_url?: string | null }): Promise<ProfileData> {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/profile/me`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to update operator profile')
     }
     return await res.json()
   }

@@ -113,21 +113,8 @@ export const DemoCheckout: React.FC = () => {
 
   const [showHelper, setShowHelper] = useState(true)
   const [sdkReady, setSdkReady] = useState(false)
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const activeSessionId: string | null = null
 
-  // Track session on product selection
-  useEffect(() => {
-    api.createCheckoutSession({
-      customer_name: customerName,
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
-      cart_amount: selectedProduct.price,
-      selected_method: 'UPI',
-      is_demo_simulation: true
-    }).then(sess => {
-      setActiveSessionId(sess.id)
-    }).catch(err => console.warn('Could not init checkout session:', err))
-  }, [selectedProduct.id])
 
   // 1. Fetch payment configuration & load Razorpay checkout.js SDK
   useEffect(() => {
@@ -206,7 +193,7 @@ export const DemoCheckout: React.FC = () => {
               })
               setCheckoutResult(verifyRes)
               if (activeSessionId) {
-                api.transitionCheckoutSession(activeSessionId, { new_status: 'COMPLETED' }).catch(() => {})
+                api.transitionCheckoutSession(activeSessionId, { new_status: 'COMPLETED' }).catch(() => { })
               }
             } catch (vErr: any) {
               setErrorMsg(`Verification Failed: ${vErr.message || 'Signature mismatch'}`)
@@ -227,7 +214,7 @@ export const DemoCheckout: React.FC = () => {
               // User closed the modal without completing payment
               try {
                 if (activeSessionId) {
-                  api.transitionCheckoutSession(activeSessionId, { new_status: 'ABANDONED' }).catch(() => {})
+                  api.transitionCheckoutSession(activeSessionId, { new_status: 'ABANDONED' }).catch(() => { })
                 }
                 await api.recordPaymentFailure({
                   transaction_id: orderData.transaction_id,
@@ -581,11 +568,10 @@ export const DemoCheckout: React.FC = () => {
                     <div
                       key={prod.id}
                       onClick={() => setSelectedProduct(prod)}
-                      className={`cursor-pointer rounded-2xl p-4 border transition-all relative flex flex-col justify-between ${
-                        isSelected
+                      className={`cursor-pointer rounded-2xl p-4 border transition-all relative flex flex-col justify-between ${isSelected
                           ? 'border-primary bg-surface-blue/50 ring-2 ring-primary/20 shadow-fintech-card'
                           : 'border-border/80 bg-surface hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
-                      }`}
+                        }`}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-1 mb-2">
@@ -593,11 +579,10 @@ export const DemoCheckout: React.FC = () => {
                             {prod.category}
                           </span>
                           <span
-                            className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                              isSelected
+                            className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${isSelected
                                 ? 'bg-primary text-white shadow-2xs'
                                 : 'bg-slate-100 text-slate-600'
-                            }`}
+                              }`}
                           >
                             {prod.badge}
                           </span>

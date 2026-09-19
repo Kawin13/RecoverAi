@@ -23,11 +23,11 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
-  
+
   const { status } = useRealtime()
   const { user, profile, role, signOut } = useAuth()
   const navigate = useNavigate()
-  
+
   const activeMerchant = 'Zenith Commerce India'
 
   const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Revenue Operations User')
@@ -188,11 +188,10 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
                 <span className="font-semibold text-navy block leading-tight truncate max-w-[130px]">
                   {userDisplayName}
                 </span>
-                <span className={`px-2 py-0.5 text-[9px] font-semibold rounded-full border ${
-                  role === 'admin'
+                <span className={`px-2 py-0.5 text-[9px] font-semibold rounded-full border ${role === 'admin'
                     ? 'bg-primary-light text-primary border-primary-border'
                     : 'bg-surface-blue text-slate-700 border-surface-blue-border'
-                }`}>
+                  }`}>
                   {roleDisplay}
                 </span>
               </div>
@@ -226,11 +225,10 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-1.5 text-[11px] bg-slate-50 px-3 py-1.5 rounded-xl border border-border">
                   <span className="text-slate-500 font-medium">Role:</span>
-                  <span className={`px-2 py-0.5 rounded-full font-semibold border text-[10px] ${
-                    role === 'admin'
+                  <span className={`px-2 py-0.5 rounded-full font-semibold border text-[10px] ${role === 'admin'
                       ? 'bg-primary-light text-primary border-primary-border'
                       : 'bg-surface-blue text-slate-700 border-surface-blue-border'
-                  }`}>
+                    }`}>
                     {roleDisplay}
                   </span>
                 </div>

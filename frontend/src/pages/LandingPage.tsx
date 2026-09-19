@@ -282,8 +282,8 @@ export const LandingPage: React.FC = () => {
                 <span className="px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-mono font-bold rounded-full">
                   LIVE RECOVERY COCKPIT
                 </span>
-                <span className="px-2.5 py-1 bg-surface-blue text-primary text-[10px] font-mono font-bold rounded-full border border-surface-blue-border">
-                  DEMO DATA
+                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-mono font-bold rounded-full border border-emerald-200">
+                  LIVE READY
                 </span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold font-display text-navy">
@@ -313,7 +313,7 @@ export const LandingPage: React.FC = () => {
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="font-mono text-xs text-navy font-semibold">Gateway Sync: Razorpay Test Mode</span>
                 <span className="text-slate-300">|</span>
-                <span className="text-slate-500 font-mono text-[11px]">Merchant: Zenith Commerce India</span>
+                <span className="text-slate-500 font-mono text-[11px]">Pipeline Status: Clean</span>
               </div>
               <div className="flex items-center gap-2 font-mono text-[11px] text-slate-500">
                 <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
@@ -332,10 +332,10 @@ export const LandingPage: React.FC = () => {
                     <AlertTriangle className="w-4 h-4 text-rose-500" />
                   </div>
                   <div className="text-2xl font-bold font-display text-navy mt-1.5">
-                    ₹6,81,400
+                    ₹0
                   </div>
                   <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
-                    8 at-risk cases in active recovery
+                    0 at-risk cases in active recovery
                   </span>
                 </div>
 
@@ -345,10 +345,10 @@ export const LandingPage: React.FC = () => {
                     <TrendingUp className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div className="text-2xl font-bold font-display text-emerald-600 mt-1.5">
-                    ₹4,59,840
+                    ₹0
                   </div>
                   <span className="text-[11px] text-emerald-700 font-mono font-medium mt-0.5 block">
-                    +₹1,68,840 over naive baseline
+                    Awaiting real-time gateway events
                   </span>
                 </div>
 
@@ -358,10 +358,10 @@ export const LandingPage: React.FC = () => {
                     <BarChart3 className="w-4 h-4 text-primary" />
                   </div>
                   <div className="text-2xl font-bold font-display text-navy mt-1.5">
-                    67.48%
+                    0.0%
                   </div>
                   <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
-                    Autonomous win rate (last 7 days)
+                    Baseline active (0 transactions)
                   </span>
                 </div>
               </div>
@@ -378,7 +378,7 @@ export const LandingPage: React.FC = () => {
                     </p>
                   </div>
                   <span className="px-2.5 py-1 bg-surface text-slate-600 border border-border text-[10px] font-mono font-semibold rounded-full">
-                    DEMO DATA
+                    LIVE READY
                   </span>
                 </div>
 
@@ -859,10 +859,10 @@ export const LandingPage: React.FC = () => {
                   Revenue At Risk
                 </span>
                 <span className="text-2xl sm:text-3xl font-bold font-display text-navy block mt-1">
-                  ₹6.81L
+                  ₹0
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  100% Failed Volume
+                  0 Failed Volume
                 </span>
               </div>
 
@@ -871,10 +871,10 @@ export const LandingPage: React.FC = () => {
                   Baseline Recovery
                 </span>
                 <span className="text-2xl sm:text-3xl font-bold font-display text-slate-600 block mt-1">
-                  ₹2.91L
+                  ₹0
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  42.7% via Naive Retry
+                  0 Transactions
                 </span>
               </div>
 
@@ -883,10 +883,10 @@ export const LandingPage: React.FC = () => {
                   RecoverAI Recovery
                 </span>
                 <span className="text-2xl sm:text-3xl font-bold font-display text-emerald-800 block mt-1">
-                  ₹4.59L
+                  ₹0
                 </span>
                 <span className="text-[10px] text-emerald-700 font-mono font-medium">
-                  67.5% Closed Capture
+                  Ready to Capture
                 </span>
               </div>
 
@@ -895,10 +895,10 @@ export const LandingPage: React.FC = () => {
                   Additional Recovery
                 </span>
                 <span className="text-2xl sm:text-3xl font-bold font-display text-primary block mt-1">
-                  +₹1.68L
+                  +₹0
                 </span>
                 <span className="text-[10px] text-primary font-mono font-medium">
-                  +57.7% Lift Over Baseline
+                  Clean Pipeline Baseline
                 </span>
               </div>
             </div>
@@ -907,35 +907,20 @@ export const LandingPage: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-mono text-slate-600 font-medium">
                 <span>Recovery Allocation Waterfall</span>
-                <span>₹4.59L / ₹6.81L Total Volume</span>
+                <span>₹0 / ₹0 Total Volume</span>
               </div>
               <div className="w-full bg-slate-100 h-8 rounded-xl overflow-hidden flex text-[10px] font-mono text-white font-bold shadow-2xs">
                 <div
-                  className="bg-emerald-600 flex items-center justify-center px-2"
-                  style={{ width: '42.7%' }}
-                  title="Baseline Recovery: ₹2.91L (42.7%)"
+                  className="bg-emerald-600 flex items-center justify-center px-2 w-full text-white font-bold"
+                  title="System Active — Ready for live payment events"
                 >
-                  Baseline: ₹2.91L
-                </div>
-                <div
-                  className="bg-primary flex items-center justify-center px-2"
-                  style={{ width: '24.8%' }}
-                  title="RecoverAI Additional Lift: +₹1.68L (+24.8%)"
-                >
-                  +₹1.68L Lift
-                </div>
-                <div
-                  className="bg-slate-300 text-slate-600 flex items-center justify-center px-2"
-                  style={{ width: '32.5%' }}
-                  title="Unrecoverable / Hard Decline: ₹2.22L (32.5%)"
-                >
-                  Hard Decline
+                  Pipeline Clean: 0 Failed Payments
                 </div>
               </div>
               <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
-                <span>Label: SIMULATED EXAMPLE — Batch of 1,000 synthetic transaction records</span>
-                <Link to="/simulation" className="text-primary font-bold hover:underline flex items-center gap-1">
-                  <span>Run Custom Batch Simulation</span>
+                <span>Status: LIVE READY — Zero transaction details recorded</span>
+                <Link to="/overview" className="text-primary font-bold hover:underline flex items-center gap-1">
+                  <span>Open Operations Dashboard</span>
                   <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>

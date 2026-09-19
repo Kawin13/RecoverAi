@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { WorkspaceProvider } from './context/WorkspaceContext'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute'
 import { AppShell } from './components/layout/AppShell'
@@ -9,6 +10,8 @@ import { Login } from './pages/auth/Login'
 import { Signup } from './pages/auth/Signup'
 import { ForgotPassword } from './pages/auth/ForgotPassword'
 import { AuthCallback } from './pages/auth/AuthCallback'
+import { InviteAccept } from './pages/auth/InviteAccept'
+import { Onboarding } from './pages/Onboarding'
 import { Overview } from './pages/Overview'
 import { AtRiskRevenue } from './pages/AtRiskRevenue'
 import { Transactions } from './pages/Transactions'
@@ -18,6 +21,7 @@ import { Analytics } from './pages/Analytics'
 import { AuditTrail } from './pages/AuditTrail'
 import { Guardrails } from './pages/Guardrails'
 import { Account } from './pages/Account'
+import { Integrations } from './pages/Integrations'
 import { AdminUsers } from './pages/AdminUsers'
 import { AdminRoute } from './components/auth/AdminRoute'
 import { DemoCheckout } from './pages/DemoCheckout'
@@ -45,6 +49,9 @@ export const App: React.FC = () => {
             {/* OAuth Callback Endpoint */}
             <Route path="/auth/callback" element={<AuthCallback />} />
 
+            {/* Team Invitation Accept — works signed-in or signed-out */}
+            <Route path="/invite/:token" element={<InviteAccept />} />
+
             {/* Public-Only Authentication Entry Routes (Redirects authenticated users to /overview) */}
             <Route element={<PublicOnlyRoute />}>
               <Route path="/login" element={<Login />} />
@@ -54,11 +61,23 @@ export const App: React.FC = () => {
 
             {/* Protected Operational Application Routes (Requires active Supabase session) */}
             <Route element={<ProtectedRoute />}>
+              {/* Standalone Onboarding (outside AppShell — full-screen wizard) */}
+              <Route
+                path="/onboarding"
+                element={
+                  <WorkspaceProvider>
+                    <Onboarding />
+                  </WorkspaceProvider>
+                }
+              />
+
               <Route
                 element={
-                  <RealtimeProvider>
-                    <AppShell />
-                  </RealtimeProvider>
+                  <WorkspaceProvider>
+                    <RealtimeProvider>
+                      <AppShell />
+                    </RealtimeProvider>
+                  </WorkspaceProvider>
                 }
               >
                 <Route path="/overview" element={<Overview />} />
@@ -76,6 +95,7 @@ export const App: React.FC = () => {
                 <Route path="/audit" element={<AuditTrail />} />
                 <Route path="/audit-trail" element={<Navigate to="/audit" replace />} />
                 <Route path="/guardrails" element={<Guardrails />} />
+                <Route path="/integrations" element={<Integrations />} />
                 <Route
                   path="/admin/users"
                   element={

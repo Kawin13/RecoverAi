@@ -14,22 +14,51 @@ import {
   LogOut,
   KeyRound,
   ShieldCheck,
-  User as UserIcon
+  User as UserIcon,
+  Camera,
+  Image as ImageIcon,
+  RotateCcw
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 
+// Curated professional avatar presets for quick selection
+const AVATAR_PRESETS = [
+  {
+    name: 'Executive Tech',
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'
+  },
+  {
+    name: 'Ops Architect',
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80'
+  },
+  {
+    name: 'Fintech Lead',
+    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80'
+  },
+  {
+    name: 'Platform Engineer',
+    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80'
+  },
+  {
+    name: 'Revenue Analyst',
+    url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80'
+  }
+]
+
 export const Account: React.FC = () => {
-  const { user, profile, role, signOut } = useAuth()
+  const { user, profile, role, signOut, updateProfile } = useAuth()
   const navigate = useNavigate()
 
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [fullName, setFullName] = useState(profile?.full_name || user?.user_metadata?.full_name || '')
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // Edit Profile Modal State
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editFullName, setEditFullName] = useState(profile?.full_name || user?.user_metadata?.full_name || '')
+  const [editAvatarUrl, setEditAvatarUrl] = useState(profile?.avatar_url || user?.user_metadata?.avatar_url || '')
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileSuccess, setProfileSuccess] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
 
-  // Password Change Modal / Form state
+  // Password Change Modal State
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -39,19 +68,17 @@ export const Account: React.FC = () => {
 
   const [isSigningOut, setIsSigningOut] = useState(false)
 
-  // Sync state when user/profile changes
+  // Sync edit form inputs whenever authoritative profile/user changes
   useEffect(() => {
-    if (profile?.full_name) {
-      setFullName(profile.full_name)
-    } else if (user?.user_metadata?.full_name) {
-      setFullName(user.user_metadata.full_name)
-    } else if (user?.email) {
-      setFullName(user.email.split('@')[0])
-    }
-  }, [user, profile])
+    const currentName = profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : '')
+    const currentAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || ''
+    setEditFullName(currentName)
+    setEditAvatarUrl(currentAvatar)
+  }, [profile, user])
 
   const email = profile?.email || user?.email || ''
   const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url
+  const currentDisplayName = profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Operator')
   const roleDisplay = role === 'admin' ? 'Administrator' : 'Revenue Operator'
   const roleTag = role === 'admin' ? 'ADMINISTRATOR' : 'REVENUE OPERATOR'
 
@@ -69,7 +96,15 @@ export const Account: React.FC = () => {
     return 'Email'
   })()
 
-  const userInitials = (fullName || email || 'RA')
+  const userInitials = (currentDisplayName || email || 'RA')
+    .split(' ')
+    .filter(Boolean)
+    .map((n: string) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'RA'
+
+  const previewInitials = (editFullName || email || 'RA')
     .split(' ')
     .filter(Boolean)
     .map((n: string) => n[0])
@@ -97,33 +132,46 @@ export const Account: React.FC = () => {
       })
     : 'Active Session'
 
-  const handleSaveName = async (e: React.FormEvent) => {
+  const openEditModal = () => {
+    setEditFullName(profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : ''))
+    setEditAvatarUrl(profile?.avatar_url || user?.user_metadata?.avatar_url || '')
+    setProfileError(null)
+    setShowEditModal(true)
+  }
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!fullName.trim()) {
-      setErrorMessage('Full name cannot be empty.')
+    if (!editFullName.trim()) {
+      setProfileError('Full name cannot be empty.')
       return
     }
 
-    setIsSaving(true)
-    setErrorMessage(null)
-    setSaveSuccess(false)
+    setIsSavingProfile(true)
+    setProfileError(null)
+    setProfileSuccess(false)
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: { full_name: fullName.trim() },
+      const cleanName = editFullName.trim()
+      const cleanAvatar = editAvatarUrl.trim() || null
+
+      const { error } = await updateProfile({
+        full_name: cleanName,
+        avatar_url: cleanAvatar
       })
 
       if (error) {
-        setErrorMessage(error.message || 'Unable to update profile name.')
+        setProfileError(error.message || 'Unable to update profile. Please try again.')
       } else {
-        setSaveSuccess(true)
-        setIsEditingName(false)
-        setTimeout(() => setSaveSuccess(false), 3500)
+        setProfileSuccess(true)
+        setTimeout(() => {
+          setProfileSuccess(false)
+          setShowEditModal(false)
+        }, 1200)
       }
-    } catch {
-      setErrorMessage('Network error while updating operator profile.')
+    } catch (err: any) {
+      setProfileError(err?.message || 'Network error while updating operator profile.')
     } finally {
-      setIsSaving(false)
+      setIsSavingProfile(false)
     }
   }
 
@@ -200,6 +248,14 @@ export const Account: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={openEditModal}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple cursor-pointer"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>Edit Profile</span>
+          </button>
+          <button
+            type="button"
             onClick={handleSignOut}
             disabled={isSigningOut}
             className="inline-flex items-center gap-2 px-4 py-2 bg-surface border border-border hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-navy rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-60 cursor-pointer"
@@ -214,17 +270,17 @@ export const Account: React.FC = () => {
         </div>
       </div>
 
-      {saveSuccess && (
+      {profileSuccess && !showEditModal && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 flex items-center gap-2.5 animate-in fade-in duration-200 shadow-2xs font-semibold">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-          <span>Profile display name updated successfully across RecoverAI.</span>
+          <span>Profile identity updated successfully across all RecoverAI modules.</span>
         </div>
       )}
 
-      {errorMessage && (
+      {profileError && !showEditModal && (
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center gap-2.5 animate-in fade-in duration-200 shadow-2xs">
           <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-          <span>{errorMessage}</span>
+          <span>{profileError}</span>
         </div>
       )}
 
@@ -234,21 +290,31 @@ export const Account: React.FC = () => {
         <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-fintech-card space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70">
             <div className="flex items-center gap-4">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={fullName}
-                  className="w-14 h-14 rounded-2xl object-cover border border-border shadow-xs"
-                />
-              ) : (
-                <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center font-bold text-xl font-display shadow-fintech-purple ring-4 ring-primary-light">
-                  {userInitials}
+              <div 
+                onClick={openEditModal}
+                className="relative group cursor-pointer"
+                title="Click to edit profile photo"
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={currentDisplayName}
+                    className="w-16 h-16 rounded-2xl object-cover border-2 border-primary/20 shadow-xs group-hover:opacity-90 transition-opacity"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center font-bold text-xl font-display shadow-fintech-purple ring-4 ring-primary-light">
+                    {userInitials}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-navy/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                  <Camera className="w-5 h-5" />
                 </div>
-              )}
+              </div>
+
               <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-bold font-display text-navy tracking-tight">
-                    {fullName || 'Authenticated User'}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-xl font-bold font-display text-navy tracking-tight">
+                    {currentDisplayName}
                   </h2>
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
                     role === 'admin'
@@ -264,66 +330,15 @@ export const Account: React.FC = () => {
               </div>
             </div>
 
-            {!isEditingName && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditingName(true)
-                  setErrorMessage(null)
-                }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface hover:bg-slate-50 border border-border rounded-xl text-xs font-semibold text-navy transition-all shadow-2xs self-start sm:self-auto cursor-pointer"
-              >
-                <Edit2 className="w-3.5 h-3.5 text-primary" />
-                <span>Edit Profile</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface hover:bg-slate-50 border border-border rounded-xl text-xs font-semibold text-navy transition-all shadow-2xs self-start sm:self-auto cursor-pointer"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-primary" />
+              <span>Edit Profile</span>
+            </button>
           </div>
-
-          {/* Editable Name Form */}
-          {isEditingName && (
-            <form onSubmit={handleSaveName} className="p-4 bg-slate-50 border border-border rounded-2xl space-y-3 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-navy">
-                  Edit Full Name
-                </label>
-                <span className="text-[11px] text-slate-500">
-                  Updates your operator name across RecoverAI
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  disabled={isSaving}
-                  className="flex-1 px-3 py-2 bg-surface border border-border rounded-xl text-xs text-navy focus:outline-none focus:border-primary shadow-2xs font-semibold"
-                  placeholder="e.g. Monish B"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple disabled:opacity-60 cursor-pointer"
-                >
-                  {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                  <span>Save Changes</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditingName(false)
-                    setFullName(user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : ''))
-                    setErrorMessage(null)
-                  }}
-                  className="p-2 text-slate-400 hover:text-navy transition-colors rounded-xl hover:bg-slate-200 cursor-pointer"
-                  aria-label="Cancel editing"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          )}
 
           {/* Account Details Structured Key-Value Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -334,7 +349,7 @@ export const Account: React.FC = () => {
                 <span>Full Name</span>
               </div>
               <p className="text-xs font-bold text-navy truncate">
-                {fullName || 'Not specified'}
+                {currentDisplayName}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block font-medium">
                 Workspace profile identity
@@ -475,7 +490,232 @@ export const Account: React.FC = () => {
         </div>
       </div>
 
-      {/* Change Password Modal */}
+      {/* ====================================================================== */}
+      {/* EDIT PROFILE MODAL */}
+      {/* ====================================================================== */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-surface border border-border/80 shadow-2xl rounded-2xl w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-border/70">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-primary-light border border-primary-border text-primary">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold font-display text-navy">
+                    Edit Operator Profile
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Update your display name and profile image across RecoverAI
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false)
+                  setProfileError(null)
+                  setProfileSuccess(false)
+                }}
+                disabled={isSavingProfile}
+                className="text-slate-400 hover:text-navy transition-colors p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {profileSuccess && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center gap-2 font-semibold animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>Profile updated successfully! Synchronizing across modules...</span>
+              </div>
+            )}
+
+            {profileError && (
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{profileError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+              {/* Avatar Preview & URL Section */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-border space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-navy flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                    Profile Picture / Avatar
+                  </label>
+                  {editAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditAvatarUrl('')}
+                      className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Reset to Initials
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {/* Live Visual Preview */}
+                  <div className="flex-shrink-0">
+                    {editAvatarUrl ? (
+                      <img
+                        src={editAvatarUrl}
+                        alt="Avatar preview"
+                        onError={() => {
+                          // Handled cleanly by browser fallback
+                        }}
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-primary shadow-xs ring-4 ring-primary-light"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center font-bold text-xl font-display shadow-fintech-purple ring-4 ring-primary-light">
+                        {previewInitials}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Avatar URL Input */}
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="url"
+                      value={editAvatarUrl}
+                      onChange={(e) => setEditAvatarUrl(e.target.value)}
+                      disabled={isSavingProfile}
+                      placeholder="Paste image URL (e.g. https://...)"
+                      className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs text-navy focus:outline-none focus:border-primary shadow-2xs font-mono"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Enter any publicly accessible HTTPS image link, or select a preset below.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="pt-2 border-t border-border/70">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                    Quick Avatar Presets
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {AVATAR_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setEditAvatarUrl(preset.url)}
+                        className={`group relative rounded-xl p-0.5 border transition-all cursor-pointer ${
+                          editAvatarUrl === preset.url
+                            ? 'border-primary ring-2 ring-primary-light'
+                            : 'border-border hover:border-slate-400'
+                        }`}
+                        title={preset.name}
+                      >
+                        <img
+                          src={preset.url}
+                          alt={preset.name}
+                          className="w-8 h-8 rounded-lg object-cover"
+                        />
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setEditAvatarUrl('')}
+                      className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
+                        !editAvatarUrl
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-surface border-border text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      Use Initials
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Full Name Input */}
+              <div>
+                <label className="block text-xs font-bold text-navy mb-1.5">
+                  Full Display Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
+                  required
+                  maxLength={100}
+                  disabled={isSavingProfile}
+                  placeholder="e.g. Kawin Dharma"
+                  className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-navy font-semibold focus:outline-none focus:border-primary shadow-2xs"
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Displayed on recovery audit logs, AI agent timelines, and operator workspace actions.
+                </span>
+              </div>
+
+              {/* Email (Read Only) */}
+              <div>
+                <label className="block text-xs font-bold text-navy mb-1.5">
+                  Email Address
+                </label>
+                <div className="flex items-center justify-between px-3.5 py-2 bg-slate-100 border border-border rounded-xl text-xs text-slate-600 font-mono">
+                  <span>{email || 'N/A'}</span>
+                  <span className="text-[10px] font-sans px-2 py-0.5 bg-slate-200 text-slate-700 rounded-md font-semibold">
+                    Auth Verified
+                  </span>
+                </div>
+              </div>
+
+              {/* Role (Read Only) */}
+              <div>
+                <label className="block text-xs font-bold text-navy mb-1.5">
+                  Assigned Workspace Role
+                </label>
+                <div className="flex items-center justify-between px-3.5 py-2 bg-slate-100 border border-border rounded-xl text-xs text-slate-600">
+                  <span className="font-semibold text-navy">{roleDisplay}</span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-bold ${
+                    role === 'admin'
+                      ? 'bg-primary-light text-primary'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {roleTag}
+                  </span>
+                </div>
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/70">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={isSavingProfile}
+                  className="px-4 py-2 bg-surface hover:bg-slate-50 border border-border rounded-xl text-xs font-semibold text-navy transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple disabled:opacity-60 cursor-pointer"
+                >
+                  {isSavingProfile ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5" />
+                  )}
+                  <span>Save Profile</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
+      {/* CHANGE PASSWORD MODAL */}
+      {/* ====================================================================== */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-xs animate-in fade-in">
           <div className="bg-surface border border-border/80 shadow-2xl rounded-2xl w-full max-w-md p-6 space-y-4">

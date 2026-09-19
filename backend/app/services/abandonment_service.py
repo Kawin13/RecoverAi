@@ -243,11 +243,14 @@ class AbandonmentService:
         self,
         session: CheckoutSession,
         db: Session
-    ) -> RecoveryCase:
+    ) -> Optional[RecoveryCase]:
         """
         Creates a bounded RecoveryCase for an abandoned checkout session.
         Preserves complete relational integrity with transactions and audit trails.
         """
+        if getattr(session, "is_demo_simulation", False):
+            return None
+
         if session.recovery_case_id:
             existing = db.query(RecoveryCase).filter(RecoveryCase.id == session.recovery_case_id).first()
             if existing:

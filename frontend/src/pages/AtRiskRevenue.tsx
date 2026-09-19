@@ -15,6 +15,13 @@ export const AtRiskRevenue: React.FC = () => {
   const [selectedQueue, setSelectedQueue] = useState<'ALL' | 'CRITICAL' | 'VIP' | 'TIMEOUTS'>('ALL')
   const [isExecutingBatch, setIsExecutingBatch] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [queueCounts, setQueueCounts] = useState<{
+    all_at_risk: number
+    high_value_urgent: number
+    vip_enterprise: number
+    gateway_bank_outages: number
+    batch_dispatch_eligible: number
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { subscribe } = useRealtime()
@@ -25,10 +32,16 @@ export const AtRiskRevenue: React.FC = () => {
       setError(null)
     }
     try {
-      const res = await api.getTransactions({ limit: 100 })
+      const [res, counts] = await Promise.all([
+        api.getTransactions({ limit: 100 }),
+        api.getQueueCounts().catch(() => null)
+      ])
       // Canonical active filter: exclude terminal states
       const atRisk = (res.items || []).filter(t => !isTerminalState(t.status))
       setTransactions(atRisk)
+      if (counts) {
+        setQueueCounts(counts)
+      }
       setError(null)
     } catch {
       if (!silent) {
@@ -195,10 +208,10 @@ export const AtRiskRevenue: React.FC = () => {
       <div className="flex items-center gap-2.5 border-b border-border/70 pb-3 text-xs overflow-x-auto">
         <span className="text-slate-500 font-bold mr-1">Queue:</span>
         {[
-          { key: 'ALL', label: 'All At-Risk', count: transactions.length },
-          { key: 'CRITICAL', label: 'High Value / Urgent (≥ ₹25,000)', count: criticalTxs.length },
-          { key: 'VIP', label: 'VIP & Enterprise', count: vipTxs.length },
-          { key: 'TIMEOUTS', label: 'Gateway & Bank Outages', count: timeoutTxs.length },
+          { key: 'ALL', label: 'All At-Risk', count: queueCounts ? queueCounts.all_at_risk : transactions.length },
+          { key: 'CRITICAL', label: 'High Value / Urgent (≥ ₹25,000)', count: queueCounts ? queueCounts.high_value_urgent : criticalTxs.length },
+          { key: 'VIP', label: 'VIP & Enterprise', count: queueCounts ? queueCounts.vip_enterprise : vipTxs.length },
+          { key: 'TIMEOUTS', label: 'Gateway & Bank Outages', count: queueCounts ? queueCounts.gateway_bank_outages : timeoutTxs.length },
         ].map((tab) => (
           <button
             key={tab.key}

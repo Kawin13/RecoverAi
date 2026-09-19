@@ -357,26 +357,33 @@ export const Overview: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              {data.strategyPerformance.map((strat) => (
-                <div key={strat.strategyKey} className="space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-semibold text-navy truncate max-w-[170px]" title={strat.strategy}>
-                      {strat.strategy}
-                    </span>
-                    <span className="font-bold text-primary">{strat.recoveryRate.toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-500"
-                      style={{ width: `${strat.recoveryRate}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                    <span>{strat.successCount} of {strat.attempts} recovered</span>
-                    <span>₹{(strat.recoveredAmount / 1000).toFixed(0)}k volume</span>
-                  </div>
+              {data.strategyPerformance.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  <p className="font-semibold text-navy">No strategy metrics yet</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Autonomous workflows will rank strategies as live recoveries occur.</p>
                 </div>
-              ))}
+              ) : (
+                data.strategyPerformance.map((strat) => (
+                  <div key={strat.strategyKey} className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-navy truncate max-w-[170px]" title={strat.strategy}>
+                        {strat.strategy}
+                      </span>
+                      <span className="font-bold text-primary">{strat.recoveryRate.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-500"
+                        style={{ width: `${strat.recoveryRate}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                      <span>{strat.successCount} of {strat.attempts} recovered</span>
+                      <span>₹{(strat.recoveredAmount / 1000).toFixed(0)}k volume</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -443,22 +450,29 @@ export const Overview: React.FC = () => {
             </p>
 
             <div className="space-y-3">
-              {data.paymentBreakdown.map((item) => (
-                <div key={item.method} className="flex items-center justify-between text-xs p-3 rounded-xl bg-slate-50 border border-border/70">
-                  <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-4 h-4 text-primary" />
-                    <span className="font-semibold text-navy">{item.method}</span>
-                  </div>
-                  <div className="flex items-center gap-2 font-mono text-right">
-                    <span className="text-slate-500 text-[11px]">
-                      <MoneyValue amount={item.recoveredAmount} compact />
-                    </span>
-                    <span className="font-bold text-emerald-600 tabular-nums">
-                      {item.recoveryRate}%
-                    </span>
-                  </div>
+              {data.paymentBreakdown.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs">
+                  <p className="font-medium text-navy">No payment rail data</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Payment methods will appear once transactions are initiated.</p>
                 </div>
-              ))}
+              ) : (
+                data.paymentBreakdown.map((item) => (
+                  <div key={item.method} className="flex items-center justify-between text-xs p-3 rounded-xl bg-slate-50 border border-border/70">
+                    <div className="flex items-center gap-2.5">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                      <span className="font-semibold text-navy">{item.method}</span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono text-right">
+                      <span className="text-slate-500 text-[11px]">
+                        <MoneyValue amount={item.recoveredAmount} compact />
+                      </span>
+                      <span className="font-bold text-emerald-600 tabular-nums">
+                        {item.recoveryRate}%
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -472,24 +486,31 @@ export const Overview: React.FC = () => {
             </p>
 
             <div className="space-y-3.5">
-              {data.failureReasons.map((reason) => (
-                <div key={reason.category} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-navy truncate max-w-[170px]" title={reason.label}>
-                      {reason.label}
-                    </span>
-                    <span className="text-primary font-mono font-bold text-[11px]">
-                      {reason.recoveryRate}% Rec
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-300"
-                      style={{ width: `${reason.recoveryRate}%` }}
-                    />
-                  </div>
+              {data.failureReasons.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs">
+                  <p className="font-medium text-navy">No failure drop-offs</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Pipeline is currently clear of failed checkouts.</p>
                 </div>
-              ))}
+              ) : (
+                data.failureReasons.map((reason) => (
+                  <div key={reason.category} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-navy truncate max-w-[170px]" title={reason.label}>
+                        {reason.label}
+                      </span>
+                      <span className="text-primary font-mono font-bold text-[11px]">
+                        {reason.recoveryRate}% Rec
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${reason.recoveryRate}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

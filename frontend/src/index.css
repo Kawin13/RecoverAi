@@ -51,13 +51,16 @@
     width: 6px;
     height: 6px;
   }
+
   ::-webkit-scrollbar-track {
     background: transparent;
   }
+
   ::-webkit-scrollbar-thumb {
     background: #E2E8F0;
     border-radius: 9999px;
   }
+
   ::-webkit-scrollbar-thumb:hover {
     background: #CBD5E1;
   }
@@ -67,7 +70,7 @@
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
-  
+
   .fintech-glass {
     background-color: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(12px);
