@@ -118,33 +118,48 @@ export const DemoCheckout: React.FC = () => {
 
   // 1. Fetch payment configuration & load Razorpay checkout.js SDK
   useEffect(() => {
-    const init = async () => {
-      try {
-        const conf = await api.getPaymentConfig()
-        setConfig(conf)
-      } catch (err) {
+    let mounted = true
+
+    // Fetch payment config non-blockingly
+    api.getPaymentConfig()
+      .then((conf) => {
+        if (mounted) setConfig(conf)
+      })
+      .catch((err) => {
         console.warn('Could not fetch payment config:', err)
-      }
+      })
 
-      // Check if Razorpay is already available
-      if (window.Razorpay) {
-        setSdkReady(true)
-        return
-      }
+    // If Razorpay SDK already present on window, activate immediately
+    if (window.Razorpay) {
+      setSdkReady(true)
+      return
+    }
 
-      // Dynamically inject Razorpay Checkout SDK
+    // Safety timeout: Ensure button is never permanently stuck in 'Loading Gateway...'
+    const timer = setTimeout(() => {
+      if (mounted) setSdkReady(true)
+    }, 1500)
+
+    const existingScript = document.querySelector('script[src*="checkout.razorpay.com"]')
+    if (existingScript) {
+      existingScript.addEventListener('load', () => { if (mounted) setSdkReady(true) })
+      existingScript.addEventListener('error', () => { if (mounted) setSdkReady(true) })
+    } else {
       const script = document.createElement('script')
       script.src = 'https://checkout.razorpay.com/v1/checkout.js'
       script.async = true
-      script.onload = () => setSdkReady(true)
+      script.onload = () => { if (mounted) setSdkReady(true) }
       script.onerror = () => {
         console.warn('Could not load Razorpay SDK dynamically. Fallback enabled.')
-        setSdkReady(true) // Allow simulated fallback
+        if (mounted) setSdkReady(true)
       }
       document.body.appendChild(script)
     }
 
-    init()
+    return () => {
+      mounted = false
+      clearTimeout(timer)
+    }
   }, [])
 
   const handleSelectPersona = (name: string, email: string, phone: string) => {
