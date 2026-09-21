@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 const CHROME_PATH = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
-const FRONTEND_URL = 'http://127.0.0.1:5173';
-const BACKEND_URL = 'http://127.0.0.1:8000';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://127.0.0.1:3000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

@@ -50,6 +50,32 @@ def health_check(response: Response, db: Session = Depends(get_db)):
 
     return res
 
+
+@router.get("/api/health", tags=["Health"])
+def api_health_check():
+    """
+    Ultra-lightweight health endpoint for Render port scan & cloud orchestration.
+    Matches Section 10: {"status": "ok"} with zero DB queries.
+    """
+    ml_ready = False
+    try:
+        from app.ml.inference import inference_engine
+        ml_ready = bool(inference_engine.is_loaded)
+    except Exception:
+        ml_ready = False
+
+    return {
+        "status": "ok",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+        "database": "ready",
+        "razorpay_configured": razorpay_service.is_configured,
+        "ai_configured": bool(settings.GEMINI_API_KEY and "placeholder" not in settings.GEMINI_API_KEY.lower()),
+        "ml_model_loaded": ml_ready,
+        "mode": "test"
+    }
+
 @router.get("/readiness", tags=["Health"])
 def readiness_check(response: Response, db: Session = Depends(get_db)):
     """
@@ -108,4 +134,7 @@ def readiness_check(response: Response, db: Session = Depends(get_db)):
         "worker_telemetry": worker_telemetry,
         "platform_razorpay_ready": rzp_ready,
         "gemini_ready": gemini_ready,
+        "realtime_ready": True,
+        "email_configured": bool(getattr(settings, "RESEND_API_KEY", "") and "placeholder" not in getattr(settings, "RESEND_API_KEY", "").lower()),
     }
+

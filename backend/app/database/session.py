@@ -5,17 +5,28 @@ from app.core.logging import logger
 
 db_url = settings.get_effective_database_url()
 
-# Configure engine with SQLite compatibility if using sqlite
+# Configure engine with SQLite compatibility and cloud timeout safeguards
 connect_args = {}
+engine_kwargs = {
+    "echo": False,
+    "pool_pre_ping": True,
+}
+
 if db_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
+else:
+    # PostgreSQL timeout prevents indefinite network hangs on cloud cold boots
+    connect_args = {"connect_timeout": 5}
+    engine_kwargs.update({
+        "pool_timeout": 5,
+        "pool_recycle": 300
+    })
 
 try:
     engine = create_engine(
         db_url,
-        echo=False,
         connect_args=connect_args,
-        pool_pre_ping=True
+        **engine_kwargs
     )
     logger.info(f"Database engine initialized with target: {db_url.split('@')[-1] if '@' in db_url else db_url}")
 except Exception as e:

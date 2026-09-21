@@ -12,7 +12,29 @@ import pytest
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from app.models.profiles import Profile
+from app.models.workspaces import WorkspaceMember, Workspace, DEFAULT_WORKSPACE_ID
 from app.api.v1.endpoints import admin_users
+
+def add_profiles_with_membership(db_session, profiles):
+    ws = db_session.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
+    if not ws:
+        ws = Workspace(id=DEFAULT_WORKSPACE_ID, name="RecoverAI Test Workspace")
+        db_session.add(ws)
+    for p in profiles:
+        db_session.add(p)
+        existing_wm = db_session.query(WorkspaceMember).filter(
+            WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+            WorkspaceMember.user_id == p.id
+        ).first()
+        if not existing_wm:
+            db_session.add(WorkspaceMember(
+                id=str(uuid.uuid4()),
+                workspace_id=DEFAULT_WORKSPACE_ID,
+                user_id=p.id,
+                role=p.role or "operator"
+            ))
+    db_session.commit()
+
 
 
 def test_provider_accuracy_gmail_password_is_email(client, db_session, monkeypatch):
@@ -37,8 +59,7 @@ def test_provider_accuracy_gmail_password_is_email(client, db_session, monkeypat
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    db_session.add_all([prof, admin_prof])
-    db_session.commit()
+    add_profiles_with_membership(db_session, [prof, admin_prof])
 
     # Mock Supabase Auth to return actual provider 'email' for the gmail user
     monkeypatch.setattr(admin_users, "fetch_supabase_auth_users", lambda db: {
@@ -88,8 +109,7 @@ def test_provider_accuracy_workspace_domain_google_oauth(client, db_session, mon
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    db_session.add_all([prof, admin_prof])
-    db_session.commit()
+    add_profiles_with_membership(db_session, [prof, admin_prof])
 
     # Mock Supabase Auth metadata indicating Google OAuth provider
     monkeypatch.setattr(admin_users, "fetch_supabase_auth_users", lambda db: {
@@ -152,8 +172,7 @@ def test_last_sign_in_real_and_never_profile_updated_at(client, db_session, monk
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    db_session.add_all([p1, p2, admin_prof])
-    db_session.commit()
+    add_profiles_with_membership(db_session, [p1, p2, admin_prof])
 
     monkeypatch.setattr(admin_users, "fetch_supabase_auth_users", lambda db: {
         uid_with_signin: {
@@ -209,8 +228,7 @@ def test_status_safe_derivation(client, db_session, monkeypatch):
     p_nometa = Profile(id=no_meta_uid, email="nometa@recoverai.io", role="operator")
     p_admin = Profile(id=admin_uid, email="admin_status@recoverai.io", role="admin")
 
-    db_session.add_all([p_banned, p_unconfirmed, p_nometa, p_admin])
-    db_session.commit()
+    add_profiles_with_membership(db_session, [p_banned, p_unconfirmed, p_nometa, p_admin])
 
     monkeypatch.setattr(admin_users, "fetch_supabase_auth_users", lambda db: {
         banned_uid: {
@@ -257,10 +275,13 @@ def test_concurrent_last_admin_demotion_race(client, db_session, monkeypatch):
     admin_b_id = str(uuid.uuid4())
 
     # Clear existing admins and seed exactly 2 admins
+    db_session.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID, WorkspaceMember.role == "admin").delete()
     db_session.query(Profile).filter(Profile.role == "admin").delete()
     admin_a = Profile(id=admin_a_id, email="admin_a@recoverai.io", full_name="Admin Alpha", role="admin")
     admin_b = Profile(id=admin_b_id, email="admin_b@recoverai.io", full_name="Admin Beta", role="admin")
-    db_session.add_all([admin_a, admin_b])
+    wm_a = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=DEFAULT_WORKSPACE_ID, user_id=admin_a_id, role="admin")
+    wm_b = WorkspaceMember(id=str(uuid.uuid4()), workspace_id=DEFAULT_WORKSPACE_ID, user_id=admin_b_id, role="admin")
+    db_session.add_all([admin_a, admin_b, wm_a, wm_b])
     db_session.commit()
 
     from app.core import auth

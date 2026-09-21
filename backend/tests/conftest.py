@@ -84,6 +84,26 @@ def auth_headers(monkeypatch):
 
 @pytest.fixture
 def auth_client(db_session, auth_headers):
+    from app.models.workspaces import WorkspaceMember, Workspace, DEFAULT_WORKSPACE_ID
+    from app.models.profiles import Profile
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    ws = db_session.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
+    if not ws:
+        db_session.add(Workspace(id=DEFAULT_WORKSPACE_ID, name="RecoverAI Demo Workspace", created_at=now, updated_at=now))
+        db_session.commit()
+    admin_prof = db_session.query(Profile).filter(Profile.id == "597289a7-e26e-415d-ab4d-fa587e32899a").first()
+    if not admin_prof:
+        db_session.add(Profile(id="597289a7-e26e-415d-ab4d-fa587e32899a", email="test.ops@recoverai.io", full_name="Revenue Ops Admin", role="admin", created_at=now, updated_at=now))
+        db_session.commit()
+    admin_member = db_session.query(WorkspaceMember).filter(
+        WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+        WorkspaceMember.user_id == "597289a7-e26e-415d-ab4d-fa587e32899a"
+    ).first()
+    if not admin_member:
+        db_session.add(WorkspaceMember(id="00000000-0000-0000-0000-000000000010", workspace_id=DEFAULT_WORKSPACE_ID, user_id="597289a7-e26e-415d-ab4d-fa587e32899a", role="admin", created_at=now, updated_at=now))
+        db_session.commit()
+
     def override_get_db():
         db = TestingSessionLocal()
         try:
@@ -122,6 +142,26 @@ def operator_headers(monkeypatch):
 
 @pytest.fixture
 def operator_client(db_session, operator_headers):
+    from app.models.workspaces import WorkspaceMember, Workspace, DEFAULT_WORKSPACE_ID
+    from app.models.profiles import Profile
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    ws = db_session.query(Workspace).filter(Workspace.id == DEFAULT_WORKSPACE_ID).first()
+    if not ws:
+        db_session.add(Workspace(id=DEFAULT_WORKSPACE_ID, name="RecoverAI Demo Workspace", created_at=now, updated_at=now))
+        db_session.commit()
+    op_prof = db_session.query(Profile).filter(Profile.id == "00000000-0000-0000-0000-000000000002").first()
+    if not op_prof:
+        db_session.add(Profile(id="00000000-0000-0000-0000-000000000002", email="operator.user@recoverai.io", full_name="Operator User", role="operator", created_at=now, updated_at=now))
+        db_session.commit()
+    op_member = db_session.query(WorkspaceMember).filter(
+        WorkspaceMember.workspace_id == DEFAULT_WORKSPACE_ID,
+        WorkspaceMember.user_id == "00000000-0000-0000-0000-000000000002"
+    ).first()
+    if not op_member:
+        db_session.add(WorkspaceMember(id="00000000-0000-0000-0000-000000000020", workspace_id=DEFAULT_WORKSPACE_ID, user_id="00000000-0000-0000-0000-000000000002", role="operator", created_at=now, updated_at=now))
+        db_session.commit()
+
     def override_get_db():
         db = TestingSessionLocal()
         try:

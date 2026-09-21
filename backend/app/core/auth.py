@@ -227,7 +227,6 @@ async def get_current_user(
     requested_ws = (
         request.headers.get("x-workspace-id")
         or request.query_params.get("workspace_id")
-        or request.path_params.get("id")
         or request.path_params.get("workspace_id")
     )
     workspace_id, ws_role = resolve_user_workspace(

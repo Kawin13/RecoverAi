@@ -12,7 +12,7 @@ from app.core.config import settings
 logger = logging.getLogger("recoverai.ml")
 
 class MLInferenceEngine:
-    def __init__(self):
+    def __init__(self, auto_load: bool = True):
         self.base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         self.artifacts_dir = os.path.join(self.base_dir, "ml", "artifacts")
         
@@ -43,7 +43,13 @@ class MLInferenceEngine:
             "NO_ACTION": 0.0
         }
 
-        self._load_artifacts()
+        if auto_load:
+            self._load_artifacts()
+
+    def ensure_loaded(self):
+        """Idempotently loads ML model artifacts if not yet loaded."""
+        if not self.is_loaded:
+            self._load_artifacts()
 
     @property
     def recovery_model_loaded(self) -> bool:

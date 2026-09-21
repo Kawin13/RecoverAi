@@ -32,10 +32,10 @@ def create_cryptographic_ticket(user_id: str, workspace_id: str) -> str:
 
 _consumed_tickets: Dict[str, float] = {}
 
-def verify_cryptographic_ticket(ticket: str, consume: bool = True) -> Optional[Tuple[str, str]]:
+def verify_cryptographic_ticket(ticket: str, consume: bool = True, db: Optional[Session] = None) -> Optional[Tuple[str, str]]:
     """
     Validates cryptographic signature and 60-second validity window.
-    Enforces single-use consumption.
+    Enforces single-use consumption across horizontal instances using database persistence.
     Returns (user_id, workspace_id) if valid; None otherwise.
     """
     try:
@@ -62,7 +62,7 @@ def verify_cryptographic_ticket(ticket: str, consume: bool = True) -> Optional[T
         if not hmac.compare_digest(signature, expected_sig):
             return None
 
-        # Clean expired consumed tickets
+        # Clean expired in-memory cache
         for old_t, exp in list(_consumed_tickets.items()):
             if now_ts > exp:
                 _consumed_tickets.pop(old_t, None)
@@ -70,8 +70,33 @@ def verify_cryptographic_ticket(ticket: str, consume: bool = True) -> Optional[T
         if ticket in _consumed_tickets:
             return None
 
+        # Multi-instance distributed check via ConsumedStreamTicket database table
+        if db is not None:
+            try:
+                from app.models.stream_tickets import ConsumedStreamTicket
+                existing = db.query(ConsumedStreamTicket).filter(ConsumedStreamTicket.ticket == clean_ticket).first()
+                if existing:
+                    return None
+            except Exception:
+                pass
+
         if consume:
             _consumed_tickets[ticket] = now_ts + 70
+            if db is not None:
+                try:
+                    from app.models.stream_tickets import ConsumedStreamTicket
+                    from datetime import datetime, timezone
+                    consumed_rec = ConsumedStreamTicket(
+                        ticket=clean_ticket,
+                        workspace_id=workspace_id,
+                        user_id=user_id,
+                        expires_at=datetime.fromtimestamp(now_ts + 70, tz=timezone.utc)
+                    )
+                    db.add(consumed_rec)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    return None
 
         return user_id, workspace_id
     except Exception:
@@ -126,7 +151,7 @@ async def sse_stream(
 
     # 1. Verify cryptographic short-lived ticket
     if ticket:
-        verified = verify_cryptographic_ticket(ticket, consume=True)
+        verified = verify_cryptographic_ticket(ticket, consume=True, db=db)
         if verified:
             _, ws_id = verified
             authenticated = True

@@ -26,14 +26,72 @@ class NotificationReceipt(BaseModel):
     recipient: str
     delivery_label: str = "DEMO DELIVERY"
     is_simulated: bool = True
-    status: str = "DELIVERED"
+    status: str = "SENT"
     title: str
     body: str
     action_url: Optional[str] = None
     language: str = "en"
     recovery_case_id: Optional[str] = None
+    provider_message_id: Optional[str] = None
     latency_ms: int = 120
     dispatched_at: datetime = Field(default_factory=datetime.utcnow)
+
+class EmailAdapter:
+    """Authentic email adapter dispatching recovery emails through Resend REST API."""
+    @staticmethod
+    def send(to_email: str, subject: str, body_text: str, action_url: Optional[str] = None) -> tuple[bool, Optional[str], Optional[str]]:
+        from app.core.config import settings
+        import json
+        import urllib.request
+        import urllib.error
+
+        api_key = getattr(settings, "RESEND_API_KEY", "")
+        from_address = getattr(settings, "EMAIL_FROM_ADDRESS", "recovery@recoverai.io")
+
+        if not api_key or "placeholder" in api_key.lower():
+            logger.info(f"[EmailAdapter] Resend API key not configured. Honest sandbox dispatch to {to_email}.")
+            return True, f"resend_mock_{uuid.uuid4().hex[:10]}", None
+
+        url = "https://api.resend.com/emails"
+        html_content = f"<div style='font-family: sans-serif; line-height: 1.6; color: #1e1b4b;'>"
+        html_content += f"<p>{body_text}</p>"
+        if action_url:
+            html_content += f"<p style='margin-top: 24px;'><a href='{action_url}' style='background-color: #6366f1; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;'>Complete Payment</a></p>"
+        html_content += f"<p style='font-size: 12px; color: #64748b; margin-top: 32px;'>Secured by RecoverAI Autonomous Revenue Engine</p></div>"
+
+        payload = {
+            "from": from_address,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content,
+            "text": f"{body_text}\n\n{action_url if action_url else ''}"
+        }
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "RecoverAI-V1/1.0"
+            }
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 201):
+                    res_data = json.loads(resp.read().decode("utf-8"))
+                    provider_msg_id = res_data.get("id")
+                    logger.info(f"[EmailAdapter] Real email sent via Resend to {to_email} (ID: {provider_msg_id})")
+                    return True, provider_msg_id, None
+                return False, None, f"Resend API returned status {resp.status}"
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode("utf-8") if he.fp else str(he)
+            logger.error(f"[EmailAdapter] Resend HTTP Error {he.code}: {err_body}")
+            return False, None, f"Resend error: {he.code} - {err_body}"
+        except Exception as exc:
+            logger.error(f"[EmailAdapter] Resend request failed: {exc}")
+            return False, None, str(exc)
 
 class NotificationService:
     def __init__(self):
@@ -51,12 +109,17 @@ class NotificationService:
         action_url: Optional[str] = None,
         language: str = "en",
         recovery_case_id: Optional[str] = None,
-        custom_message: Optional[str] = None
+        custom_message: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        customer_id: Optional[str] = None,
+        db: Optional[Any] = None
     ) -> NotificationReceipt:
         """
-        Dispatches or honestly simulates a notification across specified channel.
-        Always tags unconfigured/test sends with DEMO DELIVERY.
+        Dispatches real email (via Resend if configured) or honestly labels unconfigured sends.
+        Persists message record into customer_messages table. Never falsely claims DELIVERED.
         """
+        from app.core.config import settings
+        from app.models.workspaces import DEFAULT_WORKSPACE_ID
         norm_channel = channel.upper()
         if norm_channel not in [c.value for c in NotificationChannel]:
             norm_channel = NotificationChannel.IN_APP.value
@@ -72,21 +135,71 @@ class NotificationService:
             custom_message=custom_message
         )
 
+        has_resend = bool(getattr(settings, "RESEND_API_KEY", "") and "placeholder" not in getattr(settings, "RESEND_API_KEY", "").lower())
+        is_real_send = (norm_channel in ("EMAIL", "EMAIL_SIMULATION")) and has_resend
+        provider_msg_id = None
+        delivery_status = "SENT"
+        delivery_err = None
+
+        if is_real_send:
+            ok, p_id, err_str = EmailAdapter.send(
+                to_email=recipient,
+                subject=title,
+                body_text=body,
+                action_url=action_url
+            )
+            provider_msg_id = p_id
+            if ok:
+                delivery_status = "SENT"
+                delivery_label = "RESEND EMAIL"
+            else:
+                delivery_status = "FAILED"
+                delivery_label = "RESEND ERROR"
+                delivery_err = err_str
+        else:
+            delivery_status = "SENT"
+            delivery_label = "DEMO DELIVERY"
+
         receipt = NotificationReceipt(
             notification_id=f"notif_{uuid.uuid4().hex[:12]}",
             channel=norm_channel,
             recipient=recipient,
-            delivery_label="DEMO DELIVERY",
-            is_simulated=True,
-            status="DELIVERED",
+            delivery_label=delivery_label,
+            is_simulated=not is_real_send,
+            status=delivery_status,
             title=title,
             body=body,
             action_url=action_url,
             language=language,
             recovery_case_id=recovery_case_id,
+            provider_message_id=provider_msg_id,
             latency_ms=145,
             dispatched_at=datetime.now(timezone.utc)
         )
+
+        # Persist into customer_messages table if db session available
+        if db is not None:
+            try:
+                from app.models.customer_messages import CustomerMessage
+                cmsg = CustomerMessage(
+                    id=f"cmsg_{uuid.uuid4().hex[:12]}",
+                    workspace_id=workspace_id or DEFAULT_WORKSPACE_ID,
+                    recovery_case_id=recovery_case_id,
+                    customer_id=customer_id,
+                    channel=norm_channel,
+                    recipient=recipient,
+                    subject=title,
+                    provider_message_id=provider_msg_id,
+                    status=delivery_status,
+                    created_at=datetime.now(timezone.utc),
+                    sent_at=datetime.now(timezone.utc) if delivery_status == "SENT" else None,
+                    failed_at=datetime.now(timezone.utc) if delivery_status == "FAILED" else None,
+                    error=delivery_err
+                )
+                db.add(cmsg)
+                db.flush()
+            except Exception as e:
+                logger.warning(f"[Notification] Could not persist CustomerMessage: {e}")
 
         # Store in recent history
         self._history.insert(0, receipt)
@@ -94,8 +207,8 @@ class NotificationService:
             self._history.pop()
 
         logger.info(
-            f"[DEMO DELIVERY] Dispatched {norm_channel} to {recipient} "
-            f"for Case {recovery_case_id} [Strategy: {strategy}]: {title}"
+            f"[{delivery_label}] Dispatched {norm_channel} to {recipient} "
+            f"for Case {recovery_case_id} [Status: {delivery_status}]: {title}"
         )
 
         # Emit real-time SSE event for dashboard and agent workflow feed
@@ -104,12 +217,13 @@ class NotificationService:
             "channel": receipt.channel,
             "recipient": receipt.recipient,
             "delivery_label": receipt.delivery_label,
+            "status": receipt.status,
             "title": receipt.title,
             "body": receipt.body,
             "action_url": receipt.action_url,
             "recovery_case_id": receipt.recovery_case_id,
             "dispatched_at": receipt.dispatched_at.isoformat()
-        })
+        }, workspace_id=workspace_id)
 
         return receipt
 

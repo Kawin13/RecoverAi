@@ -590,15 +590,15 @@ export const Simulation: React.FC = () => {
             <div className="flex gap-2">
               <div className="flex-1 bg-slate-50 border border-border rounded-xl px-2 py-1.5 flex items-center justify-between text-[11px] font-mono">
                 <span className="text-slate-400">UPI:</span>
-                <span className="font-bold text-navy">{Math.round(controls.payment_methods_dist.UPI * 100)}%</span>
+                <span className="font-bold text-navy">{Math.round((controls.payment_methods_dist.UPI ?? 0.65) * 100)}%</span>
               </div>
               <div className="flex-1 bg-slate-50 border border-border rounded-xl px-2 py-1.5 flex items-center justify-between text-[11px] font-mono">
                 <span className="text-slate-400">Card:</span>
-                <span className="font-bold text-navy">{Math.round(controls.payment_methods_dist.CARD * 100)}%</span>
+                <span className="font-bold text-navy">{Math.round((controls.payment_methods_dist.CARD ?? 0.20) * 100)}%</span>
               </div>
               <div className="flex-1 bg-slate-50 border border-border rounded-xl px-2 py-1.5 flex items-center justify-between text-[11px] font-mono">
                 <span className="text-slate-400">NB:</span>
-                <span className="font-bold text-navy">{Math.round(controls.payment_methods_dist.NET_BANKING * 100)}%</span>
+                <span className="font-bold text-navy">{Math.round((controls.payment_methods_dist.NET_BANKING ?? 0.10) * 100)}%</span>
               </div>
               <div className="flex-1 bg-slate-50 border border-border rounded-xl px-2 py-1.5 flex items-center justify-between text-[11px] font-mono">
                 <span className="text-slate-400">Wallet:</span>

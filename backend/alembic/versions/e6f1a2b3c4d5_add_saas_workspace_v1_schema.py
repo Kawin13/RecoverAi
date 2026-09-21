@@ -123,10 +123,19 @@ def downgrade() -> None:
     if "webhook_events" in existing_tables:
         if dialect == "sqlite":
             with op.batch_alter_table("webhook_events") as batch_op:
+                batch_op.drop_index("ix_webhook_events_workspace_id")
+                batch_op.drop_index("ix_webhook_events_provider_event_id")
                 batch_op.drop_column("provider_event_id")
                 batch_op.drop_column("integration_id")
                 batch_op.drop_column("workspace_id")
         else:
+            try:
+                op.drop_constraint("fk_webhook_events_integration_id", "webhook_events", type_="foreignkey")
+                op.drop_constraint("fk_webhook_events_workspace_id", "webhook_events", type_="foreignkey")
+            except Exception:
+                pass
+            op.drop_index("ix_webhook_events_workspace_id", table_name="webhook_events")
+            op.drop_index("ix_webhook_events_provider_event_id", table_name="webhook_events")
             op.drop_column("webhook_events", "provider_event_id")
             op.drop_column("webhook_events", "integration_id")
             op.drop_column("webhook_events", "workspace_id")

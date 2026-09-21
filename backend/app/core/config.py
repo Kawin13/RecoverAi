@@ -49,8 +49,16 @@ class Settings(BaseSettings):
     PUBLIC_API_URL: str = "http://localhost:8000"
     RUN_BACKGROUND_WORKER: bool = True
 
+    # Email Notification Provider (Resend)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM_ADDRESS: str = "recoveries@recoverai.io"
+
     # Data Seeding Control
     SEED_DEMO_DATA: bool = False
+
+    # Email & Notifications (Resend Adapter - Product V1)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM_ADDRESS: str = "recovery@recoverai.io"
 
     model_config = SettingsConfigDict(
         env_file=[backend_env, root_env, ".env"],

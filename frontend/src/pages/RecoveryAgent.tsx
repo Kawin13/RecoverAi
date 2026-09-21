@@ -724,7 +724,7 @@ export const RecoveryAgent: React.FC = () => {
                     {/* Actions Bar for Card */}
                     <div className="mt-3.5 pt-3 flex items-center justify-between border-t border-border/60">
                       <span className="text-[11px] text-slate-400 font-mono">
-                        Updated {formatTimeAgo(wf.updated_at)}
+                        Updated {formatTimeAgo(wf.updated_at || wf.scheduled_at || new Date())}
                       </span>
 
                       <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>

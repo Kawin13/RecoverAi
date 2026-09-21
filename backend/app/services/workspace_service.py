@@ -239,15 +239,15 @@ def configure_razorpay_integration(
     cleaned_key_secret = (key_secret or "").strip()
     cleaned_webhook_secret = (webhook_secret or "").strip() if webhook_secret else None
 
+    if cleaned_key_id.startswith("rzp_live_"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="LIVE MODE REJECTED: RecoverAI operates strictly in Razorpay TEST MODE. Live payment processing or real money is prohibited."
+        )
     if not cleaned_key_id.startswith("rzp_test_"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid Key ID: RecoverAI operates strictly in Razorpay TEST MODE. Key ID must start with 'rzp_test_'."
-        )
-    if cleaned_key_id.startswith("rzp_live_"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="LIVE MODE REJECTED: RecoverAI Product V1 does not permit live payment processing or real money."
         )
     if not cleaned_key_secret:
         raise HTTPException(

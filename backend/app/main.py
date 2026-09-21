@@ -1,3 +1,5 @@
+import os
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,8 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
-from app.database.session import engine, SessionLocal
-from app.database.seed import seed_database
+from app.database.session import engine
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.router import api_router
 
@@ -14,14 +15,18 @@ from app.core.config_validator import validate_startup_config
 
 # Initialize structured logging
 setup_logging()
+logger.info("BOOT 1: main module imported")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Startup Configuration Validation (Fail-Safe)
+    logger.info("BOOT 3: lifespan entered")
+
+    # 1. Startup Configuration Validation (Fast, non-blocking check)
     logger.info(f"Validating configuration for environment: {settings.ENVIRONMENT}...")
     validate_startup_config(settings)
+    logger.info("BOOT 4: configuration validated")
 
-    # 2. Verify database connectivity
+    # 2. Verify database connectivity (non-blocking for port binding)
     logger.info("Verifying database connectivity...")
     try:
         from sqlalchemy import text
@@ -29,47 +34,47 @@ async def lifespan(app: FastAPI):
             conn.execute(text("SELECT 1;"))
         logger.info("Database connectivity established successfully.")
     except Exception as exc:
-        if str(settings.ENVIRONMENT).lower() == "production":
-            logger.critical(f"FATAL: Production database connectivity verification failed: {exc}")
-            raise RuntimeError(f"FATAL: Production database connectivity verification failed: {exc}")
-        logger.warning(f"Database connection notice on startup: {exc}")
+        logger.warning(f"Database connection notice on startup (readiness probe will reflect status): {exc}")
+    logger.info("BOOT 5: database initialization complete")
 
-    # Seed minimal baseline records if needed (DML only, no DDL modifications)
-    db = SessionLocal()
-    try:
-        seed_database(db)
-    except Exception as e:
-        logger.error(f"Error while running database seed: {e}")
-    finally:
-        db.close()
-
-    # 3. ML Model Startup Validation (Safe status logging & fail-closed production check)
-    logger.info("Validating ML model runtime compatibility and artifact loading...")
+    # 3. ML Model Background Initialization (Does not block Uvicorn port binding)
     try:
         from app.ml.inference import inference_engine
-        inference_engine.validate_startup()
+        asyncio.create_task(asyncio.to_thread(inference_engine.ensure_loaded))
+        logger.info("ML model background loading task scheduled.")
     except Exception as exc:
-        if str(settings.ENVIRONMENT).lower() == "production":
-            logger.critical(f"FATAL: Production ML model startup validation failed: {exc}")
-            raise RuntimeError(f"FATAL: Production ML model startup validation failed: {exc}")
-        logger.warning(f"ML model startup validation notice: {exc}")
-        
-    # 4. Start Autonomous Background Recovery Worker (non-test runtime, controlled by RUN_BACKGROUND_WORKER)
-    import os
+        logger.warning(f"ML model background scheduling notice: {exc}")
+
+    # 4. Background Worker (Embedded mode if RUN_BACKGROUND_WORKER=true and not testing)
     is_testing = bool(os.environ.get("PYTEST_CURRENT_TEST") or getattr(settings, "TESTING", False))
-    should_run_worker = getattr(settings, "RUN_BACKGROUND_WORKER", True) and not is_testing
+    is_prod = str(settings.ENVIRONMENT).lower() == "production"
+    should_run_worker = bool(getattr(settings, "RUN_BACKGROUND_WORKER", not is_prod) and not is_testing)
 
+    worker_task = None
     if should_run_worker:
-        logger.info("Starting Autonomous Background Recovery Worker...")
+        logger.info("Starting Autonomous Background Recovery Worker (embedded mode)...")
         from app.services.background_worker import background_worker
-        background_worker.start()
+        worker_task = asyncio.create_task(background_worker._run_loop())
+        logger.info("Autonomous Background Recovery Worker task created.")
+    else:
+        logger.info("Autonomous Background Recovery Worker disabled in web service process.")
 
+    logger.info("BOOT 6: worker scheduling complete")
+    logger.info("BOOT 7: startup ready")
     logger.info(f"{settings.PROJECT_NAME} v{settings.VERSION} ready on {settings.ENVIRONMENT} mode.")
+
     yield
+
     # Shutdown
     logger.info(f"Shutting down {settings.PROJECT_NAME}...")
-    if should_run_worker:
-        await background_worker.stop()
+    if worker_task:
+        logger.info("Cancelling embedded background worker task...")
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Embedded background worker stopped cleanly.")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -79,11 +84,21 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+logger.info("BOOT 2: FastAPI application created")
 
-# CORS Configuration
+# CORS Configuration - Strictly rejects wildcard origin when allow_credentials=True
+configured_origins = [orig.strip() for orig in (settings.CORS_ORIGINS or []) if orig.strip() and orig.strip() != "*"]
+if not configured_origins:
+    configured_origins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS or ["*"],
+    allow_origins=configured_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,7 +113,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "error": "Validation Error",
             "details": exc.errors(),
-            "path": request.url.path
+            "body": getattr(exc, "body", None)
         }
     )
 
@@ -116,6 +131,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Include Routers
 app.include_router(health_router)
+app.include_router(health_router, prefix="/api", include_in_schema=False)
 # Canonical API v1 Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

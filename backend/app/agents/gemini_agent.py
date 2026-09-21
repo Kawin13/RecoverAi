@@ -25,16 +25,18 @@ class GeminiAgent:
         self._client = None
         self._cache: Dict[str, Dict[str, Any]] = {}
 
-        if self.api_key:
+    def _get_client(self):
+        if self._client is None and self.api_key and "placeholder" not in str(self.api_key).lower():
             try:
                 from google import genai
                 self._client = genai.Client(api_key=self.api_key)
                 logger.info(f"Gemini GenAI client initialized with model: {self.model_name}")
             except Exception as e:
                 logger.warning(f"Could not initialize Google GenAI SDK client: {e}")
+        return self._client
 
     def is_available(self) -> bool:
-        return self._client is not None and bool(self.api_key)
+        return self._get_client() is not None and bool(self.api_key)
 
     def explain_decision(
         self,
@@ -53,11 +55,12 @@ class GeminiAgent:
             return self._cache[cache_key]
 
         # Check if live Gemini API is available
-        if self.is_available():
+        client = self._get_client()
+        if client is not None:
             try:
                 safe_prompt = self._build_explanation_prompt(transaction_data, decision_data)
                 
-                response = self._client.models.generate_content(
+                response = client.models.generate_content(
                     model=self.model_name,
                     contents=safe_prompt,
                 )
@@ -105,10 +108,11 @@ class GeminiAgent:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        if self.is_available():
+        client = self._get_client()
+        if client is not None:
             try:
                 safe_prompt = self._build_message_prompt(transaction_data, decision_data, lang_code)
-                response = self._client.models.generate_content(
+                response = client.models.generate_content(
                     model=self.model_name,
                     contents=safe_prompt,
                 )

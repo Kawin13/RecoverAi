@@ -17,6 +17,8 @@ from app.models.workspace_integrations import WorkspaceIntegration
 from app.models.workspace_invitations import WorkspaceInvitation
 from app.models.internal_events import InternalEvent
 from app.models.recovery_jobs import RecoveryJob, JobType, JobStatus
+from app.models.customer_messages import CustomerMessage
+from app.models.stream_tickets import ConsumedStreamTicket
 
 __all__ = [
     "Customer",
@@ -42,5 +44,7 @@ __all__ = [
     "RecoveryJob",
     "JobType",
     "JobStatus",
+    "CustomerMessage",
+    "ConsumedStreamTicket",
 ]
 

@@ -1,0 +1,73 @@
+services:
+  # 1. RecoverAI Production Web Service
+  - type: web
+    name: recoverai-web
+    runtime: python
+    buildCommand: "pip install -r backend/requirements.txt"
+    preDeployCommand: "cd backend && alembic upgrade head"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: RUN_BACKGROUND_WORKER
+        value: "false"
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: USE_SQLITE
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APP_ENCRYPTION_KEY
+        sync: false
+      - key: FRONTEND_PUBLIC_URL
+        sync: false
+      - key: CORS_ORIGINS
+        value: "https://your-frontend-domain.vercel.app"
+
+  # 2. RecoverAI Autonomous Background Recovery Worker
+  - type: worker
+    name: recoverai-worker
+    runtime: python
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "cd backend && python -m app.worker"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: RUN_BACKGROUND_WORKER
+        value: "true"
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: USE_SQLITE
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APP_ENCRYPTION_KEY
+        sync: false

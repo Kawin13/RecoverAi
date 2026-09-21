@@ -98,6 +98,34 @@ def validate_startup_config(settings) -> Tuple[bool, List[str]]:
     if is_prod and not gemini_key:
         errors.append("GEMINI_API_KEY is missing. Gemini LLM engine requires an authentic API key.")
 
+    # 8. Production Flags & Security Constraints (Phase 42)
+    if is_prod:
+        if settings.DEBUG:
+            errors.append("DEBUG must be False in production.")
+        if getattr(settings, "USE_SQLITE", False):
+            errors.append("USE_SQLITE must be False in production.")
+        if getattr(settings, "SEED_DEMO_DATA", False):
+            errors.append("SEED_DEMO_DATA must be False in production.")
+
+        # Encryption Key validation
+        app_enc_key = getattr(settings, "APP_ENCRYPTION_KEY", "")
+        if not app_enc_key or app_enc_key == "placeholder_encryption_key_32_bytes":
+            errors.append("APP_ENCRYPTION_KEY is required and must not use placeholder values in production.")
+
+        # Public URLs validation
+        frontend_url = getattr(settings, "FRONTEND_PUBLIC_URL", "")
+        if not frontend_url or "localhost" in frontend_url:
+            errors.append("FRONTEND_PUBLIC_URL must be set to a valid non-localhost production domain (e.g. Vercel).")
+        
+        public_api = getattr(settings, "PUBLIC_API_URL", "")
+        if not public_api or "localhost" in public_api:
+            errors.append("PUBLIC_API_URL must be set to a valid non-localhost production domain (e.g. Render).")
+
+        # CORS Origins validation
+        cors_list = getattr(settings, "CORS_ORIGINS", []) or []
+        if "*" in cors_list:
+            errors.append("CORS_ORIGINS cannot include wildcard '*' in production when credentials are enabled.")
+
     # Safe Masked Diagnostic Logging (Zero secrets exposed)
     logger.info("=== RECOVERAI CONFIGURATION DIAGNOSTICS ===")
     logger.info(f"ENVIRONMENT:             {settings.ENVIRONMENT}")
