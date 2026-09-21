@@ -80,6 +80,10 @@ yarn-error.log*
 **/.chrome_profile/
 **/tests/.chrome_profile/
 .playwright/
+.playwright-mcp/
+**/.playwright-mcp/
 **/playwright-report/
 **/test-results/
+mcp_screenshots/
+*.png
 

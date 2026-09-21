@@ -1,8 +1,9 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { workspaceApi, WorkspaceData } from '../services/workspaceApi'
 import { useAuth } from './AuthContext'
 
 export const ACTIVE_WORKSPACE_KEY = 'recoverai_active_workspace_id'
+export const LEGACY_ACTIVE_WORKSPACE_KEY = 'recoverai_active_workspace'
 
 export interface WorkspaceContextType {
   activeWorkspace: WorkspaceData | null
@@ -29,6 +30,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const applyActiveWorkspace = useCallback((ws: WorkspaceData) => {
     setActiveWorkspace(ws)
     localStorage.setItem(ACTIVE_WORKSPACE_KEY, ws.id)
+    localStorage.setItem(LEGACY_ACTIVE_WORKSPACE_KEY, ws.id)
   }, [])
 
   const fetchWorkspaces = useCallback(async () => {
@@ -41,11 +43,12 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (list.length === 0) {
         setActiveWorkspace(null)
         localStorage.removeItem(ACTIVE_WORKSPACE_KEY)
+        localStorage.removeItem(LEGACY_ACTIVE_WORKSPACE_KEY)
         setIsOnboarding(true)
         return
       }
       setIsOnboarding(false)
-      const savedId = localStorage.getItem(ACTIVE_WORKSPACE_KEY)
+      const savedId = localStorage.getItem(ACTIVE_WORKSPACE_KEY) || localStorage.getItem(LEGACY_ACTIVE_WORKSPACE_KEY)
       const preferred = savedId ? list.find((w) => w.id === savedId) : null
       applyActiveWorkspace(preferred ?? list[0])
     } catch (err: any) {

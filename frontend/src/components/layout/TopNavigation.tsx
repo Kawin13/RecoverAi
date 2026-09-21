@@ -13,6 +13,7 @@ import {
 
 import { useRealtime } from '../../lib/useRealtime'
 import { useAuth } from '../../context/AuthContext'
+import { useWorkspace } from '../../context/WorkspaceContext'
 
 interface TopNavigationProps {
   onToggleSidebar: () => void
@@ -26,9 +27,10 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onToggleSidebar })
 
   const { status } = useRealtime()
   const { user, profile, role, signOut } = useAuth()
+  const { activeWorkspace } = useWorkspace()
   const navigate = useNavigate()
 
-  const activeMerchant = 'Zenith Commerce India'
+  const activeMerchant = activeWorkspace?.name || 'RecoverAI Workspace'
 
   const userDisplayName = profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Revenue Operations User')
   const userEmail = profile?.email || user?.email || ''

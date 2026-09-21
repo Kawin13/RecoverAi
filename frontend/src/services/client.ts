@@ -17,7 +17,9 @@ export async function getAuthHeaders(contentType: string = 'application/json'): 
     console.warn('[API] Could not retrieve session for auth header:', err)
   }
   try {
-    const activeWs = localStorage.getItem('recoverai_active_workspace')
+    const activeWs =
+      localStorage.getItem('recoverai_active_workspace_id') ||
+      localStorage.getItem('recoverai_active_workspace')
     if (activeWs) {
       headers['X-Workspace-Id'] = activeWs
     }
