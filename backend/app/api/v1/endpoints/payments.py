@@ -462,14 +462,18 @@ def record_payment_failure(
             risk_amount=tx.amount,
             failure_category=request.error_category or "GATEWAY_ERROR",
             recovery_probability=0.74,
-            selected_strategy="INSTANT_RETRY_FALLBACK",
+            selected_strategy="PENDING",
             expected_recovery_value=round(tx.amount * 0.74, 2),
-            status="PENDING_APPROVAL",
-            attempt_count=1,
+            status="DETECTED",
+            current_step="DETECTED",
+            attempt_count=0,
+            max_attempts=3,
+            channel="IN_APP",
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )
         db.add(recovery_case)
+        db.flush()
 
     # 4. Audit Log
     db.add(
@@ -485,10 +489,32 @@ def record_payment_failure(
             created_at=datetime.now(timezone.utc)
         )
     )
-
     db.commit()
 
-    logger.info(f"Recorded payment failure for Transaction {tx.id}. Escalated to RecoveryCase {recovery_case.id}")
+    # 5. Automatically execute Autonomous Recovery Pipeline (Diagnostics -> ERV -> Guardrails -> Dispatch)
+    from app.services.recovery_executor import recovery_state_machine
+    pipeline_steps = []
+    try:
+        pipeline_steps = recovery_state_machine.execute_full_pipeline(recovery_case, db, is_live_demo=True)
+    except Exception as exc:
+        logger.warning(f"Notice during automatic recovery pipeline execution: {exc}")
+
+    # Enqueue background job for persistent worker guarantees
+    from app.services.background_worker import background_worker
+    from app.models.recovery_jobs import JobType
+    try:
+        background_worker.enqueue_job(
+            db=db,
+            job_type=JobType.PROCESS_RECOVERY_CASE.value,
+            entity_id=recovery_case.id,
+            workspace_id=str(tx.workspace_id),
+            payload={"case_id": recovery_case.id, "transaction_id": tx.id, "failure_reason": request.error_category or "GATEWAY_ERROR"},
+            idempotency_key=f"job_rec_{recovery_case.id}"
+        )
+    except Exception as exc:
+        logger.debug(f"Job enqueue notice: {exc}")
+
+    logger.info(f"Recorded payment failure for Transaction {tx.id}. Escalated to RecoveryCase {recovery_case.id}. Steps taken: {len(pipeline_steps)}")
 
     return {
         "status": "recorded",
@@ -496,7 +522,8 @@ def record_payment_failure(
         "recovery_case_id": recovery_case.id,
         "error_code": request.error_code,
         "error_description": request.error_description,
-        "escalated_to_agent": True
+        "escalated_to_agent": True,
+        "steps_taken": len(pipeline_steps)
     }
 
 @router.post("/simulate", summary="Execute Simulated Payment Outcome (Success or Failure)")

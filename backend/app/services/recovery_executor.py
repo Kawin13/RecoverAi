@@ -119,16 +119,31 @@ class RecoveryExecutor:
             base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
             recovery_checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id if tx else case.id}&method=UPI&recommendation=upi_switch&amount={amount}&recovery_case={case.id}"
 
-            receipt = notification_service.send_recovery_notification(
-                recipient=cust_phone,
-                channel="WHATSAPP_SIMULATION",
-                strategy=strategy,
-                customer_name=cust_name,
-                amount=amount,
-                action_url=recovery_checkout_url,
-                language=getattr(cust, "preferred_language", "en"),
-                recovery_case_id=case.id
-            )
+            if case.channel == "EMAIL" and cust_email and "@" in cust_email:
+                receipt = notification_service.send_recovery_notification(
+                    recipient=cust_email,
+                    channel="EMAIL",
+                    strategy="PAYMENT_LINK",
+                    customer_name=cust_name,
+                    amount=amount,
+                    action_url=recovery_checkout_url,
+                    language=getattr(cust, "preferred_language", "en"),
+                    recovery_case_id=case.id,
+                    workspace_id=str(case.workspace_id),
+                    customer_id=cust.id if cust else None,
+                    db=db
+                )
+            else:
+                receipt = notification_service.send_recovery_notification(
+                    recipient=cust_phone,
+                    channel="WHATSAPP_SIMULATION",
+                    strategy=strategy,
+                    customer_name=cust_name,
+                    amount=amount,
+                    action_url=recovery_checkout_url,
+                    language=getattr(cust, "preferred_language", "en"),
+                    recovery_case_id=case.id
+                )
 
             execution_data.update({
                 "recovery_journey_url": recovery_checkout_url,
@@ -372,7 +387,7 @@ class RecoveryStateMachine:
             # Step 4 -> ACTION_SCHEDULED
             # Select channel
             if case.selected_strategy == "UPI_SWITCH":
-                case.channel = "WHATSAPP_SIMULATION"
+                case.channel = "EMAIL" if getattr(settings, "EMAIL_ENABLED", True) and getattr(settings, "RESEND_API_KEY", None) else "WHATSAPP_SIMULATION"
             elif case.selected_strategy in ("PAYMENT_LINK", "SMART_PAYLINK_1CLICK"):
                 case.channel = "EMAIL"
             elif case.selected_strategy in ("PERSONALIZED_REMINDER", "INCENTIVIZED_DUNNING"):
