@@ -35,6 +35,14 @@ class WorkspaceSettingsUpdateRequest(BaseModel):
     quiet_hours_end: Optional[str] = None
     maximum_discount_percent: Optional[float] = None
     allowed_strategies: Optional[List[str]] = None
+    # Email Recovery Settings
+    email_enabled: Optional[bool] = None
+    max_emails_per_recovery: Optional[int] = None
+    email_cooldown_minutes: Optional[int] = None
+    email_quiet_hours_enabled: Optional[bool] = None
+    email_quiet_hours_start: Optional[str] = None
+    email_quiet_hours_end: Optional[str] = None
+    recovery_success_email_enabled: Optional[bool] = None
 
 class RazorpayConnectRequest(BaseModel):
     key_id: str = Field(..., description="Razorpay Test Key ID starting with 'rzp_test_'")

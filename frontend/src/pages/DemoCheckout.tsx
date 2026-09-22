@@ -1200,6 +1200,13 @@ export const DemoCheckout: React.FC = () => {
                   >
                     Priyanka (Growth)
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPersona('Kawin Dharma', 'kawindharma@gmail.com', '+91 98450 99999')}
+                    className="px-2.5 py-1 bg-moss-green-light hover:bg-moss-green/20 text-[10px] font-bold text-moss-green-dark rounded-full border border-moss-green/30 transition-colors cursor-pointer"
+                  >
+                    Kawin (Verified Test)
+                  </button>
                 </div>
               </div>
 

@@ -19,7 +19,8 @@ from app.api.v1.endpoints import (
     admin_users,
     profile,
     workspaces,
-    resend_webhooks
+    resend_webhooks,
+    email_management
 )
 
 api_router = APIRouter()
@@ -44,4 +45,5 @@ api_router.include_router(ai.router, prefix="/ai", tags=["Gemini GenAI & Multi-L
 api_router.include_router(simulation.router, prefix="/simulation", tags=["Batch Recovery Simulator"])
 api_router.include_router(admin_users.router, prefix="/admin/users", tags=["Admin User Management & RBAC"])
 api_router.include_router(profile.router, prefix="/profile", tags=["User Profile & Settings"])
+api_router.include_router(email_management.router, prefix="/email-management", tags=["Email Management & Resend"])
 

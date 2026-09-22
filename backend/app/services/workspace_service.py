@@ -179,7 +179,10 @@ def update_workspace_settings(workspace_id: str, payload: Dict[str, Any], db: Se
         "human_approval_threshold", "urgent_value_threshold",
         "max_recovery_attempts", "cooldown_minutes",
         "quiet_hours_enabled", "quiet_hours_start", "quiet_hours_end",
-        "maximum_discount_percent", "allowed_strategies"
+        "maximum_discount_percent", "allowed_strategies",
+        "email_enabled", "max_emails_per_recovery", "email_cooldown_minutes",
+        "email_quiet_hours_enabled", "email_quiet_hours_start", "email_quiet_hours_end",
+        "recovery_success_email_enabled"
     ]
     for field in updatable_fields:
         if field in payload:

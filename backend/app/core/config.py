@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional, Set
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 backend_env = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     EMAIL_FROM_ADDRESS: str = "RecoverAI <onboarding@resend.dev>"
     EMAIL_TEST_MODE: bool = True
     EMAIL_TEST_RECIPIENTS: str = ""
+    EMAIL_AUTO_REDIRECT_DEMO: bool = True
 
     model_config = SettingsConfigDict(
         env_file=[backend_env, root_env, ".env"],
@@ -100,5 +101,12 @@ class Settings(BaseSettings):
             for email in self.EMAIL_TEST_RECIPIENTS.split(",")
             if email.strip()
         }
+
+    def get_primary_test_recipient(self) -> Optional[str]:
+        """Returns the first verified test recipient email, or None if unconfigured."""
+        allowed = self.get_allowed_test_recipients()
+        if allowed:
+            return sorted(list(allowed))[0]
+        return None
 
 settings = Settings()

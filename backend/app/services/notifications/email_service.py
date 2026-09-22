@@ -297,79 +297,118 @@ class EmailService:
 
         # 4. Phase 4 - No-Domain Development Test Mode Check
         is_test_mode = getattr(settings, "EMAIL_TEST_MODE", True)
+        actual_dispatch_to = cleaned_recipient
+        was_redirected = False
+        original_intended_recipient = None
+
         if is_test_mode:
             allowed_recipients = settings.get_allowed_test_recipients()
             norm_recip = cleaned_recipient.lower()
             if not allowed_recipients or norm_recip not in allowed_recipients:
-                block_reason = "Email delivery restricted to configured test recipients."
-                logger.warning(
-                    f"[EmailService] Blocked non-test recipient '{cleaned_recipient}' in EMAIL_TEST_MODE. "
-                    f"Configured allowlist: {list(allowed_recipients)}"
-                )
+                auto_redirect = getattr(settings, "EMAIL_AUTO_REDIRECT_DEMO", False)
+                primary_test_email = settings.get_primary_test_recipient()
+                
+                # Eligible for demo redirect if specific synthetic demo persona or marked as demo
+                is_demo_eligible = bool(auto_redirect and primary_test_email and (
+                    any(norm_recip.endswith(d) for d in ("@techcorp.in", "@zenithai.com", "@recoverai.io", "@local.dev"))
+                    or template_context.get("is_demo", False)
+                    or template_context.get("is_simulated", False)
+                    or template_context.get("auto_redirect_demo", False)
+                ))
 
-                blocked_msg = CustomerMessage(
-                    id=str(uuid.uuid4()),
-                    workspace_id=workspace_id,
-                    recovery_case_id=recovery_case_id,
-                    transaction_id=transaction_id,
-                    customer_id=customer_id,
-                    recovery_action_id=recovery_action_id,
-                    recovery_job_id=recovery_job_id,
-                    channel="EMAIL",
-                    recipient=cleaned_recipient,
-                    subject=subject,
-                    template_type=template_type,
-                    message_text=text_body,
-                    body_text=text_body,
-                    message_html=html_body,
-                    provider="resend",
-                    status=NotificationStatus.BLOCKED.value,
-                    idempotency_key=idempotency_key,
-                    attempt_count=attempt_number,
-                    created_at=now,
-                    error_code="BLOCKED_TEST_RECIPIENT",
-                    error_message=block_reason,
-                    error=block_reason
-                )
-                db.add(blocked_msg)
-                db.commit()
+                if is_demo_eligible:
+                    actual_dispatch_to = primary_test_email
+                    was_redirected = True
+                    original_intended_recipient = cleaned_recipient
+                    logger.info(
+                        f"[EmailService] EMAIL_TEST_MODE auto-redirected demo email for '{cleaned_recipient}' "
+                        f"to verified test recipient '{primary_test_email}'."
+                    )
 
-                self._record_audit_log(
-                    db=db,
-                    workspace_id=workspace_id,
-                    action_type="EMAIL_BLOCKED",
-                    recovery_case_id=recovery_case_id,
-                    transaction_id=transaction_id,
-                    details=f"Email to {cleaned_recipient} blocked: {block_reason}",
-                    metadata={"error_code": "BLOCKED_TEST_RECIPIENT", "recipient": cleaned_recipient}
-                )
+                    redirect_banner_text = (
+                        f"[RECOVERAI DEMO TEST NOTICE: Originally destined for {cleaned_recipient} during checkout]\n\n"
+                    )
+                    text_body = redirect_banner_text + text_body
 
-                # Broadcast real-time SSE with BLOCKED_TEST_RECIPIENT label
-                event_broadcaster.broadcast_sync(
-                    "EMAIL_STATUS_CHANGED",
-                    {
-                        "message_id": str(blocked_msg.id),
-                        "recipient": cleaned_recipient,
-                        "status": "BLOCKED",
-                        "delivery_label": "BLOCKED_TEST_RECIPIENT",
-                        "error_code": "BLOCKED_TEST_RECIPIENT",
-                        "error_message": block_reason,
-                        "recovery_case_id": recovery_case_id,
-                        "workspace_id": str(workspace_id),
-                        "timestamp": now.isoformat()
-                    },
-                    workspace_id=workspace_id
-                )
+                    redirect_banner_html = (
+                        f'<div style="background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; '
+                        f'padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 13px; '
+                        f'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;">'
+                        f'<strong>⚠️ RecoverAI Test Mode Notice:</strong> This recovery email was originally addressed to '
+                        f'<code>{cleaned_recipient}</code> in demo checkout and automatically routed to your verified test inbox.'
+                        f'</div>'
+                    )
+                    html_body = redirect_banner_html + html_body
+                else:
+                    block_reason = "Email delivery restricted to configured test recipients."
+                    logger.warning(
+                        f"[EmailService] Blocked non-test recipient '{cleaned_recipient}' in EMAIL_TEST_MODE. "
+                        f"Configured allowlist: {list(allowed_recipients)}"
+                    )
 
-                return NotificationResult(
-                    success=False,
-                    provider="resend",
-                    status=NotificationStatus.BLOCKED.value,
-                    error_code="BLOCKED_TEST_RECIPIENT",
-                    error_message=block_reason,
-                    idempotency_key=idempotency_key,
-                    delivery_label="BLOCKED_TEST_RECIPIENT"
-                )
+                    blocked_msg = CustomerMessage(
+                        id=str(uuid.uuid4()),
+                        workspace_id=workspace_id,
+                        recovery_case_id=recovery_case_id,
+                        transaction_id=transaction_id,
+                        customer_id=customer_id,
+                        recovery_action_id=recovery_action_id,
+                        recovery_job_id=recovery_job_id,
+                        channel="EMAIL",
+                        recipient=cleaned_recipient,
+                        subject=subject,
+                        template_type=template_type,
+                        message_text=text_body,
+                        body_text=text_body,
+                        message_html=html_body,
+                        provider="resend",
+                        status=NotificationStatus.BLOCKED.value,
+                        idempotency_key=idempotency_key,
+                        attempt_count=attempt_number,
+                        created_at=now,
+                        error_code="BLOCKED_TEST_RECIPIENT",
+                        error_message=block_reason,
+                        error=block_reason
+                    )
+                    db.add(blocked_msg)
+                    db.commit()
+
+                    self._record_audit_log(
+                        db=db,
+                        workspace_id=workspace_id,
+                        action_type="EMAIL_BLOCKED",
+                        recovery_case_id=recovery_case_id,
+                        transaction_id=transaction_id,
+                        details=f"Email to {cleaned_recipient} blocked: {block_reason}",
+                        metadata={"error_code": "BLOCKED_TEST_RECIPIENT", "recipient": cleaned_recipient}
+                    )
+
+                    # Broadcast real-time SSE with BLOCKED_TEST_RECIPIENT label
+                    event_broadcaster.broadcast_sync(
+                        "EMAIL_STATUS_CHANGED",
+                        {
+                            "message_id": str(blocked_msg.id),
+                            "recipient": cleaned_recipient,
+                            "status": "BLOCKED",
+                            "delivery_label": "BLOCKED_TEST_RECIPIENT",
+                            "error_code": "BLOCKED_TEST_RECIPIENT",
+                            "error_message": block_reason,
+                            "recovery_case_id": recovery_case_id,
+                            "workspace_id": str(workspace_id),
+                            "timestamp": now.isoformat()
+                        },
+                        workspace_id=workspace_id
+                    )
+
+                    return NotificationResult(
+                        success=False,
+                        provider="resend",
+                        status=NotificationStatus.BLOCKED.value,
+                        error_code="BLOCKED_TEST_RECIPIENT",
+                        error_message=block_reason,
+                        idempotency_key=idempotency_key,
+                        delivery_label="BLOCKED_TEST_RECIPIENT"
+                    )
 
         # 5. Persist QUEUED state before attempting external network request
         message_id = str(uuid.uuid4())
@@ -392,7 +431,8 @@ class EmailService:
             status=NotificationStatus.QUEUED.value,
             idempotency_key=idempotency_key,
             attempt_count=attempt_number,
-            created_at=now
+            created_at=now,
+            metadata_json=json.dumps({"was_redirected": was_redirected, "actual_dispatch_to": actual_dispatch_to, "original_recipient": original_intended_recipient}) if was_redirected else None
         )
         db.add(msg)
         db.commit()
@@ -403,7 +443,7 @@ class EmailService:
             action_type="EMAIL_QUEUED",
             recovery_case_id=recovery_case_id,
             transaction_id=transaction_id,
-            details=f"Email queued for dispatch to {cleaned_recipient} via Resend.",
+            details=f"Email queued for dispatch to {cleaned_recipient}{' (redirected to ' + actual_dispatch_to + ')' if was_redirected else ''} via Resend.",
             metadata={"message_id": message_id, "template_type": template_type}
         )
 
@@ -412,7 +452,7 @@ class EmailService:
         db.commit()
 
         send_res = resend_adapter.send_sync(
-            to=cleaned_recipient,
+            to=actual_dispatch_to,
             subject=subject,
             html_content=html_body,
             text_content=text_body
@@ -431,8 +471,8 @@ class EmailService:
                 action_type="EMAIL_SENT",
                 recovery_case_id=recovery_case_id,
                 transaction_id=transaction_id,
-                details=f"Email sent via Resend to {cleaned_recipient} (Provider ID: {send_res.provider_message_id}).",
-                metadata={"provider_message_id": send_res.provider_message_id}
+                details=f"Email sent via Resend to {cleaned_recipient}{' (redirected to ' + actual_dispatch_to + ')' if was_redirected else ''} (Provider ID: {send_res.provider_message_id}).",
+                metadata={"provider_message_id": send_res.provider_message_id, "was_redirected": was_redirected, "actual_dispatch_to": actual_dispatch_to}
             )
 
             # Broadcast SSE
@@ -446,6 +486,8 @@ class EmailService:
                     "provider_message_id": send_res.provider_message_id,
                     "recovery_case_id": recovery_case_id,
                     "workspace_id": str(workspace_id),
+                    "was_redirected": was_redirected,
+                    "actual_dispatch_to": actual_dispatch_to if was_redirected else None,
                     "timestamp": utcnow().isoformat()
                 },
                 workspace_id=workspace_id
