@@ -175,3 +175,10 @@ def operator_client(db_session, operator_headers):
         yield test_client
     app.dependency_overrides.clear()
 
+
+@pytest.fixture(autouse=True)
+def disable_quiet_hours_in_tests(monkeypatch):
+    """Ensure test runs are deterministic regardless of local time of day."""
+    from app.services.notifications.email_service import email_service
+    monkeypatch.setattr(email_service, "_is_in_quiet_hours", lambda *args, **kwargs: False)
+

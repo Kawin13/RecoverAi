@@ -88,7 +88,8 @@ class EmailService:
         workspace_id: str,
         db: Session,
         recovery_case_id: Optional[str] = None,
-        customer_id: Optional[str] = None
+        customer_id: Optional[str] = None,
+        bypass_quiet_hours: bool = False
     ) -> Tuple[bool, Optional[str]]:
         """
         Validates whether communication is permissible under all RecoverAI and merchant policies:
@@ -161,8 +162,8 @@ class EmailService:
                     if recent_send:
                         return False, "EMAIL_COOLDOWN_ACTIVE"
 
-            # Quiet Hours Check
-            if getattr(ws_settings, "quiet_hours_enabled", True) and getattr(ws_settings, "email_quiet_hours_enabled", True):
+            # Quiet Hours Check (bypassed for explicit operator diagnostic tests)
+            if not bypass_quiet_hours and getattr(ws_settings, "quiet_hours_enabled", True) and getattr(ws_settings, "email_quiet_hours_enabled", True):
                 q_start = getattr(ws_settings, "email_quiet_hours_start", "22:00")
                 q_end = getattr(ws_settings, "email_quiet_hours_end", "08:00")
                 tz = getattr(ws_settings, "timezone", "Asia/Kolkata")
@@ -184,7 +185,9 @@ class EmailService:
         recovery_action_id: Optional[str] = None,
         recovery_job_id: Optional[str] = None,
         attempt_number: int = 1,
-        is_async: bool = False
+        is_async: bool = False,
+        bypass_quiet_hours: bool = False,
+        custom_idempotency_key: Optional[str] = None
     ) -> NotificationResult:
         """
         Coordinates full transactional recovery email dispatch:
@@ -198,14 +201,39 @@ class EmailService:
         cleaned_recipient = (recipient or "").strip()
         now = utcnow()
 
-        # Generate deterministic idempotency key
-        idempotency_key = self.generate_idempotency_key(
-            workspace_id=workspace_id,
-            recovery_case_id=recovery_case_id,
-            recovery_action_id=recovery_action_id,
-            template_type=template_type,
-            attempt_number=attempt_number
-        )
+        # Defensive check: if connected to PostgreSQL or DB enforcing FKs, ensure referenced records exist
+        if recovery_case_id:
+            try:
+                if db.bind and db.bind.dialect.name == "postgresql":
+                    case_exists = db.query(RecoveryCase.id).filter(RecoveryCase.id == recovery_case_id).first()
+                    if not case_exists:
+                        logger.warning(
+                            f"[EmailService] recovery_case_id '{recovery_case_id}' not found in database; setting to None."
+                        )
+                        recovery_case_id = None
+            except Exception as e:
+                logger.warning(f"[EmailService] Could not check recovery_case_id in DB: {e}")
+
+        if transaction_id:
+            try:
+                if db.bind and db.bind.dialect.name == "postgresql":
+                    tx_exists = db.query(Transaction.id).filter(Transaction.id == transaction_id).first()
+                    if not tx_exists:
+                        transaction_id = None
+            except Exception as e:
+                logger.warning(f"[EmailService] Could not check transaction_id in DB: {e}")
+
+        # Generate deterministic idempotency key or use custom key for on-demand diagnostic tests
+        if custom_idempotency_key:
+            idempotency_key = custom_idempotency_key
+        else:
+            idempotency_key = self.generate_idempotency_key(
+                workspace_id=workspace_id,
+                recovery_case_id=recovery_case_id,
+                recovery_action_id=recovery_action_id,
+                template_type=template_type,
+                attempt_number=attempt_number
+            )
 
         # 1. Idempotency Check: if already processed, return existing
         existing_msg = (
@@ -240,7 +268,8 @@ class EmailService:
             workspace_id=workspace_id,
             db=db,
             recovery_case_id=recovery_case_id,
-            customer_id=customer_id
+            customer_id=customer_id,
+            bypass_quiet_hours=bypass_quiet_hours
         )
 
         if not allowed:

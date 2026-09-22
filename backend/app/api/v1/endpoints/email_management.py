@@ -142,28 +142,38 @@ def send_test_email(
     }
 
     test_case_id = f"case_test_{uuid.uuid4().hex[:8]}"
+    test_idemp_key = f"idemp_test_{uuid.uuid4().hex[:12]}"
 
-    res = email_service.send_recovery_email(
-        recipient=target_recipient,
-        template_type=request.template_type or "PAYMENT_LINK",
-        template_context=context,
-        workspace_id=ws_id,
-        recovery_case_id=test_case_id,
-        db=db
-    )
+    try:
+        res = email_service.send_recovery_email(
+            recipient=target_recipient,
+            template_type=request.template_type or "PAYMENT_LINK",
+            template_context=context,
+            workspace_id=ws_id,
+            recovery_case_id=None,
+            bypass_quiet_hours=True,
+            custom_idempotency_key=test_idemp_key,
+            db=db
+        )
 
-    return {
-        "success": res.success,
-        "status": res.status,
-        "delivery_label": res.delivery_label,
-        "recipient": target_recipient,
-        "provider": res.provider,
-        "provider_message_id": res.provider_message_id,
-        "error_code": res.error_code,
-        "error_message": res.error_message,
-        "idempotency_key": res.idempotency_key,
-        "test_case_id": test_case_id
-    }
+        return {
+            "success": res.success,
+            "status": res.status,
+            "delivery_label": res.delivery_label,
+            "recipient": target_recipient,
+            "provider": res.provider,
+            "provider_message_id": res.provider_message_id,
+            "error_code": res.error_code,
+            "error_message": res.error_message,
+            "idempotency_key": res.idempotency_key,
+            "test_case_id": test_case_id
+        }
+    except Exception as e:
+        logger.error(f"[EmailManagement] Error sending test email: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to dispatch test email: {str(e)}"
+        )
 
 
 @router.get("/history", summary="Get Paginated Email Delivery History")
