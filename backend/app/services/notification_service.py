@@ -135,27 +135,55 @@ class NotificationService:
             custom_message=custom_message
         )
 
-        has_resend = bool(getattr(settings, "RESEND_API_KEY", "") and "placeholder" not in getattr(settings, "RESEND_API_KEY", "").lower())
-        is_real_send = (norm_channel in ("EMAIL", "EMAIL_SIMULATION")) and has_resend
+        is_email_channel = norm_channel in ("EMAIL", "EMAIL_SIMULATION")
         provider_msg_id = None
         delivery_status = "SENT"
+        delivery_label = "DEMO DELIVERY"
         delivery_err = None
+        is_real_send = False
 
-        if is_real_send:
-            ok, p_id, err_str = EmailAdapter.send(
-                to_email=recipient,
-                subject=title,
-                body_text=body,
-                action_url=action_url
-            )
-            provider_msg_id = p_id
-            if ok:
-                delivery_status = "SENT"
-                delivery_label = "RESEND EMAIL"
-            else:
+        if is_email_channel:
+            from app.services.notifications import email_service
+            from app.database.session import SessionLocal
+
+            session_db = db
+            close_db = False
+            if session_db is None:
+                session_db = SessionLocal()
+                close_db = True
+
+            try:
+                template_type = "PAYMENT_LINK" if strategy == "PAYMENT_LINK" else ("CART_ABANDONMENT" if "ABANDON" in strategy else "PERSONALIZED_REMINDER")
+                context = {
+                    "customer_name": customer_name,
+                    "amount": amount,
+                    "merchant_name": "RecoverAI",
+                    "action_url": action_url,
+                    "custom_message": custom_message,
+                    "strategy": strategy
+                }
+                res = email_service.send_recovery_email(
+                    recipient=recipient,
+                    template_type=template_type,
+                    template_context=context,
+                    workspace_id=workspace_id or DEFAULT_WORKSPACE_ID,
+                    db=session_db,
+                    recovery_case_id=recovery_case_id,
+                    customer_id=customer_id
+                )
+                delivery_status = res.status
+                provider_msg_id = res.provider_message_id
+                delivery_label = res.delivery_label
+                delivery_err = res.error_message
+                is_real_send = res.success
+            except Exception as e:
+                logger.error(f"[NotificationService] email_service failed: {e}")
                 delivery_status = "FAILED"
-                delivery_label = "RESEND ERROR"
-                delivery_err = err_str
+                delivery_label = "EMAIL ERROR"
+                delivery_err = str(e)
+            finally:
+                if close_db:
+                    session_db.close()
         else:
             delivery_status = "SENT"
             delivery_label = "DEMO DELIVERY"
@@ -176,30 +204,6 @@ class NotificationService:
             latency_ms=145,
             dispatched_at=datetime.now(timezone.utc)
         )
-
-        # Persist into customer_messages table if db session available
-        if db is not None:
-            try:
-                from app.models.customer_messages import CustomerMessage
-                cmsg = CustomerMessage(
-                    id=f"cmsg_{uuid.uuid4().hex[:12]}",
-                    workspace_id=workspace_id or DEFAULT_WORKSPACE_ID,
-                    recovery_case_id=recovery_case_id,
-                    customer_id=customer_id,
-                    channel=norm_channel,
-                    recipient=recipient,
-                    subject=title,
-                    provider_message_id=provider_msg_id,
-                    status=delivery_status,
-                    created_at=datetime.now(timezone.utc),
-                    sent_at=datetime.now(timezone.utc) if delivery_status == "SENT" else None,
-                    failed_at=datetime.now(timezone.utc) if delivery_status == "FAILED" else None,
-                    error=delivery_err
-                )
-                db.add(cmsg)
-                db.flush()
-            except Exception as e:
-                logger.warning(f"[Notification] Could not persist CustomerMessage: {e}")
 
         # Store in recent history
         self._history.insert(0, receipt)
@@ -233,6 +237,42 @@ class NotificationService:
         limit: int = 20
     ) -> List[NotificationReceipt]:
         """Returns recent notification receipts for the live workflow feed."""
+        # Check DB for durable customer_messages records
+        from app.database.session import SessionLocal
+        from app.models.customer_messages import CustomerMessage
+
+        db = SessionLocal()
+        try:
+            query = db.query(CustomerMessage)
+            if case_id:
+                query = query.filter(CustomerMessage.recovery_case_id == case_id)
+            db_messages = query.order_by(CustomerMessage.created_at.desc()).limit(limit).all()
+
+            if db_messages:
+                db_receipts = [
+                    NotificationReceipt(
+                        notification_id=str(m.id),
+                        channel=m.channel or "EMAIL",
+                        recipient=m.recipient,
+                        delivery_label="BLOCKED_TEST_RECIPIENT" if m.error_code == "BLOCKED_TEST_RECIPIENT" else ("RESEND EMAIL" if m.status == "SENT" else (m.status or "RESEND EMAIL")),
+                        is_simulated=m.status != "SENT" and m.status != "DELIVERED",
+                        status=m.status,
+                        title=m.subject,
+                        body=m.message_text or m.body_text or "",
+                        language="en",
+                        recovery_case_id=m.recovery_case_id,
+                        provider_message_id=m.provider_message_id,
+                        latency_ms=120,
+                        dispatched_at=m.created_at
+                    )
+                    for m in db_messages
+                ]
+                return db_receipts
+        except Exception as e:
+            logger.debug(f"[NotificationService] DB fetch fallback to in-memory: {e}")
+        finally:
+            db.close()
+
         if case_id:
             return [n for n in self._history if n.recovery_case_id == case_id][:limit]
         return self._history[:limit]

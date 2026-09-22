@@ -49,16 +49,13 @@ class Settings(BaseSettings):
     PUBLIC_API_URL: str = "http://localhost:8000"
     RUN_BACKGROUND_WORKER: bool = True
 
-    # Email Notification Provider (Resend)
+    # Email Notification Provider (Resend - Product V1)
     RESEND_API_KEY: str = ""
-    EMAIL_FROM_ADDRESS: str = "recoveries@recoverai.io"
-
-    # Data Seeding Control
-    SEED_DEMO_DATA: bool = False
-
-    # Email & Notifications (Resend Adapter - Product V1)
-    RESEND_API_KEY: str = ""
-    EMAIL_FROM_ADDRESS: str = "recovery@recoverai.io"
+    RESEND_WEBHOOK_SECRET: str = ""
+    EMAIL_ENABLED: bool = True
+    EMAIL_FROM_ADDRESS: str = "RecoverAI <onboarding@resend.dev>"
+    EMAIL_TEST_MODE: bool = True
+    EMAIL_TEST_RECIPIENTS: str = ""
 
     model_config = SettingsConfigDict(
         env_file=[backend_env, root_env, ".env"],
@@ -93,5 +90,15 @@ class Settings(BaseSettings):
         if self.USE_SQLITE or not url or "[YOUR-PASSWORD]" in url or "password_here" in url:
             return self.SQLITE_FALLBACK_URL
         return url
+
+    def get_allowed_test_recipients(self) -> set:
+        """Returns normalized set of lowercased email addresses permitted in EMAIL_TEST_MODE."""
+        if not self.EMAIL_TEST_RECIPIENTS:
+            return set()
+        return {
+            email.strip().lower()
+            for email in self.EMAIL_TEST_RECIPIENTS.split(",")
+            if email.strip()
+        }
 
 settings = Settings()

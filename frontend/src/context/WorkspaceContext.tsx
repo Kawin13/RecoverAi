@@ -22,7 +22,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { user, session } = useAuth()
   const [workspaces, setWorkspaces] = useState<WorkspaceData[]>([])
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceData | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isOnboarding, setIsOnboarding] = useState(false)
   const fetchedForUser = useRef<string | null>(null)
@@ -34,7 +34,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const fetchWorkspaces = useCallback(async () => {
-    if (!user || !session) return
+    if (!user || !session) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -64,6 +67,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setWorkspaces([])
       setActiveWorkspace(null)
       setIsOnboarding(false)
+      setLoading(false)
       fetchedForUser.current = null
       return
     }

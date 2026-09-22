@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Integer, Boolean, JSON, Uuid
 from sqlalchemy.orm import relationship
 from app.database.base import Base
@@ -36,6 +36,15 @@ class WorkspaceSettings(Base):
         "WHATSAPP_CONCIERGE",
         "INCENTIVIZED_DUNNING"
     ])
+
+    # Workspace Email Policy (Resend Integration - Product V1)
+    email_enabled = Column(Boolean, nullable=False, default=True)
+    max_emails_per_recovery = Column(Integer, nullable=False, default=3)
+    email_cooldown_minutes = Column(Integer, nullable=False, default=30)
+    email_quiet_hours_enabled = Column(Boolean, nullable=False, default=True)
+    email_quiet_hours_start = Column(String(8), nullable=False, default="22:00")
+    email_quiet_hours_end = Column(String(8), nullable=False, default="08:00")
+    recovery_success_email_enabled = Column(Boolean, nullable=False, default=False)
     
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)

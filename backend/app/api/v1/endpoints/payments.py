@@ -1,12 +1,13 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.core.config import settings
 from app.core.logging import logger
+from app.models.workspaces import DEFAULT_WORKSPACE_ID, Workspace
 from app.models import (
     Customer,
     Transaction,
@@ -21,7 +22,8 @@ from app.schemas.payment import (
     CreateOrderResponse,
     VerifyPaymentRequest,
     VerifyPaymentResponse,
-    PaymentFailureRequest
+    PaymentFailureRequest,
+    SimulatePaymentRequest
 )
 from app.services.razorpay_service import razorpay_service
 from app.services.guardrails_service import guardrails_service
@@ -44,12 +46,22 @@ def get_payment_config():
 @router.post("/order", response_model=CreateOrderResponse, summary="Create Server-Side Razorpay Order")
 def create_payment_order(
     request: CreateOrderRequest,
+    req: Request,
     db: Session = Depends(get_db)
 ):
     """
     Generates a genuine Razorpay order server-side and registers the transaction
-    and checkout session in RecoverAI database.
+    and checkout session in RecoverAI database with workspace isolation.
     """
+    # Determine target workspace from header or fallback to default
+    ws_id = req.headers.get("x-workspace-id")
+    if ws_id:
+        existing_ws = db.query(Workspace).filter(Workspace.id == ws_id).first()
+        if not existing_ws:
+            ws_id = DEFAULT_WORKSPACE_ID
+    else:
+        ws_id = DEFAULT_WORKSPACE_ID
+
     # 1. Retrieve or provision customer
     customer = db.query(Customer).filter(Customer.email == request.customer_email).first()
     if not customer:
@@ -73,7 +85,8 @@ def create_payment_order(
         "product_id": request.product_id,
         "product_name": request.product_name,
         "merchant": "RecoverAI Demo Store",
-        "customer_email": request.customer_email
+        "customer_email": request.customer_email,
+        "workspace_id": str(ws_id)
     }
     try:
         rzp_order = razorpay_service.create_order(
@@ -92,13 +105,15 @@ def create_payment_order(
 
     # 4. Persist Transaction in PENDING state
     tx_id = f"tx_{uuid.uuid4().hex[:10]}"
+    selected_method = request.method or "Card"
     transaction = Transaction(
         id=tx_id,
+        workspace_id=ws_id,
         order_id=razorpay_order_id,
         customer_id=customer.id,
         amount=request.amount,
         currency=request.currency,
-        method="Card",  # Default placeholder until checkout completes
+        method=selected_method,
         status="PENDING",
         razorpay_order_id=razorpay_order_id,
         created_at=datetime.now(timezone.utc),
@@ -106,29 +121,46 @@ def create_payment_order(
     )
     db.add(transaction)
 
-    # 5. Persist CheckoutSession
-    session_id = f"cs_{uuid.uuid4().hex[:10]}"
-    checkout_session = CheckoutSession(
-        id=session_id,
-        customer_id=customer.id,
-        order_id=razorpay_order_id,
-        items_summary=request.product_name,
-        cart_value=request.amount,
-        dropped_at_step="ORDER_CREATED",
-        is_recovered=False,
-        created_at=datetime.now(timezone.utc)
-    )
-    db.add(checkout_session)
+    # 5. Link or Persist CheckoutSession
+    checkout_session = None
+    if request.session_id:
+        checkout_session = db.query(CheckoutSession).filter(CheckoutSession.id == request.session_id).first()
+        if checkout_session:
+            checkout_session.order_id = razorpay_order_id
+            checkout_session.selected_method = selected_method
+            checkout_session.dropped_at_step = "ORDER_CREATED"
+            checkout_session.cart_value = request.amount
+            checkout_session.customer_id = customer.id
+
+    if not checkout_session:
+        session_id = f"cs_{uuid.uuid4().hex[:10]}"
+        checkout_session = CheckoutSession(
+            id=session_id,
+            workspace_id=ws_id,
+            customer_id=customer.id,
+            order_id=razorpay_order_id,
+            items_summary=request.product_name,
+            cart_value=request.amount,
+            selected_method=selected_method,
+            dropped_at_step="ORDER_CREATED",
+            is_recovered=False,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(checkout_session)
 
     # 6. Audit Trail entry
+    instrument_summary = ""
+    if request.payment_instrument_details:
+        instrument_summary = f" (Details: {request.payment_instrument_details})"
+
     audit_entry = AuditLog(
         id=f"aud_{uuid.uuid4().hex[:10]}",
-        workspace_id=transaction.workspace_id,
+        workspace_id=ws_id,
         transaction_id=tx_id,
         actor="DEMO_STORE",
         action_type="ORDER_CREATED",
         target_resource=tx_id,
-        details=f"Razorpay order {razorpay_order_id} created for ₹{request.amount:,.2f} ({request.product_name})",
+        details=f"Razorpay order {razorpay_order_id} created for ₹{request.amount:,.2f} ({request.product_name}) via {selected_method}{instrument_summary}",
         created_at=datetime.now(timezone.utc)
     )
     db.add(audit_entry)
@@ -140,11 +172,13 @@ def create_payment_order(
     return CreateOrderResponse(
         order_id=razorpay_order_id,
         transaction_id=tx_id,
+        session_id=checkout_session.id,
         amount=amount_paise,
         amount_in_rupees=request.amount,
         currency=request.currency,
         key_id=settings.RAZORPAY_KEY_ID or "",
         product_name=request.product_name,
+        method=selected_method,
         customer={
             "name": request.customer_name,
             "email": request.customer_email,
@@ -464,3 +498,99 @@ def record_payment_failure(
         "error_description": request.error_description,
         "escalated_to_agent": True
     }
+
+@router.post("/simulate", summary="Execute Simulated Payment Outcome (Success or Failure)")
+def simulate_payment_outcome(
+    request: SimulatePaymentRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Simulates a payment outcome (Success authorization or Gateway Failure) in test mode,
+    enabling full recovery workflow testing even when 3rd-party checkout popups are blocked.
+    """
+    tx = (
+        db.query(Transaction)
+        .filter(
+            Transaction.id == request.transaction_id,
+            (Transaction.order_id == request.order_id) | (Transaction.razorpay_order_id == request.order_id)
+        )
+        .first()
+    )
+    if not tx:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction not found for ID '{request.transaction_id}'."
+        )
+
+    selected_method = request.method or tx.method or "UPI"
+    tx.method = selected_method
+
+    details_suffix = ""
+    if request.payment_instrument_details:
+        details_suffix = f" via {request.payment_instrument_details}"
+
+    if request.action == "SUCCESS":
+        tx.status = "SUCCESS"
+        tx.razorpay_payment_id = f"pay_test_sim_{uuid.uuid4().hex[:10]}"
+        tx.updated_at = datetime.now(timezone.utc)
+
+        # Update CheckoutSession if exists
+        cs = db.query(CheckoutSession).filter(CheckoutSession.order_id == tx.order_id).first()
+        if cs:
+            cs.status = "COMPLETED"
+            cs.selected_method = selected_method
+            cs.completed_at = datetime.now(timezone.utc)
+            cs.is_recovered = False
+
+        # Add successful PaymentAttempt
+        attempt = PaymentAttempt(
+            id=f"pa_{uuid.uuid4().hex[:10]}",
+            workspace_id=tx.workspace_id,
+            transaction_id=tx.id,
+            attempt_number=len(tx.payment_attempts) + 1,
+            gateway=f"Sandbox Rail ({selected_method})",
+            gateway_payment_id=tx.razorpay_payment_id,
+            status="SUCCESS",
+            latency_ms=750,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(attempt)
+
+        # Audit Log
+        db.add(
+            AuditLog(
+                id=f"aud_{uuid.uuid4().hex[:10]}",
+                workspace_id=tx.workspace_id,
+                transaction_id=tx.id,
+                actor="TEST_GATEWAY_SIMULATOR",
+                action_type="PAYMENT_SUCCEEDED",
+                target_resource=tx.id,
+                details=f"Test payment authorized successfully via {selected_method}{details_suffix}. Payment ID {tx.razorpay_payment_id}.",
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+        db.commit()
+
+        return {
+            "success": True,
+            "status": "SUCCESS",
+            "transaction_id": tx.id,
+            "order_id": tx.order_id,
+            "payment_id": tx.razorpay_payment_id,
+            "method": tx.method,
+            "amount": tx.amount,
+            "message": f"Simulated {selected_method} payment successfully authorized and verified."
+        }
+    else:
+        db.commit()
+        # Route to failure pipeline
+        fail_req = PaymentFailureRequest(
+            transaction_id=tx.id,
+            order_id=tx.order_id,
+            payment_id=f"pay_test_sim_fail_{uuid.uuid4().hex[:8]}",
+            error_code=request.error_code or "PAYMENT_FAILED",
+            error_description=f"{request.error_description or 'Simulated test gateway decline'}{details_suffix}",
+            error_category=request.error_category or "GATEWAY_ERROR"
+        )
+        return record_payment_failure(fail_req, db)
+

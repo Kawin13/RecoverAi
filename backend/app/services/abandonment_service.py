@@ -317,17 +317,20 @@ class AbandonmentService:
         session.recovery_case_id = case.id
         db.flush()
 
-        # Generate multi-lingual recovery notification with DEMO DELIVERY labeling
-        recipient = customer.phone if metrics["channel"] in ("SMS_SIMULATION", "WHATSAPP_SIMULATION") else customer.email
+        # Generate recovery notification (email via Resend or honest simulation)
+        recipient = customer.email if customer.email and "@" in customer.email else (customer.phone or "shopper@example.com")
         notification = notification_service.send_recovery_notification(
-            recipient=recipient or "shopper@example.com",
-            channel=metrics["channel"],
+            recipient=recipient,
+            channel="EMAIL" if customer.email and "@" in customer.email else metrics["channel"],
             strategy=metrics["selected_strategy"],
             customer_name=customer.name,
             amount=session.cart_amount,
             action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={session.order_id}&recover=true",
             language="en",
-            recovery_case_id=case.id
+            recovery_case_id=case.id,
+            workspace_id=ws_id,
+            customer_id=customer.id,
+            db=db
         )
 
         # Log into AuditLog

@@ -141,9 +141,11 @@ if settings.API_V1_STR != "/api":
 
 # Direct Root Mounts for Webhooks & SSE Streaming
 from app.api.v1.endpoints.webhooks import router as webhooks_root_router
+from app.api.v1.endpoints.resend_webhooks import router as resend_webhooks_root_router
 from app.api.v1.endpoints.events import router as events_root_router
 
 app.include_router(webhooks_root_router, prefix="/webhooks", tags=["Razorpay Webhook"])
+app.include_router(resend_webhooks_root_router, prefix="/webhooks", tags=["Resend Email Webhook"])
 app.include_router(events_root_router, prefix="/events", tags=["Real-Time Events & SSE"])
 
 if __name__ == "__main__":

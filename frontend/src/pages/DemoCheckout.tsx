@@ -17,7 +17,17 @@ import {
   ChevronDown,
   ChevronUp,
   Cpu,
-  UserCheck
+  UserCheck,
+  Smartphone,
+  Building2,
+  Wallet,
+  X,
+  QrCode,
+  Search,
+  Eye,
+  EyeOff,
+  Check,
+  Clock
 } from 'lucide-react'
 import { SectionHeader } from '../components/common/SectionHeader'
 import {
@@ -33,6 +43,143 @@ declare global {
     Razorpay: any
   }
 }
+
+export interface PaymentOptionItem {
+  id: 'UPI' | 'Card' | 'NetBanking' | 'Wallet'
+  name: string
+  subtitle: string
+  badge: string
+  popular?: boolean
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+export const PAYMENT_OPTIONS: PaymentOptionItem[] = [
+  {
+    id: 'UPI',
+    name: 'UPI Instant',
+    subtitle: 'Google Pay, PhonePe, Paytm, QR',
+    badge: 'Fastest (0% Drop)',
+    popular: true,
+    description: 'Direct bank debit via dynamic UPI intent, VPA, or QR code.',
+    icon: Smartphone
+  },
+  {
+    id: 'Card',
+    name: 'Credit / Debit Card',
+    subtitle: 'Visa, Mastercard, RuPay with 3DS OTP',
+    badge: '3D Secure',
+    description: 'Domestic & international card rails with OTP authorization.',
+    icon: CreditCard
+  },
+  {
+    id: 'NetBanking',
+    name: 'Net Banking',
+    subtitle: 'HDFC, SBI, ICICI, Axis, Kotak',
+    badge: '50+ Banks',
+    description: 'Direct corporate & retail online banking authentication.',
+    icon: Building2
+  },
+  {
+    id: 'Wallet',
+    name: 'Wallets & PayLater',
+    subtitle: 'Paytm, Mobikwik, Amazon Pay',
+    badge: '1-Tap Pay',
+    description: 'Pre-paid balances and digital credit lines.',
+    icon: Wallet
+  }
+]
+
+export interface BankItem {
+  code: string
+  name: string
+  popular?: boolean
+  badgeColor?: string
+}
+
+export const POPULAR_BANKS: BankItem[] = [
+  { code: 'HDFC', name: 'HDFC Bank', popular: true, badgeColor: 'bg-blue-600 text-white' },
+  { code: 'SBIN', name: 'State Bank of India', popular: true, badgeColor: 'bg-sky-600 text-white' },
+  { code: 'ICIC', name: 'ICICI Bank', popular: true, badgeColor: 'bg-amber-600 text-white' },
+  { code: 'UTIB', name: 'Axis Bank', popular: true, badgeColor: 'bg-rose-700 text-white' },
+  { code: 'KKBK', name: 'Kotak Mahindra Bank', popular: true, badgeColor: 'bg-red-600 text-white' },
+  { code: 'PUNB', name: 'Punjab National Bank', popular: true, badgeColor: 'bg-yellow-600 text-white' }
+]
+
+export const ALL_BANKS: BankItem[] = [
+  ...POPULAR_BANKS,
+  { code: 'BARB', name: 'Bank of Baroda' },
+  { code: 'CNRB', name: 'Canara Bank' },
+  { code: 'UBIN', name: 'Union Bank of India' },
+  { code: 'INDB', name: 'IndusInd Bank' },
+  { code: 'YESB', name: 'Yes Bank' },
+  { code: 'IDFB', name: 'IDFC First Bank' },
+  { code: 'FDRL', name: 'Federal Bank' },
+  { code: 'IDIB', name: 'Indian Bank' },
+  { code: 'CBIN', name: 'Central Bank of India' },
+  { code: 'BKID', name: 'Bank of India' },
+  { code: 'RATN', name: 'RBL Bank' },
+  { code: 'SIBL', name: 'South Indian Bank' },
+  { code: 'KVBL', name: 'Karur Vysya Bank' },
+  { code: 'SCBL', name: 'Standard Chartered Bank' },
+  { code: 'CITI', name: 'Citibank India' },
+  { code: 'HSBC', name: 'HSBC India' },
+  { code: 'DEUT', name: 'Deutsche Bank' }
+]
+
+export const WALLET_PROVIDERS = [
+  { id: 'PAYTM', name: 'Paytm Wallet', subtitle: 'Linked: +91 98450 12345', balance: 3450.0, badge: 'Pre-paid' },
+  { id: 'PHONEPE', name: 'PhonePe Wallet', subtitle: 'Linked: +91 98450 12345', balance: 1820.0, badge: 'Instant' },
+  { id: 'AMAZONPAY', name: 'Amazon Pay', subtitle: 'Gift Card + Balance', balance: 5200.0, badge: 'Verified' },
+  { id: 'MOBIKWIK', name: 'MobiKwik', subtitle: 'ZIP & SuperCash', balance: 920.0, badge: 'Active' }
+]
+
+export const BNPL_PROVIDERS = [
+  { id: 'SIMPL', name: 'Simpl PayLater', subtitle: 'Pay in 3 or next cycle', creditLimit: 15000.0, badge: '3-in-1' },
+  { id: 'LAZYPAY', name: 'LazyPay', subtitle: '1-tap instant credit line', creditLimit: 10000.0, badge: 'Zero Interest' },
+  { id: 'ICICI_PL', name: 'ICICI PayLater', subtitle: 'Direct bank credit line', creditLimit: 25000.0, badge: 'Pre-approved' }
+]
+
+export const UPI_APPS = [
+  { id: 'GPay', name: 'Google Pay', subtitle: 'Instant UPI Intent', iconColor: 'text-blue-600 bg-blue-50' },
+  { id: 'PhonePe', name: 'PhonePe', subtitle: 'Direct bank debit', iconColor: 'text-purple-600 bg-purple-50' },
+  { id: 'Paytm', name: 'Paytm UPI', subtitle: 'Fastest response rail', iconColor: 'text-sky-600 bg-sky-50' },
+  { id: 'BHIM', name: 'BHIM UPI', subtitle: 'NPCI National Switch', iconColor: 'text-emerald-600 bg-emerald-50' },
+  { id: 'CRED', name: 'CRED UPI', subtitle: 'Premium rewards rail', iconColor: 'text-slate-900 bg-slate-100' }
+]
+
+export const METHOD_FAILURE_REASONS: Record<string, Array<{ code: string; label: string; category: string }>> = {
+  UPI: [
+    { code: 'UPI_TIMEOUT', label: 'UPI Switch Timeout (PSP Timeout > 8,000ms)', category: 'TECHNICAL_TIMEOUT' },
+    { code: 'UPI_INCORRECT_MPIN', label: 'Invalid UPI MPIN (Customer Auth Failure)', category: 'AUTHENTICATION_ERROR' },
+    { code: 'BANK_DOWNTIME', label: 'Beneficiary Bank UPI Node Offline', category: 'TECHNICAL_TIMEOUT' },
+    { code: 'INSUFFICIENT_FUNDS', label: 'Insufficient Bank Account Balance', category: 'INSUFFICIENT_FUNDS' }
+  ],
+  Card: [
+    { code: 'EXPIRED_CARD', label: 'Card Expired / Bad CVV Validation Failed', category: 'INVALID_INSTRUMENT' },
+    { code: '3DS_OTP_TIMEOUT', label: '3DS OTP Verification Timed Out (Customer Drop-off)', category: 'AUTHENTICATION_ERROR' },
+    { code: 'INSUFFICIENT_FUNDS', label: 'Exceeded Credit / Daily Debit Limit', category: 'INSUFFICIENT_FUNDS' },
+    { code: 'CARD_DECLINED_BY_ISSUER', label: 'Card Issuer Do Not Honor (Security Restriction)', category: 'GATEWAY_ERROR' }
+  ],
+  NetBanking: [
+    { code: 'BANK_DOWNTIME', label: 'Core Banking System (CBS) Downtime', category: 'TECHNICAL_TIMEOUT' },
+    { code: 'NETBANKING_AUTH_TIMEOUT', label: 'Internet Banking Login Session Expired', category: 'TECHNICAL_TIMEOUT' },
+    { code: 'ACCOUNT_LIMIT_EXCEEDED', label: 'Corporate Daily RTGS/NEFT Transaction Limit Exceeded', category: 'INSUFFICIENT_FUNDS' }
+  ],
+  Wallet: [
+    { code: 'WALLET_INSUFFICIENT_BALANCE', label: 'Wallet Balance Below Order Amount', category: 'INSUFFICIENT_FUNDS' },
+    { code: 'WALLET_OTP_EXPIRED', label: 'Wallet Debit OTP Expired', category: 'AUTHENTICATION_ERROR' },
+    { code: 'KYC_LIMIT_EXCEEDED', label: 'PPI Monthly Wallet Transaction Cap Reached', category: 'INVALID_INSTRUMENT' }
+  ]
+}
+
+export const FAILURE_REASONS = [
+  { code: 'UPI_TIMEOUT', label: 'UPI Switch Timeout (Technical Timeout)', category: 'TECHNICAL_TIMEOUT' },
+  { code: 'INSUFFICIENT_FUNDS', label: 'Insufficient Funds (Customer Financial)', category: 'INSUFFICIENT_FUNDS' },
+  { code: 'EXPIRED_CARD', label: 'Expired Card / Bad CVV (Invalid Instrument)', category: 'INVALID_INSTRUMENT' },
+  { code: 'BANK_DOWNTIME', label: 'Issuer Bank Network Outage (External Rail)', category: 'TECHNICAL_TIMEOUT' },
+  { code: 'CHECKOUT_DISMISSED', label: 'Cart Abandoned at Payment Step (Drop-off)', category: 'ABANDONMENT' }
+]
 
 interface ProductItem {
   id: string
@@ -92,14 +239,62 @@ const PRODUCTS: ProductItem[] = [
   }
 ]
 
+function getCardBrand(num: string): 'visa' | 'mastercard' | 'rupay' | 'amex' | 'generic' {
+  const clean = num.replace(/\s+/g, '')
+  if (/^4/.test(clean)) return 'visa'
+  if (/^(5[1-5]|2[2-7])/.test(clean)) return 'mastercard'
+  if (/^(60|65|81|82)/.test(clean)) return 'rupay'
+  if (/^3[47]/.test(clean)) return 'amex'
+  return 'generic'
+}
+
+function formatCardNumber(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 16)
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ')
+}
+
+function formatExpiry(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 4)
+  if (digits.length >= 3) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  }
+  return digits
+}
+
 export const DemoCheckout: React.FC = () => {
   const navigate = useNavigate()
   const [config, setConfig] = useState<PaymentConfig | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<ProductItem>(PRODUCTS[0])
+  const [selectedMethod, setSelectedMethod] = useState<'UPI' | 'Card' | 'NetBanking' | 'Wallet'>('UPI')
   const [customerName, setCustomerName] = useState('Aditya Sharma')
   const [customerEmail, setCustomerEmail] = useState('aditya.sharma@techcorp.in')
   const [customerPhone, setCustomerPhone] = useState('+91 98450 12345')
 
+  // Payment Instrument Form State
+  // 1. UPI State
+  const [upiMode, setUpiMode] = useState<'VPA' | 'QR' | 'APPS'>('VPA')
+  const [upiVpa, setUpiVpa] = useState('aditya@okhdfcbank')
+  const [upiSelectedApp, setUpiSelectedApp] = useState('GPay')
+  const [qrCountdown, setQrCountdown] = useState(300)
+
+  // 2. Card State
+  const [cardNumber, setCardNumber] = useState('4111 1111 1111 1111')
+  const [cardExpiry, setCardExpiry] = useState('12/28')
+  const [cardCvv, setCardCvv] = useState('123')
+  const [cardHolder, setCardHolder] = useState('Aditya Sharma')
+  const [showCvv, setShowCvv] = useState(false)
+  const [saveCard, setSaveCard] = useState(true)
+
+  // 3. Net Banking State
+  const [selectedBank, setSelectedBank] = useState('HDFC')
+  const [accountType, setAccountType] = useState<'RETAIL' | 'CORPORATE'>('RETAIL')
+  const [bankSearch, setBankSearch] = useState('')
+
+  // 4. Wallet State
+  const [walletCategory, setWalletCategory] = useState<'WALLET' | 'BNPL'>('WALLET')
+  const [selectedWallet, setSelectedWallet] = useState('PAYTM')
+
+  // Operational State
   const [isLoading, setIsLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [checkoutResult, setCheckoutResult] = useState<VerifyPaymentResponse | null>(null)
@@ -113,14 +308,24 @@ export const DemoCheckout: React.FC = () => {
 
   const [showHelper, setShowHelper] = useState(true)
   const [sdkReady, setSdkReady] = useState(false)
-  const activeSessionId: string | null = null
-
+  const [showSimModal, setShowSimModal] = useState(false)
+  const [simModalData, setSimModalData] = useState<{
+    orderId: string
+    transactionId: string
+    amount: number
+    currency: string
+    productName: string
+    method: string
+  } | null>(null)
+  const [selectedFailureReason, setSelectedFailureReason] = useState('UPI_TIMEOUT')
+  const [isSimulatingOutcome, setIsSimulatingOutcome] = useState(false)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [executionMode, setExecutionMode] = useState<'LIVE' | 'SANDBOX'>('LIVE')
 
   // 1. Fetch payment configuration & load Razorpay checkout.js SDK
   useEffect(() => {
     let mounted = true
 
-    // Fetch payment config non-blockingly
     api.getPaymentConfig()
       .then((conf) => {
         if (mounted) setConfig(conf)
@@ -129,13 +334,11 @@ export const DemoCheckout: React.FC = () => {
         console.warn('Could not fetch payment config:', err)
       })
 
-    // If Razorpay SDK already present on window, activate immediately
     if (window.Razorpay) {
       setSdkReady(true)
       return
     }
 
-    // Safety timeout: Ensure button is never permanently stuck in 'Loading Gateway...'
     const timer = setTimeout(() => {
       if (mounted) setSdkReady(true)
     }, 1500)
@@ -162,21 +365,159 @@ export const DemoCheckout: React.FC = () => {
     }
   }, [])
 
+  // 2. Initialize Checkout Session for cart funnel tracking
+  useEffect(() => {
+    let cancelled = false
+    api.createCheckoutSession({
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      cart_amount: selectedProduct.price,
+      selected_method: selectedMethod,
+      is_demo_simulation: true
+    })
+      .then((sess) => {
+        if (!cancelled && sess?.id) {
+          setActiveSessionId(sess.id)
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not initialize checkout session tracking:', err)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [customerName, customerEmail, customerPhone, selectedProduct.id])
+
+  // 3. Dynamic QR Timer Countdown
+  useEffect(() => {
+    if (selectedMethod !== 'UPI' || upiMode !== 'QR') return
+    const interval = setInterval(() => {
+      setQrCountdown((prev) => (prev > 1 ? prev - 1 : 300))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [selectedMethod, upiMode])
+
   const handleSelectPersona = (name: string, email: string, phone: string) => {
     setCustomerName(name)
     setCustomerEmail(email)
     setCustomerPhone(phone)
+    setCardHolder(name)
   }
 
-  // 2. Main Razorpay Standard Checkout Flow
+  const handleSelectPaymentMethod = (method: 'UPI' | 'Card' | 'NetBanking' | 'Wallet') => {
+    setSelectedMethod(method)
+    setErrorMsg(null)
+    const availableReasons = METHOD_FAILURE_REASONS[method] || FAILURE_REASONS
+    setSelectedFailureReason(availableReasons[0].code)
+
+    if (activeSessionId) {
+      api.transitionCheckoutSession(activeSessionId, {
+        new_status: 'PAYMENT_METHOD_VIEWED',
+        selected_method: method
+      }).catch(() => {})
+    }
+  }
+
+  // Build structured instrument details for server record & verification
+  const getInstrumentDetails = () => {
+    switch (selectedMethod) {
+      case 'UPI':
+        return {
+          mode: upiMode,
+          vpa: upiMode === 'VPA' ? upiVpa.trim() : `${upiSelectedApp.toLowerCase()}@upi`,
+          app: upiMode === 'APPS' ? upiSelectedApp : undefined
+        }
+      case 'Card':
+        return {
+          brand: getCardBrand(cardNumber),
+          last4: cardNumber.replace(/\s/g, '').slice(-4) || '1111',
+          expiry: cardExpiry,
+          cardholder: cardHolder || customerName
+        }
+      case 'NetBanking': {
+        const b = ALL_BANKS.find((item) => item.code === selectedBank)
+        return {
+          bank_code: selectedBank,
+          bank_name: b?.name || selectedBank,
+          account_type: accountType
+        }
+      }
+      case 'Wallet': {
+        const w =
+          walletCategory === 'WALLET'
+            ? WALLET_PROVIDERS.find((p) => p.id === selectedWallet)
+            : BNPL_PROVIDERS.find((p) => p.id === selectedWallet)
+        return {
+          wallet_category: walletCategory,
+          wallet_id: selectedWallet,
+          provider_name: w?.name || selectedWallet
+        }
+      }
+    }
+  }
+
+  // Validate instrument input fields
+  const validateSelectedInstrument = (): string | null => {
+    if (selectedMethod === 'UPI') {
+      if (upiMode === 'VPA') {
+        const cleanVpa = upiVpa.trim()
+        if (!cleanVpa || !cleanVpa.includes('@')) {
+          return 'Please enter a valid UPI ID (e.g. aditya@okhdfcbank or success@razorpay).'
+        }
+      }
+    } else if (selectedMethod === 'Card') {
+      const cleanNum = cardNumber.replace(/\s/g, '')
+      if (cleanNum.length !== 16) {
+        return 'Please enter a valid 16-digit credit or debit card number.'
+      }
+      if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+        return 'Please enter a valid card expiry date in MM/YY format.'
+      }
+      const [m] = cardExpiry.split('/').map(Number)
+      if (m < 1 || m > 12) {
+        return 'Card expiry month must be between 01 and 12.'
+      }
+      if (cardCvv.length < 3) {
+        return 'Please enter a valid 3 or 4 digit CVV security code.'
+      }
+    } else if (selectedMethod === 'NetBanking') {
+      if (!selectedBank) {
+        return 'Please select your online banking financial institution.'
+      }
+    } else if (selectedMethod === 'Wallet') {
+      if (!selectedWallet) {
+        return 'Please select a digital wallet or PayLater provider.'
+      }
+    }
+    return null
+  }
+
+  // Main Direct Rail Payment Execution (In-App Sandbox Authorization)
   const handleLaunchCheckout = async () => {
+    const valErr = validateSelectedInstrument()
+    if (valErr) {
+      setErrorMsg(valErr)
+      return
+    }
+
     setIsLoading(true)
     setErrorMsg(null)
     setCheckoutResult(null)
     setFailureResult(null)
 
     try {
-      // Step A: Create order on backend (receives Razorpay order_id and key_id)
+      if (activeSessionId) {
+        api.transitionCheckoutSession(activeSessionId, {
+          new_status: 'PAYMENT_INITIATED',
+          selected_method: selectedMethod,
+          payment_attempted: true
+        }).catch(() => {})
+      }
+
+      const instrumentDetails = getInstrumentDetails()
+
       const orderData: CreateOrderResponse = await api.createPaymentOrder({
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
@@ -184,12 +525,68 @@ export const DemoCheckout: React.FC = () => {
         currency: 'INR',
         customer_name: customerName,
         customer_email: customerEmail,
-        customer_phone: customerPhone
+        customer_phone: customerPhone,
+        method: selectedMethod,
+        payment_instrument_details: instrumentDetails,
+        session_id: activeSessionId || undefined
       })
 
-      // Step B: Configure Razorpay Checkout.js
+      if (orderData.session_id) {
+        setActiveSessionId(orderData.session_id)
+      }
+
+      setSimModalData({
+        orderId: orderData.order_id,
+        transactionId: orderData.transaction_id,
+        amount: orderData.amount_in_rupees,
+        currency: orderData.currency,
+        productName: selectedProduct.name,
+        method: selectedMethod
+      })
+      setShowSimModal(true)
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to initiate checkout session')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Secondary Option: Open Razorpay Gateway Popup
+  const handleLaunchRazorpayGateway = async () => {
+    const valErr = validateSelectedInstrument()
+    if (valErr) {
+      setErrorMsg(valErr)
+      return
+    }
+
+    setIsLoading(true)
+    setErrorMsg(null)
+
+    try {
+      if (activeSessionId) {
+        api.transitionCheckoutSession(activeSessionId, {
+          new_status: 'PAYMENT_INITIATED',
+          selected_method: selectedMethod,
+          payment_attempted: true
+        }).catch(() => {})
+      }
+
+      const instrumentDetails = getInstrumentDetails()
+      const orderData = await api.createPaymentOrder({
+        product_id: selectedProduct.id,
+        product_name: selectedProduct.name,
+        amount: selectedProduct.price,
+        currency: 'INR',
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        method: selectedMethod,
+        payment_instrument_details: instrumentDetails,
+        session_id: activeSessionId || undefined
+      })
+
       if (window.Razorpay) {
-        const options = {
+        const options: any = {
           key: orderData.key_id,
           amount: orderData.amount,
           currency: orderData.currency,
@@ -197,7 +594,6 @@ export const DemoCheckout: React.FC = () => {
           description: selectedProduct.name,
           order_id: orderData.order_id,
           handler: async (response: any) => {
-            // Step C: Server-side cryptographic HMAC-SHA256 signature verification
             try {
               setIsLoading(true)
               const verifyRes = await api.verifyPayment({
@@ -208,7 +604,7 @@ export const DemoCheckout: React.FC = () => {
               })
               setCheckoutResult(verifyRes)
               if (activeSessionId) {
-                api.transitionCheckoutSession(activeSessionId, { new_status: 'COMPLETED' }).catch(() => { })
+                api.transitionCheckoutSession(activeSessionId, { new_status: 'COMPLETED' }).catch(() => {})
               }
             } catch (vErr: any) {
               setErrorMsg(`Verification Failed: ${vErr.message || 'Signature mismatch'}`)
@@ -219,79 +615,124 @@ export const DemoCheckout: React.FC = () => {
           prefill: {
             name: customerName,
             email: customerEmail,
-            contact: customerPhone
+            contact: customerPhone,
+            method: selectedMethod.toLowerCase(),
+            ...(selectedMethod === 'UPI' && upiMode === 'VPA' ? { vpa: upiVpa.trim() } : {}),
+            ...(selectedMethod === 'NetBanking' ? { bank: selectedBank } : {}),
+            ...(selectedMethod === 'Wallet' ? { wallet: selectedWallet.toLowerCase() } : {})
           },
           theme: {
-            color: '#6C00FF' // RecoverAI Vivid Purple
+            color: '#6C00FF'
           },
           modal: {
             ondismiss: async () => {
-              // User closed the modal without completing payment
-              try {
-                if (activeSessionId) {
-                  api.transitionCheckoutSession(activeSessionId, { new_status: 'ABANDONED' }).catch(() => { })
-                }
-                await api.recordPaymentFailure({
-                  transaction_id: orderData.transaction_id,
-                  order_id: orderData.order_id,
-                  error_code: 'CHECKOUT_DISMISSED',
-                  error_description: 'Customer closed Razorpay checkout modal before completing transaction.',
-                  error_category: 'ABANDONMENT'
-                })
-                setFailureResult({
-                  transaction_id: orderData.transaction_id,
-                  order_id: orderData.order_id,
-                  error_code: 'CHECKOUT_DISMISSED',
-                  error_description: 'Checkout modal was dismissed by customer. Escalated to RecoverAI for cart recovery.'
-                })
-              } catch (e) {
-                console.error('Error logging dismissal:', e)
+              if (activeSessionId) {
+                api.transitionCheckoutSession(activeSessionId, { new_status: 'ABANDONED' }).catch(() => {})
               }
+              await api.recordPaymentFailure({
+                transaction_id: orderData.transaction_id,
+                order_id: orderData.order_id,
+                error_code: 'CHECKOUT_DISMISSED',
+                error_description: 'Customer closed Razorpay checkout modal before completing transaction.',
+                error_category: 'ABANDONMENT'
+              }).catch(() => {})
+              setFailureResult({
+                transaction_id: orderData.transaction_id,
+                order_id: orderData.order_id,
+                error_code: 'CHECKOUT_DISMISSED',
+                error_description: 'Checkout modal was dismissed by customer. Escalated to RecoverAI for cart recovery.'
+              })
               setIsLoading(false)
             }
           }
         }
-
         const rzp = new window.Razorpay(options)
-
-        rzp.on('payment.failed', async (response: any) => {
-          // Razorpay gateway test failure simulation event
-          const err = response.error || {}
-          try {
-            const failRes = await api.recordPaymentFailure({
-              transaction_id: orderData.transaction_id,
-              order_id: orderData.order_id,
-              payment_id: err.metadata?.payment_id,
-              error_code: err.code || 'BAD_REQUEST_ERROR',
-              error_description: err.description || 'Payment rejected by bank gateway.',
-              error_category: 'GATEWAY_ERROR'
-            })
-            setFailureResult({
-              transaction_id: orderData.transaction_id,
-              order_id: orderData.order_id,
-              error_code: err.code || 'BAD_REQUEST_ERROR',
-              error_description: err.description || 'Payment declined by test gateway.',
-              recovery_case_id: failRes?.recovery_case_id
-            })
-          } catch (e) {
-            console.error('Error registering failure:', e)
-          }
-          setIsLoading(false)
-        })
-
         rzp.open()
       } else {
-        // Fallback simulation if checkout.js is blocked by ad-blocker
-        setErrorMsg('Razorpay Checkout SDK is still loading or blocked. Please refresh or disable ad-blockers.')
-        setIsLoading(false)
+        setSimModalData({
+          orderId: orderData.order_id,
+          transactionId: orderData.transaction_id,
+          amount: orderData.amount_in_rupees,
+          currency: orderData.currency,
+          productName: selectedProduct.name,
+          method: selectedMethod
+        })
+        setShowSimModal(true)
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to initiate checkout session')
+      setErrorMsg(err.message || 'Failed to open Razorpay gateway')
+    } finally {
       setIsLoading(false)
     }
   }
 
-  // 3. Direct Synthetic Failure Injection (Test RecoverAI Recovery Pipeline)
+  // Handle in-app Rail Outcome (Success or Failure)
+  const handleExecuteSimulatedOutcome = async (action: 'SUCCESS' | 'FAILED') => {
+    if (!simModalData) return
+    setIsSimulatingOutcome(true)
+    setErrorMsg(null)
+
+    const instrumentDetails = getInstrumentDetails()
+
+    try {
+      if (action === 'SUCCESS') {
+        const res = await api.simulatePayment({
+          transaction_id: simModalData.transactionId,
+          order_id: simModalData.orderId,
+          action: 'SUCCESS',
+          method: simModalData.method,
+          payment_instrument_details: instrumentDetails
+        })
+        setShowSimModal(false)
+        if (activeSessionId) {
+          api.transitionCheckoutSession(activeSessionId, { new_status: 'COMPLETED' }).catch(() => {})
+        }
+        setCheckoutResult({
+          success: true,
+          signature_valid: true,
+          transaction_id: res.transaction_id,
+          razorpay_order_id: res.order_id,
+          razorpay_payment_id: res.payment_id,
+          amount: res.amount,
+          method: res.method || simModalData.method,
+          status: 'SUCCESS',
+          verified_at: new Date().toISOString(),
+          message: `${simModalData.method} test payment authorized and cryptographically verified in sandbox.`
+        })
+      } else {
+        const availableReasons = METHOD_FAILURE_REASONS[simModalData.method] || FAILURE_REASONS
+        const reasonObj = availableReasons.find((r) => r.code === selectedFailureReason) || availableReasons[0]
+
+        const res = await api.simulatePayment({
+          transaction_id: simModalData.transactionId,
+          order_id: simModalData.orderId,
+          action: 'FAILED',
+          method: simModalData.method,
+          payment_instrument_details: instrumentDetails,
+          error_code: reasonObj.code,
+          error_description: `${reasonObj.label} encountered on ${simModalData.method} rail.`,
+          error_category: reasonObj.category
+        })
+        setShowSimModal(false)
+        if (activeSessionId) {
+          api.transitionCheckoutSession(activeSessionId, { new_status: 'ABANDONED' }).catch(() => {})
+        }
+        setFailureResult({
+          transaction_id: simModalData.transactionId,
+          order_id: simModalData.orderId,
+          error_code: reasonObj.code,
+          error_description: `${reasonObj.label}. RecoverAI autonomous recovery agent triggered immediately.`,
+          recovery_case_id: res.recovery_case_id
+        })
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Simulation execution failed')
+    } finally {
+      setIsSimulatingOutcome(false)
+    }
+  }
+
+  // Direct Synthetic Failure Injection
   const handleSimulateFailure = async () => {
     setIsLoading(true)
     setErrorMsg(null)
@@ -299,7 +740,6 @@ export const DemoCheckout: React.FC = () => {
     setFailureResult(null)
 
     try {
-      // Create initial order
       const orderData = await api.createPaymentOrder({
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
@@ -307,24 +747,32 @@ export const DemoCheckout: React.FC = () => {
         currency: 'INR',
         customer_name: customerName,
         customer_email: customerEmail,
-        customer_phone: customerPhone
+        customer_phone: customerPhone,
+        method: selectedMethod,
+        session_id: activeSessionId || undefined
       })
 
-      // Simulate instantaneous bank switch timeout or card decline
+      const availableReasons = METHOD_FAILURE_REASONS[selectedMethod] || FAILURE_REASONS
+      const primaryFail = availableReasons[0]
+
       const failRes = await api.recordPaymentFailure({
         transaction_id: orderData.transaction_id,
         order_id: orderData.order_id,
         payment_id: `pay_sim_failed_${Math.floor(Math.random() * 89999 + 10000)}`,
-        error_code: 'GATEWAY_TIMEOUT',
-        error_description: 'Issuer bank did not respond within 8,000ms. Transaction aborted.',
-        error_category: 'TECHNICAL_TIMEOUT'
+        error_code: primaryFail.code,
+        error_description: `${primaryFail.label} on ${selectedMethod} rail. Transaction aborted.`,
+        error_category: primaryFail.category
       })
+
+      if (activeSessionId) {
+        api.transitionCheckoutSession(activeSessionId, { new_status: 'ABANDONED' }).catch(() => {})
+      }
 
       setFailureResult({
         transaction_id: orderData.transaction_id,
         order_id: orderData.order_id,
-        error_code: 'GATEWAY_TIMEOUT',
-        error_description: 'Issuer bank timeout (8,250ms latency). RecoverAI agent triggered automatically.',
+        error_code: primaryFail.code,
+        error_description: `${primaryFail.label}. RecoverAI agent triggered automatically.`,
         recovery_case_id: failRes?.recovery_case_id
       })
     } catch (err: any) {
@@ -334,23 +782,56 @@ export const DemoCheckout: React.FC = () => {
     }
   }
 
+  // Smart Rail Switching Fallback Trigger
+  const handleSwitchRailAndRetry = (newRail: 'UPI' | 'Card' | 'NetBanking' | 'Wallet') => {
+    setFailureResult(null)
+    setCheckoutResult(null)
+    setErrorMsg(null)
+    setSelectedMethod(newRail)
+    const availableReasons = METHOD_FAILURE_REASONS[newRail] || FAILURE_REASONS
+    setSelectedFailureReason(availableReasons[0].code)
+
+    if (activeSessionId) {
+      api.transitionCheckoutSession(activeSessionId, {
+        new_status: 'PAYMENT_METHOD_VIEWED',
+        selected_method: newRail
+      }).catch(() => {})
+    }
+  }
+
   const resetStore = () => {
     setCheckoutResult(null)
     setFailureResult(null)
     setErrorMsg(null)
   }
 
+  const cardBrand = getCardBrand(cardNumber)
+  const isVpaValid = Boolean(upiVpa && /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(upiVpa.trim()))
+  const filteredBanks = ALL_BANKS.filter((b) =>
+    b.name.toLowerCase().includes(bankSearch.toLowerCase()) || b.code.toLowerCase().includes(bankSearch.toLowerCase())
+  )
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header */}
       <SectionHeader
         title="RecoverAI Demo Store"
-        subtitle="Experience standard Razorpay Test Mode checkout with server-side HMAC signature verification & AI recovery handoff"
+        subtitle="Experience multi-rail payment options with dedicated instrument logic, HMAC validation & smart recovery routing"
         actions={
           <div className="flex items-center gap-2.5">
+            {activeSessionId && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono bg-slate-100 text-slate-700 border border-border shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Session ID: {activeSessionId.slice(0, 8)}...</span>
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Live Server Connected</span>
+            </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-primary-light text-primary border border-primary-border shadow-xs">
               <Zap className="w-3.5 h-3.5 text-primary" />
-              <span>Razorpay Test Sandbox</span>
+              <span>Multi-Rail Gateway Active</span>
             </span>
             <Link
               to="/transactions"
@@ -403,7 +884,7 @@ export const DemoCheckout: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Transaction recorded and confirmed server-side without relying solely on client callbacks.
+                  Transaction recorded and confirmed server-side via {checkoutResult.method} rail.
                 </p>
               </div>
             </div>
@@ -428,7 +909,7 @@ export const DemoCheckout: React.FC = () => {
                 ₹{checkoutResult.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
               <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Captured in Test Mode
+                <CheckCircle2 className="w-3.5 h-3.5" /> Captured in Sandbox
               </span>
             </div>
 
@@ -440,12 +921,12 @@ export const DemoCheckout: React.FC = () => {
                 <CreditCard className="w-4 h-4 text-primary" />
                 {checkoutResult.method}
               </div>
-              <span className="text-[11px] text-slate-400">Gateway: Razorpay</span>
+              <span className="text-[11px] text-slate-400">Rail Verified & Settled</span>
             </div>
 
             <div className="p-4 bg-slate-50 rounded-2xl border border-border space-y-1">
               <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
-                Razorpay Payment ID
+                Payment Identifier
               </span>
               <div className="text-xs font-mono font-semibold text-navy truncate" title={checkoutResult.razorpay_payment_id}>
                 {checkoutResult.razorpay_payment_id}
@@ -488,7 +969,7 @@ export const DemoCheckout: React.FC = () => {
         </div>
       )}
 
-      {/* FAILURE / ESCALATION SCREEN */}
+      {/* FAILURE / ESCALATION SCREEN WITH SMART RECOVERY SWITCHER */}
       {failureResult && (
         <div className="bg-surface rounded-2xl border border-rose-300 p-8 shadow-fintech-card space-y-6 transition-all duration-normal animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
@@ -506,7 +987,7 @@ export const DemoCheckout: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Transaction marked as failed. RecoverAI Autonomous Agent has synthesized failure diagnosis & recovery strategy.
+                  Failure on {selectedMethod} rail logged. RecoverAI Autonomous Agent has synthesized failure diagnosis & recovery strategy.
                 </p>
               </div>
             </div>
@@ -537,6 +1018,56 @@ export const DemoCheckout: React.FC = () => {
             </div>
           </div>
 
+          {/* RecoverAI Smart Alternate Rail Fallback */}
+          <div className="p-5 bg-gradient-to-r from-surface-blue to-purple-50/40 border border-primary/20 rounded-2xl text-xs space-y-3">
+            <div className="flex items-center gap-2 text-primary font-bold font-display">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span>RecoverAI Smart Alternate Rail Recommendation</span>
+            </div>
+            <p className="text-slate-600 leading-relaxed">
+              {selectedMethod === 'UPI' &&
+                'UPI network switch is experiencing elevated drop-offs. RecoverAI propensity engine recommends switching to Credit/Debit Card or Net Banking for immediate recovery.'}
+              {selectedMethod === 'Card' &&
+                'Card transaction was declined by the issuer network. RecoverAI suggests switching to UPI Instant (0% drop-off) or Net Banking.'}
+              {selectedMethod === 'NetBanking' &&
+                'Core banking gateway latency detected. RecoverAI recommends routing payment through UPI Instant or Credit Card.'}
+              {selectedMethod === 'Wallet' &&
+                'Wallet balance or transaction limit exceeded. RecoverAI suggests switching to UPI Instant or Credit Card.'}
+            </p>
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              {selectedMethod !== 'Card' && (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchRailAndRetry('Card')}
+                  className="px-4 py-2 bg-primary text-white font-bold rounded-xl text-xs hover:bg-primary-hover transition-all flex items-center gap-2 cursor-pointer shadow-fintech-purple"
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Switch to Credit / Debit Card & Retry</span>
+                </button>
+              )}
+              {selectedMethod !== 'UPI' && (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchRailAndRetry('UPI')}
+                  className="px-4 py-2 bg-primary text-white font-bold rounded-xl text-xs hover:bg-primary-hover transition-all flex items-center gap-2 cursor-pointer shadow-fintech-purple"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span>Switch to UPI Instant & Retry</span>
+                </button>
+              )}
+              {selectedMethod !== 'NetBanking' && (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchRailAndRetry('NetBanking')}
+                  className="px-4 py-2 bg-surface text-navy font-bold rounded-xl text-xs hover:bg-slate-100 transition-colors border border-border flex items-center gap-2 cursor-pointer shadow-2xs"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-primary" />
+                  <span>Switch to Net Banking</span>
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -560,7 +1091,7 @@ export const DemoCheckout: React.FC = () => {
       {/* MAIN CHECKOUT FORM & PRODUCT SELECTOR */}
       {!checkoutResult && !failureResult && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Product Selection & Customer Info */}
+          {/* Left Column: Product Selection, Customer Info & Payment Options */}
           <div className="lg:col-span-2 space-y-6">
             {/* Step 1: Select Product */}
             <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-4">
@@ -583,10 +1114,11 @@ export const DemoCheckout: React.FC = () => {
                     <div
                       key={prod.id}
                       onClick={() => setSelectedProduct(prod)}
-                      className={`cursor-pointer rounded-2xl p-4 border transition-all relative flex flex-col justify-between ${isSelected
+                      className={`cursor-pointer rounded-2xl p-4 border transition-all relative flex flex-col justify-between ${
+                        isSelected
                           ? 'border-primary bg-surface-blue/50 ring-2 ring-primary/20 shadow-fintech-card'
                           : 'border-border/80 bg-surface hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
-                        }`}
+                      }`}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-1 mb-2">
@@ -594,10 +1126,11 @@ export const DemoCheckout: React.FC = () => {
                             {prod.category}
                           </span>
                           <span
-                            className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${isSelected
+                            className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                              isSelected
                                 ? 'bg-primary text-white shadow-2xs'
                                 : 'bg-slate-100 text-slate-600'
-                              }`}
+                            }`}
                           >
                             {prod.badge}
                           </span>
@@ -676,7 +1209,10 @@ export const DemoCheckout: React.FC = () => {
                   <input
                     type="text"
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      setCustomerName(e.target.value)
+                      setCardHolder(e.target.value)
+                    }}
                     className="w-full px-3.5 py-2 rounded-xl border border-border bg-surface text-navy placeholder-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 text-xs shadow-2xs font-medium"
                     placeholder="Full name"
                   />
@@ -706,7 +1242,655 @@ export const DemoCheckout: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 3: Razorpay Test Mode Helper Accordion */}
+            {/* Step 3: Select Payment Option & Rail */}
+            <div className="bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                <div className="flex items-center gap-2.5">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  <h3 className="text-base font-bold text-navy font-display">
+                    3. Select Payment Option & Rail
+                  </h3>
+                </div>
+                <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Interactive Rails Active
+                </span>
+              </div>
+
+              {/* 4 Main Payment Option Tiles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {PAYMENT_OPTIONS.map((opt) => {
+                  const Icon = opt.icon
+                  const isSelected = selectedMethod === opt.id
+                  return (
+                    <button
+                      type="button"
+                      key={opt.id}
+                      onClick={() => handleSelectPaymentMethod(opt.id)}
+                      className={`text-left p-4 rounded-2xl border transition-all relative flex flex-col justify-between cursor-pointer ${
+                        isSelected
+                          ? 'border-primary bg-surface-blue/60 ring-2 ring-primary/25 shadow-fintech-card'
+                          : 'border-border/80 bg-surface hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                              isSelected
+                                ? 'bg-primary text-white shadow-2xs'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-navy font-display">
+                              {opt.name}
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {opt.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                        <span
+                          className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                            isSelected
+                              ? 'bg-primary text-white shadow-2xs'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {opt.badge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                        {opt.description}
+                      </p>
+                      {isSelected && (
+                        <div className="mt-2.5 pt-2 border-t border-primary/20 flex items-center gap-1.5 text-[10px] text-primary font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Active Selected Rail</span>
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* DEDICATED PAYMENT OPTION CONFIGURATION PANELS */}
+
+              {/* A. UPI Instant Panel */}
+              {selectedMethod === 'UPI' && (
+                <div className="p-5 bg-surface-blue/40 border border-primary/20 rounded-2xl space-y-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-primary/15">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-bold text-navy font-display">
+                        UPI Payment Method Configuration
+                      </span>
+                    </div>
+                    {/* Sub-mode selector */}
+                    <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setUpiMode('VPA')}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                          upiMode === 'VPA'
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-navy'
+                        }`}
+                      >
+                        UPI ID / VPA
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUpiMode('QR')}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                          upiMode === 'QR'
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-navy'
+                        }`}
+                      >
+                        <QrCode className="w-3 h-3" />
+                        <span>Dynamic QR</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUpiMode('APPS')}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                          upiMode === 'APPS'
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-navy'
+                        }`}
+                      >
+                        UPI Apps
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mode 1: UPI ID / VPA */}
+                  {upiMode === 'VPA' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Virtual Payment Address (VPA / UPI ID)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={upiVpa}
+                            onChange={(e) => setUpiVpa(e.target.value)}
+                            placeholder="username@okhdfcbank"
+                            className="w-full px-3.5 py-2.5 bg-surface text-navy font-mono text-xs border border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs pr-24"
+                          />
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            {isVpaValid ? (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                Valid
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-medium">
+                                e.g. @upi
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick preset chips */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Test Handles:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setUpiVpa('aditya@okhdfcbank')}
+                          className="px-2.5 py-1 bg-surface hover:bg-slate-50 text-navy font-mono text-[11px] rounded-lg border border-border shadow-2xs transition-colors cursor-pointer"
+                        >
+                          aditya@okhdfcbank
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUpiVpa('success@razorpay')}
+                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono text-[11px] font-semibold rounded-lg border border-emerald-200 transition-colors cursor-pointer"
+                        >
+                          success@razorpay (Success)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUpiVpa('failure@razorpay')}
+                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 font-mono text-[11px] font-semibold rounded-lg border border-rose-200 transition-colors cursor-pointer"
+                        >
+                          failure@razorpay (Timeout)
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mode 2: Dynamic UPI QR Code */}
+                  {upiMode === 'QR' && (
+                    <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-surface rounded-2xl border border-border">
+                      {/* Styled QR Code Box */}
+                      <div className="relative p-3 bg-white rounded-2xl border-2 border-slate-900 shadow-md flex flex-col items-center justify-center shrink-0">
+                        <svg className="w-32 h-32 text-slate-900" viewBox="0 0 100 100" fill="currentColor">
+                          <rect x="5" y="5" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="5" />
+                          <rect x="11" y="11" width="14" height="14" fill="currentColor" />
+                          <rect x="69" y="5" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="5" />
+                          <rect x="75" y="11" width="14" height="14" fill="currentColor" />
+                          <rect x="5" y="69" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="5" />
+                          <rect x="11" y="75" width="14" height="14" fill="currentColor" />
+                          <rect x="37" y="10" width="6" height="6" />
+                          <rect x="47" y="15" width="6" height="6" />
+                          <rect x="57" y="10" width="6" height="6" />
+                          <rect x="10" y="37" width="6" height="6" />
+                          <rect x="25" y="45" width="6" height="6" />
+                          <rect x="37" y="37" width="26" height="26" rx="4" fill="#6C00FF" />
+                          <circle cx="50" cy="50" r="8" fill="white" />
+                          <rect x="69" y="37" width="6" height="6" />
+                          <rect x="85" y="47" width="6" height="6" />
+                          <rect x="37" y="69" width="6" height="6" />
+                          <rect x="47" y="79" width="6" height="6" />
+                          <rect x="57" y="85" width="6" height="6" />
+                          <rect x="69" y="69" width="6" height="6" />
+                          <rect x="85" y="75" width="6" height="6" />
+                          <rect x="75" y="85" width="6" height="6" />
+                        </svg>
+                        <span className="text-[9px] font-mono font-bold text-slate-600 mt-1 uppercase">
+                          NPCI / UPI 2.0
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold font-mono">
+                            ₹{selectedProduct.price.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-slate-500 font-mono text-[11px] flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-primary" />
+                            Expires in {Math.floor(qrCountdown / 60)}:{(qrCountdown % 60).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-snug">
+                          Scan using Google Pay, PhonePe, Paytm, BHIM, or any banking UPI app. Instant payment notification enabled.
+                        </p>
+                        <div className="pt-1 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleLaunchCheckout}
+                            className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-white text-[11px] font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>Simulate QR Scan & Pay</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mode 3: UPI Apps Intent */}
+                  {upiMode === 'APPS' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      {UPI_APPS.map((app) => {
+                        const isAppSelected = upiSelectedApp === app.id
+                        return (
+                          <button
+                            type="button"
+                            key={app.id}
+                            onClick={() => setUpiSelectedApp(app.id)}
+                            className={`p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                              isAppSelected
+                                ? 'border-primary bg-surface ring-2 ring-primary/25 shadow-fintech-card'
+                                : 'border-border bg-surface hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${app.iconColor}`}>
+                              {app.id.slice(0, 2)}
+                            </div>
+                            <span className="text-[11px] font-bold text-navy">{app.name}</span>
+                            <span className="text-[9px] text-slate-400">1-Tap Intent</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* B. Credit / Debit Card Panel */}
+              {selectedMethod === 'Card' && (
+                <div className="p-5 bg-surface-blue/40 border border-primary/20 rounded-2xl space-y-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-primary/15">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-bold text-navy font-display">
+                        Card Instrument Configuration & 3DS
+                      </span>
+                    </div>
+                    {/* Quick test card buttons */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Test Cards:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCardNumber('4111 1111 1111 1111')
+                          setCardExpiry('12/28')
+                          setCardCvv('123')
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-semibold border border-emerald-200 transition-colors cursor-pointer"
+                      >
+                        Visa (Success)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCardNumber('6073 1111 2222 3333')
+                          setCardExpiry('09/29')
+                          setCardCvv('456')
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-surface hover:bg-slate-100 text-navy text-[10px] font-semibold border border-border transition-colors cursor-pointer"
+                      >
+                        RuPay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCardNumber('4000 0000 0000 0002')
+                          setCardExpiry('05/26')
+                          setCardCvv('000')
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 text-[10px] font-semibold border border-rose-200 transition-colors cursor-pointer"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    {/* Card Number */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                        Card Number
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={cardNumber}
+                          maxLength={19}
+                          onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                          placeholder="4111 1111 1111 1111"
+                          className="w-full px-3.5 py-2.5 bg-surface text-navy font-mono text-xs border border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs pr-20"
+                        />
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase font-mono ${
+                              cardBrand === 'visa'
+                                ? 'bg-blue-100 text-blue-800'
+                                : cardBrand === 'mastercard'
+                                ? 'bg-orange-100 text-orange-800'
+                                : cardBrand === 'rupay'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : cardBrand === 'amex'
+                                ? 'bg-cyan-100 text-cyan-800'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {cardBrand}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Cardholder Name
+                        </label>
+                        <input
+                          type="text"
+                          value={cardHolder}
+                          onChange={(e) => setCardHolder(e.target.value)}
+                          placeholder="Name as on card"
+                          className="w-full px-3.5 py-2.5 bg-surface text-navy text-xs border border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Expiry Date (MM/YY)
+                        </label>
+                        <input
+                          type="text"
+                          value={cardExpiry}
+                          maxLength={5}
+                          onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                          placeholder="MM/YY"
+                          className="w-full px-3.5 py-2.5 bg-surface text-navy font-mono text-xs border border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          CVV / CVC
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showCvv ? 'text' : 'password'}
+                            value={cardCvv}
+                            maxLength={4}
+                            onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ''))}
+                            placeholder="•••"
+                            className="w-full px-3.5 py-2.5 bg-surface text-navy font-mono text-xs border border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCvv(!showCvv)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showCvv ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveCard}
+                          onChange={(e) => setSaveCard(e.target.checked)}
+                          className="rounded text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
+                        />
+                        <span className="text-[11px] text-slate-600">
+                          Save card securely for future purchases (RBI Tokenized)
+                        </span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        256-Bit SSL Encrypted
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* C. Net Banking Panel */}
+              {selectedMethod === 'NetBanking' && (
+                <div className="p-5 bg-surface-blue/40 border border-primary/20 rounded-2xl space-y-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-primary/15">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-bold text-navy font-display">
+                        Select Financial Institution
+                      </span>
+                    </div>
+                    {/* Account Type Toggle */}
+                    <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setAccountType('RETAIL')}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                          accountType === 'RETAIL'
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-navy'
+                        }`}
+                      >
+                        Retail Banking
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAccountType('CORPORATE')}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                          accountType === 'CORPORATE'
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-navy'
+                        }`}
+                      >
+                        Corporate Banking
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Top 6 Indian Banks Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {POPULAR_BANKS.map((bank) => {
+                      const isBankSelected = selectedBank === bank.code
+                      return (
+                        <button
+                          type="button"
+                          key={bank.code}
+                          onClick={() => setSelectedBank(bank.code)}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                            isBankSelected
+                              ? 'border-primary bg-surface ring-2 ring-primary/25 shadow-fintech-card'
+                              : 'border-border bg-surface hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[10px] font-mono shrink-0 ${bank.badgeColor}`}>
+                            {bank.code}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-navy truncate font-display">
+                              {bank.name}
+                            </div>
+                            <span className="text-[10px] text-slate-400 block font-mono">
+                              Fast Gateway
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Searchable 50+ Scheduled Banks Dropdown */}
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[11px] font-semibold text-slate-700 block">
+                      Or Select from All 50+ Scheduled Banks:
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={bankSearch}
+                          onChange={(e) => setBankSearch(e.target.value)}
+                          placeholder="Search bank name (e.g. Canara, Baroda)..."
+                          className="w-full pl-8 pr-3 py-2 bg-surface text-navy text-xs border border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs"
+                        />
+                      </div>
+                      <select
+                        value={selectedBank}
+                        onChange={(e) => setSelectedBank(e.target.value)}
+                        className="w-full px-3 py-2 bg-surface text-navy text-xs border border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs font-medium"
+                      >
+                        {filteredBanks.map((b) => (
+                          <option key={b.code} value={b.code}>
+                            {b.name} ({b.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* D. Wallets & PayLater Panel */}
+              {selectedMethod === 'Wallet' && (
+                <div className="p-5 bg-surface-blue/40 border border-primary/20 rounded-2xl space-y-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-primary/15">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-bold text-navy font-display">
+                        Digital Wallet & PayLater Line
+                      </span>
+                    </div>
+                    {/* Category Selector */}
+                    <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border text-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWalletCategory('WALLET')
+                          setSelectedWallet('PAYTM')
+                        }}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                          walletCategory === 'WALLET'
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-navy'
+                        }`}
+                      >
+                        Pre-Paid Wallets
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWalletCategory('BNPL')
+                          setSelectedWallet('SIMPL')
+                        }}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                          walletCategory === 'BNPL'
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-navy'
+                        }`}
+                      >
+                        PayLater / BNPL
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Provider List */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {walletCategory === 'WALLET'
+                      ? WALLET_PROVIDERS.map((w) => {
+                          const isWSelected = selectedWallet === w.id
+                          return (
+                            <button
+                              type="button"
+                              key={w.id}
+                              onClick={() => setSelectedWallet(w.id)}
+                              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                                isWSelected
+                                  ? 'border-primary bg-surface ring-2 ring-primary/25 shadow-fintech-card'
+                                  : 'border-border bg-surface hover:bg-slate-50'
+                              }`}
+                            >
+                              <div>
+                                <div className="text-xs font-bold text-navy font-display">{w.name}</div>
+                                <div className="text-[10px] text-slate-500 font-mono">{w.subtitle}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs font-mono font-bold text-emerald-600">
+                                  ₹{w.balance.toLocaleString('en-IN')}
+                                </div>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold uppercase">
+                                  {w.badge}
+                                </span>
+                              </div>
+                            </button>
+                          )
+                        })
+                      : BNPL_PROVIDERS.map((b) => {
+                          const isBSelected = selectedWallet === b.id
+                          return (
+                            <button
+                              type="button"
+                              key={b.id}
+                              onClick={() => setSelectedWallet(b.id)}
+                              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                                isBSelected
+                                  ? 'border-primary bg-surface ring-2 ring-primary/25 shadow-fintech-card'
+                                  : 'border-border bg-surface hover:bg-slate-50'
+                              }`}
+                            >
+                              <div>
+                                <div className="text-xs font-bold text-navy font-display">{b.name}</div>
+                                <div className="text-[10px] text-slate-500 font-sans">{b.subtitle}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs font-mono font-bold text-primary">
+                                  ₹{b.creditLimit.toLocaleString('en-IN')}
+                                </div>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary-light text-primary font-bold uppercase">
+                                  {b.badge}
+                                </span>
+                              </div>
+                            </button>
+                          )
+                        })}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                    <span className="flex items-center gap-1 text-slate-600 font-medium">
+                      <UserCheck className="w-3.5 h-3.5 text-primary" />
+                      Linked Mobile: <code className="font-mono text-navy font-bold">{customerPhone}</code>
+                    </span>
+                    <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> 1-Tap Auth Ready
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Step 4: Razorpay Test Mode Helper Accordion */}
             <div className="bg-surface rounded-2xl border border-border/80 p-5 shadow-fintech-card space-y-3">
               <div
                 className="flex items-center justify-between cursor-pointer"
@@ -715,7 +1899,7 @@ export const DemoCheckout: React.FC = () => {
                 <div className="flex items-center gap-2.5">
                   <Info className="w-4 h-4 text-primary" />
                   <span className="text-xs font-bold text-navy font-display">
-                    Test Payment Options & Helper Badges
+                    Razorpay Test Sandbox Credentials & Guidelines
                   </span>
                 </div>
                 {showHelper ? (
@@ -735,10 +1919,10 @@ export const DemoCheckout: React.FC = () => {
                       </span>
                       <ul className="text-[11px] text-slate-600 space-y-1.5 list-disc pl-4">
                         <li>
-                          <strong>Card:</strong> <code className="font-mono bg-white px-2 py-0.5 rounded-full border border-slate-200 text-primary font-bold">4111 1111 1111 1111</code> (any future MM/YY, CVV 123). Click &ldquo;Success&rdquo; on test OTP.
+                          <strong>Card:</strong> <code className="font-mono bg-white px-2 py-0.5 rounded-full border border-slate-200 text-primary font-bold">4111 1111 1111 1111</code> (any future MM/YY, CVV 123).
                         </li>
                         <li>
-                          <strong>UPI:</strong> Enter <code className="font-mono bg-white px-2 py-0.5 rounded-full border border-slate-200 text-primary font-bold">success@razorpay</code> or select &ldquo;Success&rdquo; in modal.
+                          <strong>UPI:</strong> Enter <code className="font-mono bg-white px-2 py-0.5 rounded-full border border-slate-200 text-primary font-bold">success@razorpay</code> or authorize via modal.
                         </li>
                       </ul>
                     </div>
@@ -750,10 +1934,10 @@ export const DemoCheckout: React.FC = () => {
                       </span>
                       <ul className="text-[11px] text-slate-600 space-y-1.5 list-disc pl-4">
                         <li>
-                          <strong>Card:</strong> Select &ldquo;Failure&rdquo; on the Razorpay test OTP screen.
+                          <strong>Rail Failure:</strong> Select trigger decline in the modal to test RecoverAI ERV agent.
                         </li>
                         <li>
-                          <strong>Dismiss:</strong> Close or dismiss the payment popup to trigger cart recovery.
+                          <strong>Dismiss:</strong> Close checkout modal to test cart recovery triggers.
                         </li>
                       </ul>
                     </div>
@@ -785,6 +1969,10 @@ export const DemoCheckout: React.FC = () => {
                   <span className="font-mono text-slate-800 font-medium">{selectedProduct.category}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600">
+                  <span>Active Rail</span>
+                  <span className="font-bold text-primary font-mono">{selectedMethod}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
                   <span>Subtotal</span>
                   <span className="font-mono">₹{selectedProduct.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
@@ -799,50 +1987,246 @@ export const DemoCheckout: React.FC = () => {
                     <div className="text-2xl font-bold text-navy font-mono">
                       ₹{selectedProduct.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
-                    <span className="text-[10px] text-slate-400 font-mono">INR (Test Mode)</span>
+                    <span className="text-[10px] text-slate-400 font-mono">INR (Test Sandbox)</span>
                   </div>
                 </div>
               </div>
 
               {errorMsg && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2">
+                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2 animate-in fade-in">
                   <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <span>{errorMsg}</span>
+                  <span className="leading-snug">{errorMsg}</span>
                 </div>
               )}
 
-              {/* Action Buttons: Bold purple primary pay button */}
-              <div className="space-y-3 pt-2">
+              {/* Gateway Execution Mode Selector */}
+              <div className="bg-slate-100/90 p-1 rounded-xl border border-border/80 flex items-center gap-1 text-[11px] font-semibold mb-3">
                 <button
                   type="button"
-                  onClick={handleLaunchCheckout}
-                  disabled={isLoading || !sdkReady}
-                  className="w-full py-3 px-5 bg-primary hover:bg-primary-hover disabled:bg-slate-200 text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple flex items-center justify-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
+                  onClick={() => setExecutionMode('LIVE')}
+                  className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    executionMode === 'LIVE'
+                      ? 'bg-primary text-white shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-navy hover:bg-white/80'
+                  }`}
+                  title="Connect directly with live Razorpay Gateway server"
                 >
-                  <Lock className="w-4 h-4" />
-                  {isLoading ? 'Preparing Order...' : !sdkReady ? 'Loading Gateway...' : 'Pay with Razorpay Test Checkout'}
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Live Server Gateway</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setExecutionMode('SANDBOX')}
+                  className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    executionMode === 'SANDBOX'
+                      ? 'bg-primary text-white shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-navy hover:bg-white/80'
+                  }`}
+                  title="Run in-app direct rail authorization simulation"
+                >
+                  <Cpu className="w-3.5 h-3.5" />
+                  <span>Sandbox Simulation</span>
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5 pt-1">
+                {executionMode === 'LIVE' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleLaunchRazorpayGateway}
+                      disabled={isLoading || !sdkReady}
+                      className="w-full py-3.5 px-5 bg-gradient-to-r from-primary to-primary-hover hover:from-primary-hover hover:to-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group"
+                      title="Connects with live Razorpay server and opens live payment frame"
+                    >
+                      <Zap className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
+                      {isLoading
+                        ? 'Connecting Live Server...'
+                        : !sdkReady
+                        ? 'Connecting Gateway...'
+                        : `Pay ₹${selectedProduct.price.toLocaleString('en-IN')} via Live Razorpay Server`}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLaunchCheckout}
+                      disabled={isLoading}
+                      className="w-full py-2.5 px-4 bg-surface hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition-colors border border-border flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                      title="Open in-app Direct Rail Simulation modal"
+                    >
+                      <Cpu className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Open In-App Sandbox Simulation</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleLaunchCheckout}
+                      disabled={isLoading || !sdkReady}
+                      className="w-full py-3.5 px-5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      title="Simulates 3DS OTP or MPIN approval in-app"
+                    >
+                      <Lock className="w-4 h-4" />
+                      {isLoading
+                        ? 'Preparing Sandbox Order...'
+                        : `Pay ₹${selectedProduct.price.toLocaleString('en-IN')} with ${selectedMethod} (Sandbox)`}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLaunchRazorpayGateway}
+                      disabled={isLoading}
+                      className="w-full py-2.5 px-4 bg-surface hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition-colors border border-border flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                      title="Connect directly with live Razorpay Gateway server"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Connect with Live Razorpay Server</span>
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"
                   onClick={handleSimulateFailure}
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 bg-surface-blue hover:bg-surface-blue-hover text-navy rounded-xl text-xs font-bold transition-colors border border-surface-blue-border flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                  className="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-xl text-xs font-bold transition-colors border border-rose-200 flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
                   title="Directly trigger RecoverAI agent failure handling"
                 >
                   <Cpu className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Simulate Payment Failure</span>
+                  <span>Simulate {selectedMethod} Gateway Failure</span>
                 </button>
               </div>
 
               <div className="pt-3.5 border-t border-border/70 text-[10px] text-slate-400 space-y-1">
                 <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Securely Verified & Recorded</span>
+                  <span>Cryptographically Verified & Logged</span>
                 </div>
                 <p className="leading-snug">
-                  Payments are verified securely before persisting. Failure cases automatically trigger RecoverAI&rsquo;s ERV recovery workflow.
+                  Payments are verified server-side before persisting. Failure cases automatically trigger RecoverAI&rsquo;s ERV recovery workflow.
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIRECT RAIL AUTHORIZATION & SANDBOX OUTCOME MODAL */}
+      {showSimModal && simModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface rounded-3xl border border-border/80 shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-surface to-slate-50 border-b border-border/70 flex items-start justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white font-mono uppercase tracking-wider">
+                    {simModalData.method} Rail
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono font-medium">
+                    Test Mode Gateway Simulation
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-navy font-display">
+                  Authorize or Decline Transaction
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {simModalData.method === 'UPI' && 'Simulate customer MPIN authorization or PSP switch timeout.'}
+                  {simModalData.method === 'Card' && 'Simulate 3DS OTP verification or issuer decline.'}
+                  {simModalData.method === 'NetBanking' && 'Simulate Core Banking System login authentication.'}
+                  {simModalData.method === 'Wallet' && 'Simulate pre-paid wallet balance debit or limits.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSimModal(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-200/70 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+              {/* Order Meta Card */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-border/70 space-y-2 text-xs">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Product:</span>
+                  <span className="font-bold text-navy">{simModalData.productName}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Selected Rail:</span>
+                  <span className="font-bold text-primary font-mono">{simModalData.method}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Amount:</span>
+                  <span className="font-bold text-navy font-mono text-sm">
+                    ₹{simModalData.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600 text-[11px] pt-1 border-t border-border/50 font-mono">
+                  <span>Order ID:</span>
+                  <span className="text-slate-500">{simModalData.orderId}</span>
+                </div>
+              </div>
+
+              {/* Action 1: Authorize Success */}
+              <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Option A: Authorize Payment (Simulate Success)</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Mocks successful customer authorization ({simModalData.method === 'UPI' ? 'MPIN' : simModalData.method === 'Card' ? '3DS OTP' : 'Gateway Auth'}). Validates cryptographic signature and marks order as paid.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleExecuteSimulatedOutcome('SUCCESS')}
+                  disabled={isSimulatingOutcome}
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{isSimulatingOutcome ? 'Processing...' : `Authorize ₹${simModalData.amount.toLocaleString('en-IN')} via ${simModalData.method}`}</span>
+                </button>
+              </div>
+
+              {/* Action 2: Trigger Failure */}
+              <div className="p-4 bg-rose-50/70 border border-rose-200/80 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-rose-800 font-bold text-xs">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Option B: Trigger Rail Gateway Failure & Handoff</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Simulates declines, network timeouts, or drop-offs. Immediately escalates to RecoverAI Autonomous Agent.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-slate-700 block">
+                    Select Test Failure Reason:
+                  </label>
+                  <select
+                    value={selectedFailureReason}
+                    onChange={(e) => setSelectedFailureReason(e.target.value)}
+                    className="w-full px-3 py-2 bg-surface text-navy border border-rose-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-rose-400 focus:border-rose-400 shadow-2xs"
+                  >
+                    {(METHOD_FAILURE_REASONS[simModalData.method] || FAILURE_REASONS).map((r) => (
+                      <option key={r.code} value={r.code}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleExecuteSimulatedOutcome('FAILED')}
+                  disabled={isSimulatingOutcome}
+                  className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>{isSimulatingOutcome ? 'Simulating...' : 'Trigger Gateway Rail Failure (Simulate Error)'}</span>
+                </button>
               </div>
             </div>
           </div>

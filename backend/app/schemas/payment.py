@@ -16,15 +16,20 @@ class CreateOrderRequest(BaseModel):
     customer_name: str = Field(..., description="Full customer name")
     customer_email: str = Field(..., description="Customer email address")
     customer_phone: Optional[str] = Field(default="+91 99999 99999", description="Customer mobile number")
+    method: Optional[str] = Field(default="Card", description="Payment method selected: UPI, Card, NetBanking, Wallet")
+    payment_instrument_details: Optional[Dict[str, Any]] = Field(default=None, description="Detailed instrument info (e.g. VPA, bank_code, wallet_provider)")
+    session_id: Optional[str] = Field(default=None, description="Optional active checkout session ID")
 
 class CreateOrderResponse(BaseModel):
     order_id: str = Field(..., description="Razorpay Order ID (order_...)")
     transaction_id: str = Field(..., description="RecoverAI Transaction ID")
+    session_id: Optional[str] = Field(default=None, description="Checkout Session ID for funnel tracking")
     amount: int = Field(..., description="Amount in minor units (paise)")
     amount_in_rupees: float = Field(..., description="Amount in major units (INR)")
     currency: str = "INR"
     key_id: str = Field(..., description="Razorpay Test Key ID (for frontend checkout initialization)")
     product_name: str
+    method: Optional[str] = "Card"
     customer: Dict[str, Any]
 
 class VerifyPaymentRequest(BaseModel):
@@ -52,3 +57,13 @@ class PaymentFailureRequest(BaseModel):
     error_code: Optional[str] = Field(default="PAYMENT_FAILED", description="Gateway or bank error code")
     error_description: Optional[str] = Field(default="Customer aborted or test payment declined", description="User facing description")
     error_category: Optional[str] = Field(default="GATEWAY_ERROR", description="Failure category for RecoverAI categorization")
+
+class SimulatePaymentRequest(BaseModel):
+    transaction_id: str = Field(..., description="RecoverAI Transaction ID to simulate")
+    order_id: str = Field(..., description="Razorpay Order ID")
+    action: str = Field(default="SUCCESS", description="'SUCCESS' or 'FAILED'")
+    method: Optional[str] = Field(default="UPI", description="Payment method: UPI, Card, NetBanking, Wallet")
+    payment_instrument_details: Optional[Dict[str, Any]] = Field(default=None, description="Detailed instrument info (e.g. VPA, bank_name, card_brand)")
+    error_code: Optional[str] = Field(default="UPI_TIMEOUT", description="Failure code if action is FAILED")
+    error_description: Optional[str] = Field(default="Simulated test decline", description="Failure description")
+    error_category: Optional[str] = Field(default="TECHNICAL_TIMEOUT", description="Failure category")

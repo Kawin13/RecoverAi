@@ -141,6 +141,7 @@ export const api = {
   createPaymentOrder: paymentApi.createPaymentOrder.bind(paymentApi),
   verifyPayment: paymentApi.verifyPayment.bind(paymentApi),
   recordPaymentFailure: paymentApi.recordPaymentFailure.bind(paymentApi),
+  simulatePayment: paymentApi.simulatePayment.bind(paymentApi),
 
   // Guardrails & Governance
   getGuardrailPolicies: guardrailsApi.getGuardrailPolicies.bind(guardrailsApi),

@@ -92,15 +92,19 @@ class RecoveryExecutor:
             db.add(plink_record)
             db.flush()
 
-            # Dispatch notification
+            # Dispatch notification via Email (or SMS simulation fallback if email missing)
+            recipient_email = cust_email if cust_email and "@" in cust_email else None
             receipt = notification_service.send_recovery_notification(
-                recipient=cust_phone if case.channel == "SMS_SIMULATION" else cust_email,
-                channel=case.channel or "SMS_SIMULATION",
+                recipient=recipient_email or cust_phone,
+                channel="EMAIL" if recipient_email else "SMS_SIMULATION",
                 strategy=strategy,
                 customer_name=cust_name,
                 amount=amount,
                 action_url=link_res["short_url"],
-                recovery_case_id=case.id
+                recovery_case_id=case.id,
+                workspace_id=str(case.workspace_id),
+                customer_id=cust.id if cust else None,
+                db=db
             )
 
             execution_data.update({
@@ -172,13 +176,16 @@ class RecoveryExecutor:
 
             receipt = notification_service.send_recovery_notification(
                 recipient=cust_email,
-                channel="EMAIL_SIMULATION",
+                channel="EMAIL",
                 strategy=strategy,
                 customer_name=cust_name,
                 amount=amount,
                 language=lang,
                 recovery_case_id=case.id,
-                custom_message=custom_msg
+                custom_message=custom_msg,
+                workspace_id=str(case.workspace_id),
+                customer_id=cust.id if cust else None,
+                db=db
             )
 
             execution_data.update({
@@ -366,10 +373,10 @@ class RecoveryStateMachine:
             # Select channel
             if case.selected_strategy == "UPI_SWITCH":
                 case.channel = "WHATSAPP_SIMULATION"
-            elif case.selected_strategy == "PAYMENT_LINK":
-                case.channel = "SMS_SIMULATION"
-            elif case.selected_strategy == "PERSONALIZED_REMINDER":
-                case.channel = "EMAIL_SIMULATION"
+            elif case.selected_strategy in ("PAYMENT_LINK", "SMART_PAYLINK_1CLICK"):
+                case.channel = "EMAIL"
+            elif case.selected_strategy in ("PERSONALIZED_REMINDER", "INCENTIVIZED_DUNNING"):
+                case.channel = "EMAIL"
             else:
                 case.channel = "IN_APP"
 

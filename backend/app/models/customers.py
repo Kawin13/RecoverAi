@@ -1,6 +1,6 @@
 from app.core.datetime_utils import utcnow
 from datetime import datetime
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Uuid
+from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 from app.models.workspaces import DEFAULT_WORKSPACE_ID
@@ -15,6 +15,7 @@ class Customer(Base):
     phone = Column(String(32), nullable=True)
     tier = Column(String(32), default="STANDARD")  # ENTERPRISE, VIP, GROWTH, STANDARD
     ltv = Column(Float, default=0.0)
+    email_opt_out = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=utcnow)
 
     # Relationships

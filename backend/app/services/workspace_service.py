@@ -442,6 +442,30 @@ def create_workspace_invitation(
     db.commit()
 
     invite_url = f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/invite/{raw_token}"
+
+    # Dispatch TEAM_INVITATION email via Resend if email is configured
+    try:
+        from app.services.notifications import email_service
+        inviter_prof = db.query(Profile).filter(Profile.id == invited_by_user_id).first()
+        inviter_name = inviter_prof.full_name if inviter_prof else "A team administrator"
+        ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+        ws_name = ws.name if ws else "RecoverAI Workspace"
+
+        email_service.send_recovery_email(
+            recipient=cleaned_email,
+            template_type="TEAM_INVITATION",
+            template_context={
+                "workspace_name": ws_name,
+                "role": role,
+                "action_url": invite_url,
+                "invited_by": inviter_name
+            },
+            workspace_id=workspace_id,
+            db=db
+        )
+    except Exception as exc:
+        logger.warning(f"[WorkspaceInvitation] Invitation email notification skipped: {exc}")
+
     return {
         "id": str(invitation.id),
         "workspace_id": str(invitation.workspace_id),

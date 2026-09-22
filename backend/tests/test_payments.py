@@ -187,3 +187,91 @@ def test_record_payment_failure_escalation(client, db_session):
     assert case.risk_amount == 4999.0
     assert case.failure_category == "GATEWAY_TIMEOUT"
     assert case.status == "PENDING_APPROVAL"
+
+def test_create_order_with_payment_options_and_session(client, db_session):
+    # 1. Create a checkout session first
+    cs_payload = {
+        "customer_name": "Aditya Sharma",
+        "customer_email": "aditya.sharma@techcorp.in",
+        "cart_amount": 4999.0,
+        "selected_method": "UPI"
+    }
+    cs_res = client.post("/api/v1/checkout/sessions", json=cs_payload)
+    assert cs_res.status_code == 200
+    session_id = cs_res.json()["id"]
+
+    # 2. Create payment order with payment_instrument_details and session_id
+    payload = {
+        "product_id": "saas_premium",
+        "product_name": "Premium SaaS Subscription",
+        "amount": 4999.0,
+        "currency": "INR",
+        "customer_name": "Aditya Sharma",
+        "customer_email": "aditya.sharma@techcorp.in",
+        "method": "UPI",
+        "payment_instrument_details": {
+            "mode": "VPA",
+            "vpa": "aditya@okhdfcbank"
+        },
+        "session_id": session_id
+    }
+    res = client.post("/api/payments/order", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["method"] == "UPI"
+    assert data["session_id"] == session_id
+
+    # 3. Verify transaction and audit log
+    tx = db_session.query(Transaction).filter(Transaction.id == data["transaction_id"]).first()
+    assert tx is not None
+    assert tx.method == "UPI"
+
+    audit = db_session.query(AuditLog).filter(AuditLog.transaction_id == tx.id).first()
+    assert audit is not None
+    assert "UPI" in audit.details
+    assert "aditya@okhdfcbank" in audit.details
+
+def test_simulate_payment_outcome_multi_rail(client, db_session):
+    # 1. Create NetBanking order
+    payload = {
+        "product_id": "ecommerce_order",
+        "product_name": "Ergonomic Mechanical Keyboard",
+        "amount": 1499.0,
+        "currency": "INR",
+        "customer_name": "Priyanka Iyer",
+        "customer_email": "priyanka.i@zenithai.com",
+        "method": "NetBanking",
+        "payment_instrument_details": {
+            "bank_code": "HDFC",
+            "bank_name": "HDFC Bank",
+            "account_type": "RETAIL"
+        }
+    }
+    order_res = client.post("/api/payments/order", json=payload)
+    assert order_res.status_code == 200
+    order_data = order_res.json()
+    tx_id = order_data["transaction_id"]
+    order_id = order_data["order_id"]
+
+    # 2. Simulate Success
+    sim_success_payload = {
+        "transaction_id": tx_id,
+        "order_id": order_id,
+        "action": "SUCCESS",
+        "method": "NetBanking",
+        "payment_instrument_details": {
+            "bank_code": "HDFC",
+            "bank_name": "HDFC Bank"
+        }
+    }
+    sim_res = client.post("/api/payments/simulate", json=sim_success_payload)
+    assert sim_res.status_code == 200
+    sdata = sim_res.json()
+    assert sdata["status"] == "SUCCESS"
+    assert sdata["method"] == "NetBanking"
+
+    tx = db_session.query(Transaction).filter(Transaction.id == tx_id).first()
+    assert tx.status == "SUCCESS"
+    assert tx.method == "NetBanking"
+

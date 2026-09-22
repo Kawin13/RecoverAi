@@ -33,6 +33,7 @@ class JobType(str, Enum):
     SCAN_CART_ABANDONMENT = "SCAN_CART_ABANDONMENT"
     EXECUTE_DELAYED_RETRY = "EXECUTE_DELAYED_RETRY"
     RECONCILE_PAYMENT_LINK = "RECONCILE_PAYMENT_LINK"
+    SEND_EMAIL = "SEND_EMAIL"
 
 class JobStatus(str, Enum):
     PENDING = "PENDING"
@@ -300,6 +301,8 @@ class BackgroundWorker:
             self._handle_delayed_retry(job, payload, db)
         elif job.job_type == JobType.RECONCILE_PAYMENT_LINK.value:
             self._handle_reconcile_payment_link(job, payload, db)
+        elif job.job_type == JobType.SEND_EMAIL.value:
+            self._handle_send_email(job, payload, db)
         else:
             logger.warning(f"Unknown job type '{job.job_type}' for job {job.id}. Marking FAILED.")
             job.status = JobStatus.FAILED.value
@@ -528,6 +531,62 @@ class BackgroundWorker:
         job.completed_at = utcnow()
         job.locked_by = None
         job.locked_until = None
+
+    def _handle_send_email(self, job: RecoveryJob, payload: Dict[str, Any], db: Session):
+        """
+        Executes a background email dispatch job with policy enforcement, idempotency,
+        and failure isolation.
+        """
+        from app.services.notifications import email_service
+
+        recipient = payload.get("recipient")
+        template_type = payload.get("template_type", "PAYMENT_LINK")
+        template_context = payload.get("template_context", {})
+        workspace_id = str(job.workspace_id)
+        recovery_case_id = payload.get("recovery_case_id") or job.entity_id
+        transaction_id = payload.get("transaction_id")
+        customer_id = payload.get("customer_id")
+        recovery_action_id = payload.get("recovery_action_id")
+        attempt_number = job.attempt_count or 1
+
+        res = email_service.send_recovery_email(
+            recipient=recipient,
+            template_type=template_type,
+            template_context=template_context,
+            workspace_id=workspace_id,
+            db=db,
+            recovery_case_id=recovery_case_id,
+            transaction_id=transaction_id,
+            customer_id=customer_id,
+            recovery_action_id=recovery_action_id,
+            recovery_job_id=job.id,
+            attempt_number=attempt_number
+        )
+
+        if res.success or res.status == "BLOCKED":
+            job.status = JobStatus.SUCCEEDED.value
+            job.completed_at = utcnow()
+            job.locked_by = None
+            job.locked_until = None
+        else:
+            # Permanent failure types should dead-letter rather than endlessly retry
+            perm_failures = (
+                "BLOCKED_TEST_RECIPIENT",
+                "INVALID_RECIPIENT_SYNTAX",
+                "CUSTOMER_OPTED_OUT",
+                "GLOBAL_EMAIL_DISABLED",
+                "WORKSPACE_EMAIL_DISABLED",
+                "VALIDATION_ERROR"
+            )
+            if res.error_code in perm_failures:
+                job.status = JobStatus.DEAD_LETTER.value
+                job.completed_at = utcnow()
+                job.last_error = f"Permanent email delivery suppression: {res.error_message}"
+                job.locked_by = None
+                job.locked_until = None
+            else:
+                # Transient error: raise exception so _execute_single_job applies bounded exponential backoff
+                raise RuntimeError(f"Resend delivery failed: {res.error_message}")
 
     def _run_cart_abandonment_scan(self):
         """

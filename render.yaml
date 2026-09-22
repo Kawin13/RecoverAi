@@ -37,6 +37,18 @@ services:
         sync: false
       - key: CORS_ORIGINS
         value: "https://your-frontend-domain.vercel.app"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      - key: EMAIL_ENABLED
+        value: "true"
+      - key: EMAIL_FROM_ADDRESS
+        value: "RecoverAI <onboarding@resend.dev>"
+      - key: EMAIL_TEST_MODE
+        value: "true"
+      - key: EMAIL_TEST_RECIPIENTS
+        sync: false
 
   # 2. RecoverAI Autonomous Background Recovery Worker
   - type: worker
@@ -70,4 +82,16 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: APP_ENCRYPTION_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      - key: EMAIL_ENABLED
+        value: "true"
+      - key: EMAIL_FROM_ADDRESS
+        value: "RecoverAI <onboarding@resend.dev>"
+      - key: EMAIL_TEST_MODE
+        value: "true"
+      - key: EMAIL_TEST_RECIPIENTS
         sync: false

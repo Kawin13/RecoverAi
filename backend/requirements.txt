@@ -18,9 +18,10 @@ asyncpg==0.29.0
 httpx==0.28.1
 python-dotenv==1.0.1
 
-# Integration Clients (Gateway & Auth)
+# Integration Clients (Gateway & Auth & Email)
 supabase>=2.11.0,<=2.13.0
 razorpay>=1.4.1,<=1.4.2
+resend==2.47.0
 
 # Machine Learning & Propensity Engine
 joblib==1.5.3

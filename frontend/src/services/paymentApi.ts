@@ -1,5 +1,5 @@
 import { ENV } from '../config/env'
-import { API_BASE_URL } from './client'
+import { API_BASE_URL, authFetch } from './client'
 
 export interface PaymentConfig {
   key_id: string
@@ -16,16 +16,21 @@ export interface CreateOrderRequest {
   customer_name: string
   customer_email: string
   customer_phone?: string
+  method?: string
+  payment_instrument_details?: Record<string, any>
+  session_id?: string
 }
 
 export interface CreateOrderResponse {
   order_id: string
   transaction_id: string
+  session_id?: string
   amount: number
   amount_in_rupees: number
   currency: string
   key_id: string
   product_name: string
+  method?: string
   customer: {
     name: string
     email: string
@@ -65,7 +70,7 @@ export interface PaymentFailureRequest {
 export const paymentApi = {
   async getPaymentConfig(): Promise<PaymentConfig> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/payments/config`)
+      const res = await authFetch(`${API_BASE_URL}/api/payments/config`)
       if (res.ok) {
         return await res.json()
       }
@@ -81,7 +86,7 @@ export const paymentApi = {
   },
 
   async createPaymentOrder(data: CreateOrderRequest): Promise<CreateOrderResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/payments/order`, {
+    const res = await authFetch(`${API_BASE_URL}/api/payments/order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -94,7 +99,7 @@ export const paymentApi = {
   },
 
   async verifyPayment(data: VerifyPaymentRequest): Promise<VerifyPaymentResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/payments/verify`, {
+    const res = await authFetch(`${API_BASE_URL}/api/payments/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -107,7 +112,7 @@ export const paymentApi = {
   },
 
   async recordPaymentFailure(data: PaymentFailureRequest): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/api/payments/fail`, {
+    const res = await authFetch(`${API_BASE_URL}/api/payments/fail`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -115,6 +120,28 @@ export const paymentApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.detail || err.message || 'Failed to record payment failure')
+    }
+    return await res.json()
+  },
+
+  async simulatePayment(data: {
+    transaction_id: string
+    order_id: string
+    action: 'SUCCESS' | 'FAILED'
+    method?: string
+    payment_instrument_details?: Record<string, any>
+    error_code?: string
+    error_description?: string
+    error_category?: string
+  }): Promise<any> {
+    const res = await authFetch(`${API_BASE_URL}/api/payments/simulate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || err.message || 'Simulation failed')
     }
     return await res.json()
   }

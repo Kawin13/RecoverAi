@@ -41,6 +41,10 @@ def health_check(response: Response, db: Session = Depends(get_db)):
         "razorpay_configured": razorpay_service.is_configured,
         "ai_configured": bool(settings.GEMINI_API_KEY and "placeholder" not in settings.GEMINI_API_KEY.lower()),
         "ml_model_loaded": ml_ready,
+        "email_enabled": bool(getattr(settings, "EMAIL_ENABLED", True)),
+        "email_provider": "resend",
+        "email_configured": bool(getattr(settings, "RESEND_API_KEY", "") and "placeholder" not in getattr(settings, "RESEND_API_KEY", "").lower()),
+        "email_test_mode": bool(getattr(settings, "EMAIL_TEST_MODE", True)),
         "mode": "test"
     }
 
@@ -135,6 +139,9 @@ def readiness_check(response: Response, db: Session = Depends(get_db)):
         "platform_razorpay_ready": rzp_ready,
         "gemini_ready": gemini_ready,
         "realtime_ready": True,
+        "email_enabled": bool(getattr(settings, "EMAIL_ENABLED", True)),
+        "email_provider": "resend",
         "email_configured": bool(getattr(settings, "RESEND_API_KEY", "") and "placeholder" not in getattr(settings, "RESEND_API_KEY", "").lower()),
+        "email_test_mode": bool(getattr(settings, "EMAIL_TEST_MODE", True)),
     }
 

@@ -40,6 +40,58 @@ const STATE_STEPS = [
   { id: 'RECOVERED', label: '8. Recovered', desc: 'Revenue secured' }
 ]
 
+const maskRecipient = (val: string): string => {
+  if (!val) return ''
+  if (val.includes('@')) {
+    const [user, domain] = val.split('@')
+    if (user.length <= 2) return `${user[0]}***@${domain}`
+    return `${user[0]}***${user[user.length - 1]}@${domain}`
+  }
+  if (val.length > 5) {
+    return `${val.slice(0, 3)}****${val.slice(-2)}`
+  }
+  return val
+}
+
+const getBadgeStyle = (status: string, label: string): string => {
+  const s = (status || '').toUpperCase()
+  const l = (label || '').toUpperCase()
+  if (s === 'DELIVERED') {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  }
+  if (s === 'SENT') {
+    return 'bg-blue-50 text-blue-700 border-blue-200'
+  }
+  if (s === 'BOUNCED' || s === 'FAILED') {
+    return 'bg-rose-50 text-rose-700 border-rose-200'
+  }
+  if (s === 'BLOCKED' || l === 'BLOCKED_TEST_RECIPIENT') {
+    return 'bg-amber-50 text-amber-800 border-amber-200'
+  }
+  return 'bg-slate-50 text-slate-700 border-slate-200'
+}
+
+const getBadgeLabel = (status: string, label: string): string => {
+  const s = (status || '').toUpperCase()
+  const l = (label || '').toUpperCase()
+  if (l === 'BLOCKED_TEST_RECIPIENT' || s === 'BLOCKED') {
+    return 'RESTRICTED RECIPIENT'
+  }
+  if (s === 'DELIVERED') {
+    return 'DELIVERED (WEBHOOK)'
+  }
+  if (s === 'SENT') {
+    return 'RESEND EMAIL (SENT)'
+  }
+  if (s === 'BOUNCED') {
+    return 'BOUNCED'
+  }
+  if (s === 'FAILED') {
+    return 'FAILED'
+  }
+  return label || status || 'PROCESSED'
+}
+
 export const RecoveryAgent: React.FC = () => {
   const [workflows, setWorkflows] = useState<WorkflowCase[]>([])
   const [notifications, setNotifications] = useState<NotificationReceiptItem[]>([])
@@ -92,6 +144,9 @@ export const RecoveryAgent: React.FC = () => {
     const unsubPayment = subscribe('PAYMENT_RECEIVED', () => {
       loadData()
     })
+    const unsubEmail = subscribe('EMAIL_STATUS_CHANGED', () => {
+      loadData()
+    })
     const unsubResync = subscribe('RECONNECT_RESYNC', () => {
       loadData()
     })
@@ -102,6 +157,7 @@ export const RecoveryAgent: React.FC = () => {
       unsubCase()
       unsubQueue()
       unsubPayment()
+      unsubEmail()
       unsubResync()
     }
   }, [loadData, subscribe])
@@ -775,31 +831,43 @@ export const RecoveryAgent: React.FC = () => {
                 No notifications dispatched yet. Execute a workflow step to trigger multi-channel recovery communications.
               </div>
             ) : (
-              notifications.map(notif => (
-                <div key={notif.notification_id} className="p-4 rounded-2xl border border-border/80 bg-surface space-y-2.5 shadow-fintech-card">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      {notif.channel === 'WHATSAPP_SIMULATION' && <Smartphone className="w-3.5 h-3.5 text-emerald-600" />}
-                      {notif.channel === 'SMS_SIMULATION' && <MessageSquare className="w-3.5 h-3.5 text-primary" />}
-                      {notif.channel === 'EMAIL_SIMULATION' && <Mail className="w-3.5 h-3.5 text-primary" />}
-                      {notif.channel === 'IN_APP' && <Sparkles className="w-3.5 h-3.5 text-amber-600" />}
-                      <span className="text-xs font-bold text-navy">{notif.title}</span>
+              notifications.map(notif => {
+                const isBlocked = notif.delivery_label === 'BLOCKED_TEST_RECIPIENT' || notif.status === 'BLOCKED'
+                return (
+                  <div key={notif.notification_id} className="p-4 rounded-2xl border border-border/80 bg-surface space-y-2.5 shadow-fintech-card">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {notif.channel === 'WHATSAPP_SIMULATION' && <Smartphone className="w-3.5 h-3.5 text-emerald-600" />}
+                        {notif.channel === 'SMS_SIMULATION' && <MessageSquare className="w-3.5 h-3.5 text-primary" />}
+                        {(notif.channel === 'EMAIL_SIMULATION' || notif.channel === 'EMAIL' || notif.channel === 'resend') && (
+                          <Mail className="w-3.5 h-3.5 text-primary" />
+                        )}
+                        {notif.channel === 'IN_APP' && <Sparkles className="w-3.5 h-3.5 text-amber-600" />}
+                        <span className="text-xs font-bold text-navy">{notif.title}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border ${getBadgeStyle(notif.status, notif.delivery_label)}`}>
+                        {getBadgeLabel(notif.status, notif.delivery_label)}
+                      </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                      {notif.delivery_label}
-                    </span>
-                  </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed font-sans bg-slate-50 p-3 rounded-xl border border-border">
-                    {notif.body}
-                  </p>
+                    {isBlocked && (
+                      <div className="flex items-center gap-1.5 p-2 bg-amber-50/80 border border-amber-200/80 rounded-lg text-[11px] text-amber-800 font-medium">
+                        <AlertOctagon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Email delivery restricted to configured test recipients.</span>
+                      </div>
+                    )}
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-mono">
-                    <span>{notif.recipient}</span>
-                    <span>{formatTimeAgo(notif.dispatched_at)}</span>
+                    <p className="text-xs text-slate-600 leading-relaxed font-sans bg-slate-50 p-3 rounded-xl border border-border">
+                      {notif.body}
+                    </p>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-mono">
+                      <span>{maskRecipient(notif.recipient)}</span>
+                      <span>{formatTimeAgo(notif.dispatched_at)}</span>
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
