@@ -161,7 +161,7 @@ class RecoveryExecutor:
         elif strategy == "UPI_SWITCH":
             # Recommend UPI & provide appropriate recovery checkout/payment journey
             base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
-            recovery_checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id if tx else case.id}&method=UPI&recommendation=upi_switch&amount={amount}&recovery_case={case.id}"
+            recovery_checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id if tx else case.id}&method=UPI&recommendation=upi_switch&amount={amount}&recovery_case={case.id}&auto_open=true"
 
             recipient_email = cust_email if cust_email and "@" in cust_email else None
             if recipient_email and getattr(settings, "EMAIL_ENABLED", True):

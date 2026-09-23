@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useRef } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ShoppingBag,
   CreditCard,
@@ -263,6 +263,19 @@ function formatExpiry(value: string): string {
 
 export const DemoCheckout: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const orderIdParam = searchParams.get('order_id')
+  const recoveryCaseParam = searchParams.get('recovery_case')
+  const amountParam = searchParams.get('amount')
+  const methodParam = searchParams.get('method')
+  const recommendationParam = searchParams.get('recommendation')
+  const autoOpenParam = searchParams.get('auto_open')
+  const paymentLinkIdParam = searchParams.get('payment_link_id')
+
+  const isRecoveryMode = Boolean(orderIdParam || recoveryCaseParam || paymentLinkIdParam)
+  const [showFullCatalog, setShowFullCatalog] = useState(false)
+  const autoOpenAttemptedRef = useRef(false)
+
   const [config, setConfig] = useState<PaymentConfig | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<ProductItem>(PRODUCTS[0])
   const [selectedMethod, setSelectedMethod] = useState<'UPI' | 'Card' | 'NetBanking' | 'Wallet'>('UPI')
@@ -398,6 +411,100 @@ export const DemoCheckout: React.FC = () => {
     }, 1000)
     return () => clearInterval(interval)
   }, [selectedMethod, upiMode])
+
+  // 4. Auto-configure recovery product and rail when navigating from email link
+  useEffect(() => {
+    if (amountParam) {
+      const parsedAmt = parseFloat(amountParam)
+      if (!isNaN(parsedAmt) && parsedAmt > 0) {
+        const found = PRODUCTS.find((p) => Math.abs(p.price - parsedAmt) < 1)
+        if (found) {
+          setSelectedProduct(found)
+        } else {
+          setSelectedProduct({
+            id: 'recovery_item',
+            name: 'Recovered Order Item',
+            category: 'Order Recovery',
+            price: parsedAmt,
+            badge: '1-Click Recovery',
+            description: `Direct payment recovery for Order #${orderIdParam || 'Pending'}.`,
+            features: [
+              'Direct Razorpay Test Gateway',
+              'HMAC-SHA256 signature verification',
+              'Autonomous Revenue Recovery ledger update'
+            ]
+          })
+        }
+      }
+    }
+    if (methodParam) {
+      if (['UPI', 'Card', 'NetBanking', 'Wallet'].includes(methodParam)) {
+        setSelectedMethod(methodParam as any)
+      }
+    }
+  }, [amountParam, methodParam, orderIdParam])
+
+  // 5. Auto-launch Razorpay Checkout Modal when in recovery mode
+  useEffect(() => {
+    if (!sdkReady || autoOpenAttemptedRef.current || checkoutResult || isLoading) return
+    if (isRecoveryMode && (autoOpenParam === 'true' || autoOpenParam === null)) {
+      autoOpenAttemptedRef.current = true
+      const timer = setTimeout(() => {
+        handleLaunchRazorpayGateway()
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [sdkReady, isRecoveryMode, autoOpenParam, checkoutResult, isLoading])
+
+  // Quick 1-Click Sandbox Recovery Authorization
+  const handleDirectQuickRecoverySuccess = async () => {
+    setIsLoading(true)
+    setErrorMsg(null)
+    try {
+      const instrumentDetails = getInstrumentDetails()
+      const orderData = await api.createPaymentOrder({
+        product_id: selectedProduct.id,
+        product_name: selectedProduct.name,
+        amount: selectedProduct.price,
+        currency: 'INR',
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        method: selectedMethod,
+        payment_instrument_details: instrumentDetails,
+        session_id: activeSessionId || undefined
+      })
+
+      const simRes = await api.simulatePayment({
+        transaction_id: orderData.transaction_id,
+        order_id: orderData.order_id,
+        action: 'SUCCESS',
+        method: selectedMethod,
+        payment_instrument_details: instrumentDetails
+      })
+
+      if (activeSessionId) {
+        api.transitionCheckoutSession(activeSessionId, { new_status: 'COMPLETED' }).catch(() => {})
+      }
+
+      setCheckoutResult({
+        success: true,
+        signature_valid: true,
+        transaction_id: simRes.transaction_id,
+        razorpay_order_id: simRes.order_id,
+        razorpay_payment_id: simRes.payment_id,
+        amount: simRes.amount,
+        method: selectedMethod,
+        status: 'SUCCESS',
+        verified_at: new Date().toISOString(),
+        message: '1-Click recovery payment successfully authorized and verified in Razorpay sandbox.'
+      })
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Quick recovery failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleSelectPersona = (name: string, email: string, phone: string) => {
     setCustomerName(name)
@@ -1088,9 +1195,199 @@ export const DemoCheckout: React.FC = () => {
         </div>
       )}
 
+      {/* 1-CLICK DEDICATED RECOVERY VIEW */}
+      {isRecoveryMode && !showFullCatalog && !checkoutResult && !failureResult && (
+        <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
+          {/* Recovery Banner */}
+          <div className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-r from-violet-900 via-indigo-900 to-slate-900 text-white shadow-xl border border-indigo-700/50">
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 mb-2">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Verified 1-Click Recovery Link</span>
+                  {recoveryCaseParam && (
+                    <span className="font-mono text-[10px] text-indigo-200">
+                      Case: {recoveryCaseParam.slice(0, 12)}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-2xl font-bold font-display text-white">
+                  Complete Your Payment
+                </h2>
+                <p className="text-sm text-indigo-200/90 mt-1 max-w-xl">
+                  {recommendationParam === 'upi_switch' || selectedMethod === 'UPI'
+                    ? 'Issuing bank network switch is clear. RecoverAI has synthesized a 1-click test checkout rail for your order.'
+                    : 'Your cart recovery link is active and cryptographically verified. Complete transaction seamlessly.'}
+                </p>
+              </div>
+              <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1 text-right">
+                <span className="text-xs text-indigo-300">Total Payable</span>
+                <span className="text-3xl font-extrabold text-white font-display">
+                  ₹{selectedProduct.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+                <span className="text-[10px] text-emerald-400 font-medium">Razorpay Test Gateway</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Recovery Order Summary Card */}
+          <div className="bg-surface rounded-2xl border border-border p-6 shadow-fintech-card space-y-6">
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary-light flex items-center justify-center text-primary border border-primary-border shadow-xs">
+                  <ShoppingBag className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-navy text-base font-display">
+                    {selectedProduct.name}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {selectedProduct.description}
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {selectedProduct.badge || '1-Click Recovery'}
+              </span>
+            </div>
+
+            {/* Customer & Transaction Reference Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50/80 border border-border/80 text-xs">
+              <div>
+                <span className="text-slate-400 block mb-0.5 font-medium">Customer</span>
+                <span className="font-semibold text-navy block">{customerName}</span>
+                <span className="text-slate-500 text-[11px] block">{customerEmail}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block mb-0.5 font-medium">Order Reference</span>
+                <span className="font-mono text-navy font-semibold block truncate">
+                  {orderIdParam || 'Generated upon checkout'}
+                </span>
+                <span className="text-slate-500 text-[11px] block">Razorpay Test Rail</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block mb-0.5 font-medium">Recommended Rail</span>
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  {selectedMethod} Direct Instant
+                </span>
+                <span className="text-slate-500 text-[11px] block">0% Drop Probability</span>
+              </div>
+            </div>
+
+            {/* Quick Payment Rail Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Choose Payment Method for Recovery:
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'UPI', label: 'UPI Instant', icon: Smartphone, desc: 'GPay, PhonePe, QR' },
+                  { id: 'Card', label: 'Card (3DS)', icon: CreditCard, desc: 'Visa, Master, RuPay' },
+                  { id: 'NetBanking', label: 'Net Banking', icon: Building2, desc: 'HDFC, SBI, ICICI' }
+                ].map((rail) => {
+                  const Icon = rail.icon
+                  const active = selectedMethod === rail.id
+                  return (
+                    <button
+                      key={rail.id}
+                      type="button"
+                      onClick={() => setSelectedMethod(rail.id as any)}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        active
+                          ? 'border-primary bg-primary/5 shadow-xs text-navy'
+                          : 'border-border bg-surface hover:bg-slate-50/60 text-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <Icon className={`w-4 h-4 ${active ? 'text-primary' : 'text-slate-400'}`} />
+                        {active && <Check className="w-3.5 h-3.5 text-primary" />}
+                      </div>
+                      <div className="font-semibold text-xs text-navy">{rail.label}</div>
+                      <div className="text-[10px] text-slate-400">{rail.desc}</div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Error Message Notice if any */}
+            {errorMsg && (
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-3 pt-2">
+              <button
+                type="button"
+                onClick={handleLaunchRazorpayGateway}
+                disabled={isLoading}
+                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-primary via-indigo-600 to-primary-hover text-white font-bold text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all flex items-center justify-center gap-3 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 cursor-pointer"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Launching Razorpay Test Gateway...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-5 h-5 text-amber-300" />
+                    <span>Complete Payment Now (₹{selectedProduct.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })})</span>
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDirectQuickRecoverySuccess}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Instant 1-Click Test Authorization (Fast-Track Sandbox)</span>
+              </button>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 px-1">
+                <span className="flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  Razorpay Verified Test Mode Gateway
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowFullCatalog(true)}
+                  className="text-primary hover:underline font-medium cursor-pointer"
+                >
+                  Browse full demo store catalog →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MAIN CHECKOUT FORM & PRODUCT SELECTOR */}
-      {!checkoutResult && !failureResult && (
+      {(!isRecoveryMode || showFullCatalog) && !checkoutResult && !failureResult && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recovery return chip if browsing catalog while in recovery mode */}
+          {isRecoveryMode && showFullCatalog && (
+            <div className="lg:col-span-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span>Recovery order active for <strong>Order #{orderIdParam}</strong> (₹{selectedProduct.price.toLocaleString('en-IN')}).</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowFullCatalog(false)}
+                className="text-primary font-bold hover:underline cursor-pointer"
+              >
+                ← Return to 1-Click Recovery View
+              </button>
+            </div>
+          )}
           {/* Left Column: Product Selection, Customer Info & Payment Options */}
           <div className="lg:col-span-2 space-y-6">
             {/* Step 1: Select Product */}

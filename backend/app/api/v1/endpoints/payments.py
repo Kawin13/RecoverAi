@@ -358,11 +358,20 @@ def verify_payment(
     )
     db.add(attempt)
 
-    # Update associated CheckoutSession if exists
+    # Update associated CheckoutSession and RecoveryCase if exists
     cs = db.query(CheckoutSession).filter(CheckoutSession.order_id == tx.order_id).first()
     if cs:
         cs.dropped_at_step = "COMPLETED"
         cs.is_recovered = True
+
+    rc = tx.recovery_case or db.query(RecoveryCase).filter(RecoveryCase.transaction_id == tx.id).first()
+    if not rc and cs:
+        rc = db.query(RecoveryCase).filter(RecoveryCase.checkout_session_id == cs.id).first()
+    if rc:
+        rc.status = "RECOVERED"
+        rc.current_step = "RECOVERED"
+        rc.recovered_at = datetime.now(timezone.utc)
+        logger.info(f"RecoveryCase {rc.id} transitioned to RECOVERED following successful payment {request.razorpay_payment_id}")
 
     # Audit Trail log
     audit_entry = AuditLog(
@@ -498,7 +507,7 @@ def record_payment_failure(
         recipient_email = cust.email if cust and cust.email and "@" in cust.email else None
         if recipient_email:
             base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
-            checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id}&recovery_case={recovery_case.id}&amount={tx.amount}"
+            checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id}&recovery_case={recovery_case.id}&amount={tx.amount}&auto_open=true"
             notification_service.send_recovery_notification(
                 recipient=recipient_email,
                 channel="EMAIL",

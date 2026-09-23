@@ -64,6 +64,10 @@ export const App: React.FC = () => {
               {/* Team Invitation Accept — works signed-in or signed-out */}
               <Route path="/invite/:token" element={<InviteAccept />} />
 
+              {/* Public 1-Click Recovery Checkout Portal (Accessible directly from email links) */}
+              <Route path="/pay" element={<DemoCheckout />} />
+              <Route path="/recovery-checkout" element={<DemoCheckout />} />
+
               {/* Public-Only Authentication Entry Routes (Redirects authenticated users to /overview) */}
               <Route element={<PublicOnlyRoute />}>
                 <Route path="/login" element={<Login />} />
