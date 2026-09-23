@@ -82,6 +82,23 @@ class RecoveryExecutor:
             "max_attempts": max_attempts
         }
 
+        # Pre-persist RecoveryAction record so downstream messages referencing action_id satisfy foreign key constraints
+        rec_action = db.query(RecoveryAction).filter(RecoveryAction.id == action_id).first()
+        if not rec_action:
+            rec_action = RecoveryAction(
+                id=action_id,
+                workspace_id=case.workspace_id,
+                recovery_case_id=case.id,
+                strategy=strategy,
+                channel=case.channel or "EMAIL",
+                payload_data=json.dumps(execution_data),
+                erv=case.expected_recovery_value,
+                status="INITIATED",
+                dispatched_at=datetime.now(timezone.utc)
+            )
+            db.add(rec_action)
+            db.flush()
+
         if strategy in ("PAYMENT_LINK", "SMART_PAYLINK_1CLICK", "1-CLICK PAYLINK"):
             # Genuine Razorpay Test Payment Link creation for live demo
             amount_paise = int(amount * 100)
@@ -146,9 +163,11 @@ class RecoveryExecutor:
             base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
             recovery_checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id if tx else case.id}&method=UPI&recommendation=upi_switch&amount={amount}&recovery_case={case.id}"
 
-            if case.channel == "EMAIL" and cust_email and "@" in cust_email:
+            recipient_email = cust_email if cust_email and "@" in cust_email else None
+            if recipient_email and getattr(settings, "EMAIL_ENABLED", True):
+                case.channel = "EMAIL"
                 receipt = notification_service.send_recovery_notification(
-                    recipient=cust_email,
+                    recipient=recipient_email,
                     channel="EMAIL",
                     strategy="PAYMENT_LINK",
                     customer_name=cust_name,
@@ -158,6 +177,12 @@ class RecoveryExecutor:
                     recovery_case_id=case.id,
                     workspace_id=str(case.workspace_id),
                     customer_id=cust.id if cust else None,
+                    attempt_number=case.attempt_count,
+                    max_attempts=max_attempts,
+                    order_id=tx.order_id if tx else case.id,
+                    recovery_action_id=action_id,
+                    is_demo=is_live_demo,
+                    transaction_id=tx.id if tx else None,
                     db=db
                 )
             else:
@@ -169,14 +194,23 @@ class RecoveryExecutor:
                     amount=amount,
                     action_url=recovery_checkout_url,
                     language=getattr(cust, "preferred_language", "en"),
-                    recovery_case_id=case.id
+                    recovery_case_id=case.id,
+                    attempt_number=case.attempt_count,
+                    max_attempts=max_attempts,
+                    order_id=tx.order_id if tx else case.id,
+                    recovery_action_id=action_id,
+                    is_demo=is_live_demo,
+                    transaction_id=tx.id if tx else None,
+                    db=db
                 )
 
             execution_data.update({
                 "recovery_journey_url": recovery_checkout_url,
                 "recommended_method": "UPI",
                 "notification_id": receipt.notification_id,
-                "delivery_label": receipt.delivery_label
+                "delivery_label": receipt.delivery_label,
+                "attempt_number": case.attempt_count,
+                "max_attempts": max_attempts
             })
 
         elif strategy == "RETRY_LATER":
@@ -250,19 +284,12 @@ class RecoveryExecutor:
                 "reason": "Guardrail cooldown policy or customer fatigue limit"
             })
 
-        # Save action history in recovery_actions table
-        rec_action = RecoveryAction(
-            id=action_id,
-            workspace_id=case.workspace_id,
-            recovery_case_id=case.id,
-            strategy=strategy,
-            channel=case.channel or "IN_APP",
-            payload_data=json.dumps(execution_data),
-            erv=case.expected_recovery_value,
-            status="DISPATCHED",
-            dispatched_at=datetime.now(timezone.utc)
-        )
-        db.add(rec_action)
+        # Finalize action history in recovery_actions table
+        rec_action.payload_data = json.dumps(execution_data)
+        rec_action.status = "DISPATCHED"
+        rec_action.channel = case.channel or "EMAIL"
+        rec_action.dispatched_at = datetime.now(timezone.utc)
+        db.flush()
 
         case.executed_at = datetime.now(timezone.utc)
         case.execution_payload = json.dumps(execution_data)
@@ -348,7 +375,7 @@ class RecoveryStateMachine:
         self,
         case: RecoveryCase,
         db: Session,
-        is_live_demo: bool = True
+        is_live_demo: bool = False
     ) -> Tuple[RecoveryCase, Dict[str, Any]]:
         """Advances the state machine by exactly one step."""
         current = case.current_step or RecoveryStep.DETECTED.value
@@ -386,7 +413,7 @@ class RecoveryStateMachine:
         elif current == RecoveryStep.STRATEGY_SELECTED.value:
             # Step 3 -> Evaluate Central Fintech Guardrails BEFORE scheduling or executing
             from app.services.guardrails_service import guardrails_service
-            guardrail_res = guardrails_service.evaluate(case, db)
+            guardrail_res = guardrails_service.evaluate(case, db, is_live_demo=is_live_demo)
 
             if guardrail_res.requires_approval:
                 details = guardrail_res.human_readable_reason

@@ -24,7 +24,8 @@ class GuardrailsService:
         self,
         case: RecoveryCase,
         db: Session,
-        candidate_strategy: Optional[str] = None
+        candidate_strategy: Optional[str] = None,
+        is_live_demo: bool = False
     ) -> GuardrailDecision:
         """
         Deterministically evaluates all 6 fintech safety rules in order of precedence.
@@ -127,7 +128,7 @@ class GuardrailsService:
         # ---------------------------------------------------------------------
         # Rule 5: HUMAN APPROVAL THRESHOLD (>= ₹10,000) -> HUMAN APPROVAL
         # ---------------------------------------------------------------------
-        if amount >= self.policy.HUMAN_APPROVAL_THRESHOLD_INR:
+        if not is_live_demo and amount >= self.policy.HUMAN_APPROVAL_THRESHOLD_INR:
             reason = f"High-value order (₹{amount:,.2f} >= ₹{self.policy.HUMAN_APPROVAL_THRESHOLD_INR:,.2f} Human Approval Threshold) requires human supervisor sign-off before intervention dispatch."
             self._record_breach(case, "HIGH_VALUE_THRESHOLD", f"₹{amount:,.2f}", "HUMAN_APPROVAL", reason, db)
             return GuardrailDecision(
@@ -182,26 +183,27 @@ class GuardrailsService:
             )
 
         # Explicit Guardrail breach event check requiring approval
-        recent_approval_event = (
-            db.query(GuardrailEvent)
-            .filter(
-                GuardrailEvent.recovery_case_id == case.id,
-                GuardrailEvent.action_taken.in_(["HUMAN_APPROVAL", "REQUIRE_MANUAL_APPROVAL"])
+        if not is_live_demo:
+            recent_approval_event = (
+                db.query(GuardrailEvent)
+                .filter(
+                    GuardrailEvent.recovery_case_id == case.id,
+                    GuardrailEvent.action_taken.in_(["HUMAN_APPROVAL", "REQUIRE_MANUAL_APPROVAL"])
+                )
+                .order_by(GuardrailEvent.triggered_at.desc())
+                .first()
             )
-            .order_by(GuardrailEvent.triggered_at.desc())
-            .first()
-        )
-        if recent_approval_event:
-            reason = f"Explicit Guardrail Requirement ({recent_approval_event.rule_name}): {recent_approval_event.details or 'Supervisor sign-off required by guardrail policy.'}"
-            return GuardrailDecision(
-                allowed=True,
-                requires_approval=True,
-                reason_code=recent_approval_event.rule_name,
-                human_readable_reason=reason,
-                policy_version=self.policy.POLICY_VERSION,
-                suggested_action="HUMAN_APPROVAL",
-                rule_details={"rule": recent_approval_event.rule_name, "threshold": recent_approval_event.threshold_breached}
-            )
+            if recent_approval_event:
+                reason = f"Explicit Guardrail Requirement ({recent_approval_event.rule_name}): {recent_approval_event.details or 'Supervisor sign-off required by guardrail policy.'}"
+                return GuardrailDecision(
+                    allowed=True,
+                    requires_approval=True,
+                    reason_code=recent_approval_event.rule_name,
+                    human_readable_reason=reason,
+                    policy_version=self.policy.POLICY_VERSION,
+                    suggested_action="HUMAN_APPROVAL",
+                    rule_details={"rule": recent_approval_event.rule_name, "threshold": recent_approval_event.threshold_breached}
+                )
 
         # ---------------------------------------------------------------------
         # Default: Cleared & Permitted

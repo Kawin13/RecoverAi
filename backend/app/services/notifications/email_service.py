@@ -21,6 +21,7 @@ from app.models import (
     WorkspaceSettings,
     Customer,
     RecoveryCase,
+    RecoveryAction,
     Transaction,
     AuditLog
 )
@@ -89,7 +90,8 @@ class EmailService:
         db: Session,
         recovery_case_id: Optional[str] = None,
         customer_id: Optional[str] = None,
-        bypass_quiet_hours: bool = False
+        bypass_quiet_hours: bool = False,
+        template_type: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
         """
         Validates whether communication is permissible under all RecoverAI and merchant policies:
@@ -130,8 +132,10 @@ class EmailService:
             if not getattr(ws_settings, "email_enabled", True):
                 return False, "WORKSPACE_EMAIL_DISABLED"
 
+            is_payment_failed_alert = (template_type == "PAYMENT_FAILED")
+
             # Max communications check for this case
-            if recovery_case_id:
+            if recovery_case_id and not is_payment_failed_alert:
                 max_emails = getattr(ws_settings, "max_emails_per_recovery", 3)
                 existing_count = (
                     db.query(CustomerMessage)
@@ -145,9 +149,9 @@ class EmailService:
                 if existing_count >= max_emails:
                     return False, "MAX_RECOVERY_EMAILS_EXCEEDED"
 
-                # Cooldown check
+                # Cooldown check (bypassed for immediate failure alerts and live demo testing)
                 cooldown_mins = getattr(ws_settings, "email_cooldown_minutes", 30)
-                if cooldown_mins > 0:
+                if not is_payment_failed_alert and not bypass_quiet_hours and cooldown_mins > 0:
                     cutoff = utcnow() - timedelta(minutes=cooldown_mins)
                     recent_send = (
                         db.query(CustomerMessage)
@@ -162,8 +166,8 @@ class EmailService:
                     if recent_send:
                         return False, "EMAIL_COOLDOWN_ACTIVE"
 
-            # Quiet Hours Check (bypassed for explicit operator diagnostic tests)
-            if not bypass_quiet_hours and getattr(ws_settings, "quiet_hours_enabled", True) and getattr(ws_settings, "email_quiet_hours_enabled", True):
+            # Quiet Hours Check (bypassed for explicit operator diagnostic tests or immediate payment failure alerts)
+            if not is_payment_failed_alert and not bypass_quiet_hours and getattr(ws_settings, "quiet_hours_enabled", True) and getattr(ws_settings, "email_quiet_hours_enabled", True):
                 q_start = getattr(ws_settings, "email_quiet_hours_start", "22:00")
                 q_end = getattr(ws_settings, "email_quiet_hours_end", "08:00")
                 tz = getattr(ws_settings, "timezone", "Asia/Kolkata")
@@ -223,6 +227,15 @@ class EmailService:
             except Exception as e:
                 logger.warning(f"[EmailService] Could not check transaction_id in DB: {e}")
 
+        if recovery_action_id:
+            try:
+                if db.bind and db.bind.dialect.name == "postgresql":
+                    act_exists = db.query(RecoveryAction.id).filter(RecoveryAction.id == recovery_action_id).first()
+                    if not act_exists:
+                        recovery_action_id = None
+            except Exception as e:
+                logger.warning(f"[EmailService] Could not check recovery_action_id in DB: {e}")
+
         # Generate deterministic idempotency key or use custom key for on-demand diagnostic tests
         if custom_idempotency_key:
             idempotency_key = custom_idempotency_key
@@ -269,7 +282,8 @@ class EmailService:
             db=db,
             recovery_case_id=recovery_case_id,
             customer_id=customer_id,
-            bypass_quiet_hours=bypass_quiet_hours
+            bypass_quiet_hours=bypass_quiet_hours,
+            template_type=template_type
         )
 
         if not allowed:

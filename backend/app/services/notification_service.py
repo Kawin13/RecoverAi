@@ -15,6 +15,7 @@ from app.core.logging import logger
 from app.core.events import event_broadcaster
 
 class NotificationChannel(str, Enum):
+    EMAIL = "EMAIL"
     IN_APP = "IN_APP"
     EMAIL_SIMULATION = "EMAIL_SIMULATION"
     SMS_SIMULATION = "SMS_SIMULATION"
@@ -119,7 +120,10 @@ class NotificationService:
         recovery_action_id: Optional[str] = None,
         is_demo: bool = True,
         template_type: Optional[str] = None,
-        db: Optional[Any] = None
+        db: Optional[Any] = None,
+        transaction_id: Optional[str] = None,
+        bypass_quiet_hours: bool = False,
+        **kwargs: Any
     ) -> NotificationReceipt:
         """
         Dispatches real email (via Resend if configured) or honestly labels unconfigured sends.
@@ -184,6 +188,8 @@ class NotificationService:
                     "max_attempts": max_attempts,
                     "is_demo": is_demo
                 }
+                effective_bypass_quiet_hours = bypass_quiet_hours or (resolved_template == "PAYMENT_FAILED") or is_demo
+
                 res = email_service.send_recovery_email(
                     recipient=recipient,
                     template_type=resolved_template,
@@ -192,8 +198,10 @@ class NotificationService:
                     db=session_db,
                     recovery_case_id=recovery_case_id,
                     customer_id=customer_id,
+                    transaction_id=transaction_id,
                     recovery_action_id=recovery_action_id,
-                    attempt_number=attempt_number
+                    attempt_number=attempt_number,
+                    bypass_quiet_hours=effective_bypass_quiet_hours
                 )
                 delivery_status = res.status
                 provider_msg_id = res.provider_message_id

@@ -148,7 +148,7 @@ def render_payment_failed_template(context: Dict[str, Any]) -> Tuple[str, str, s
     failure_reason = _sanitize(context.get("failure_reason") or "Payment authorization declined by issuing bank")
     action_url = context.get("action_url") or ""
 
-    subject = f"Payment Failed: Order #{order_id} (₹{amount_str})"
+    subject = f"Payment Failed: Order #{order_id} (INR {amount_str})"
 
     # Plain text version
     text_content = (
@@ -209,7 +209,7 @@ def render_payment_link_template(context: Dict[str, Any]) -> Tuple[str, str, str
     max_attempts = context.get("max_attempts") or 3
 
     if attempt_number:
-        subject = f"Complete your payment - ₹{amount_str} (Attempt {attempt_number}/{max_attempts})"
+        subject = f"Complete your payment - INR {amount_str} (Attempt {attempt_number}/{max_attempts})"
         attempt_badge_html = f'<div style="display: inline-block; padding: 4px 10px; background-color: #eef2ff; color: #4338ca; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 12px;">Recovery Attempt {attempt_number} of {max_attempts}</div>'
         attempt_text = f" (Recovery Attempt {attempt_number}/{max_attempts})"
     else:
