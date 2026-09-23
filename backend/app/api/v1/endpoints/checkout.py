@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.database.session import get_db
 from app.core.auth import get_current_user
-from app.models import CheckoutSession, Customer, RecoveryCase, Transaction
+from app.models import CheckoutSession, Customer, RecoveryCase, Transaction, PaymentLink
 from app.services.abandonment_service import abandonment_service
 from app.schemas.checkout_sessions import (
     CheckoutSessionCreate,
@@ -240,3 +240,90 @@ def list_abandonment_cases(
             "created_at": c.created_at.isoformat()
         })
     return results
+
+@router.get("/order-info", summary="Get Order or Recovery Case Info for Checkout")
+def get_order_info(
+    order_id: Optional[str] = Query(None),
+    recovery_case: Optional[str] = Query(None),
+    payment_link_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Public lookup endpoint for checkout/recovery pages.
+    Returns the real order amount, customer, and recovery case info from the database.
+    """
+    case = None
+    if recovery_case:
+        case = db.query(RecoveryCase).filter(RecoveryCase.id == recovery_case).first()
+
+    plink = None
+    if payment_link_id:
+        plink = db.query(PaymentLink).filter(PaymentLink.payment_link_id == payment_link_id).first()
+        if plink and not case:
+            case = db.query(RecoveryCase).filter(RecoveryCase.id == plink.recovery_case_id).first()
+
+    cs = None
+    if order_id:
+        cs = db.query(CheckoutSession).filter(CheckoutSession.order_id == order_id).first()
+        if not cs and not case:
+            cs = db.query(CheckoutSession).filter(CheckoutSession.id == order_id).first()
+
+    tx = None
+    if order_id:
+        tx = db.query(Transaction).filter(
+            (Transaction.order_id == order_id) | (Transaction.razorpay_order_id == order_id) | (Transaction.id == order_id)
+        ).first()
+
+    if not case and cs and cs.recovery_case_id:
+        case = db.query(RecoveryCase).filter(RecoveryCase.id == cs.recovery_case_id).first()
+    if not case and tx and tx.recovery_case:
+        case = tx.recovery_case
+
+    if not case and not cs and not tx and not plink:
+        raise HTTPException(status_code=404, detail="Order or recovery case not found")
+
+    customer = None
+    if case and case.transaction and case.transaction.customer:
+        customer = case.transaction.customer
+    elif tx and tx.customer:
+        customer = tx.customer
+    elif cs and cs.customer:
+        customer = cs.customer
+
+    amount = 0.0
+    if case and case.risk_amount:
+        amount = float(case.risk_amount)
+    elif cs and cs.cart_amount:
+        amount = float(cs.cart_amount)
+    elif tx and tx.amount:
+        amount = float(tx.amount)
+    elif plink and plink.amount:
+        amount = float(plink.amount)
+
+    resolved_order_id = (
+        (cs.order_id if cs and cs.order_id else None)
+        or (tx.order_id if tx and tx.order_id else None)
+        or (case.transaction.order_id if case and case.transaction else None)
+        or order_id
+        or (case.id if case else "ORDER")
+    )
+
+    product_name = (
+        (cs.items_summary if cs and cs.items_summary else None)
+        or "Recovered Order Item"
+    )
+
+    return {
+        "order_id": resolved_order_id,
+        "recovery_case_id": case.id if case else (cs.recovery_case_id if cs else None),
+        "transaction_id": tx.id if tx else (case.transaction_id if case else None),
+        "amount": amount,
+        "currency": "INR",
+        "customer_name": customer.name if customer else "Valued Customer",
+        "customer_email": customer.email if customer else "",
+        "customer_phone": customer.phone if customer else "",
+        "product_name": product_name,
+        "status": case.status if case else (tx.status if tx else (cs.status if cs else "PENDING")),
+        "is_recovered": (case.status == "RECOVERED") if case else (cs.is_recovered if cs else False)
+    }
+

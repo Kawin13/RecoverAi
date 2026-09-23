@@ -158,5 +158,31 @@ export const checkoutApi = {
     const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/cases?limit=${limit}`)
     if (!res.ok) return []
     return await res.json()
+  },
+
+  async getOrderInfo(params: { order_id?: string; recovery_case?: string; payment_link_id?: string }): Promise<OrderInfoResponse | null> {
+    const q = new URLSearchParams()
+    if (params.order_id) q.set('order_id', params.order_id)
+    if (params.recovery_case) q.set('recovery_case', params.recovery_case)
+    if (params.payment_link_id) q.set('payment_link_id', params.payment_link_id)
+
+    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/order-info?${q.toString()}`)
+    if (!res.ok) return null
+    return await res.json()
   }
 }
+
+export interface OrderInfoResponse {
+  order_id: string
+  recovery_case_id?: string
+  transaction_id?: string
+  amount: number
+  currency: string
+  customer_name: string
+  customer_email: string
+  customer_phone: string
+  product_name: string
+  status: string
+  is_recovered: boolean
+}
+

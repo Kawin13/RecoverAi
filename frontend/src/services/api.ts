@@ -158,6 +158,7 @@ export const api = {
   checkTimedOutSessions: checkoutApi.checkTimedOutSessions.bind(checkoutApi),
   getAbandonmentFunnel: checkoutApi.getAbandonmentFunnel.bind(checkoutApi),
   getAbandonmentCases: checkoutApi.getAbandonmentCases.bind(checkoutApi),
+  getOrderInfo: checkoutApi.getOrderInfo.bind(checkoutApi),
 
   // Batch Simulation
   runBatchSimulation: simulationApi.runBatchSimulation.bind(simulationApi),

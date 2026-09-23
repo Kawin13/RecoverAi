@@ -19,6 +19,8 @@ export interface CreateOrderRequest {
   method?: string
   payment_instrument_details?: Record<string, any>
   session_id?: string
+  recovery_case_id?: string
+  original_order_id?: string
 }
 
 export interface CreateOrderResponse {
@@ -43,6 +45,7 @@ export interface VerifyPaymentRequest {
   razorpay_payment_id: string
   razorpay_signature: string
   transaction_id: string
+  recovery_case_id?: string
 }
 
 export interface VerifyPaymentResponse {
@@ -99,7 +102,7 @@ export const paymentApi = {
   },
 
   async verifyPayment(data: VerifyPaymentRequest): Promise<VerifyPaymentResponse> {
-    const res = await authFetch(`${API_BASE_URL}/api/payments/verify`, {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/payments/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -112,7 +115,7 @@ export const paymentApi = {
   },
 
   async recordPaymentFailure(data: PaymentFailureRequest): Promise<any> {
-    const res = await authFetch(`${API_BASE_URL}/api/payments/fail`, {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/payments/fail`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -134,7 +137,7 @@ export const paymentApi = {
     error_description?: string
     error_category?: string
   }): Promise<any> {
-    const res = await authFetch(`${API_BASE_URL}/api/payments/simulate`, {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/payments/simulate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

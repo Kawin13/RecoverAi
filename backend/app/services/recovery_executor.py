@@ -244,7 +244,7 @@ class RecoveryExecutor:
                         amount=amount,
                         failure_reason=case.failure_category,
                         preferred_language=lang,
-                        action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={tx.order_id}"
+                        action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={tx.order_id}&recovery_case={case.id}&amount={amount}&auto_open=true"
                     )
                     custom_msg = res.get("message")
                 except Exception as e:

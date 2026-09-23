@@ -104,6 +104,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# OWASP Enterprise Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()"
+    if str(settings.ENVIRONMENT).lower() == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    return response
+
 # Exception Handlers
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

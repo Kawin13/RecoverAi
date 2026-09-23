@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from app.core.datetime_utils import diff_seconds, utcnow
 
 from app.database.session import get_db
 from app.core.config import settings
@@ -14,7 +15,8 @@ from app.models import (
     PaymentAttempt,
     CheckoutSession,
     RecoveryCase,
-    AuditLog
+    AuditLog,
+    RecoveryOutcome
 )
 from app.schemas.payment import (
     PaymentConfigResponse,
@@ -88,6 +90,10 @@ def create_payment_order(
         "customer_email": request.customer_email,
         "workspace_id": str(ws_id)
     }
+    if getattr(request, "recovery_case_id", None):
+        notes["recovery_case_id"] = request.recovery_case_id
+    if getattr(request, "original_order_id", None):
+        notes["original_order_id"] = request.original_order_id
     try:
         rzp_order = razorpay_service.create_order(
             amount_paise=amount_paise,
@@ -360,18 +366,86 @@ def verify_payment(
 
     # Update associated CheckoutSession and RecoveryCase if exists
     cs = db.query(CheckoutSession).filter(CheckoutSession.order_id == tx.order_id).first()
+    notes_dict = payment_info.get("notes") if isinstance(payment_info, dict) and isinstance(payment_info.get("notes"), dict) else {}
+    req_rec_case = getattr(request, "recovery_case_id", None) or notes_dict.get("recovery_case_id")
+    req_orig_order = notes_dict.get("original_order_id")
+
+    if not cs and req_rec_case:
+        cs = db.query(CheckoutSession).filter(CheckoutSession.recovery_case_id == req_rec_case).first()
+    if not cs and req_orig_order:
+        cs = db.query(CheckoutSession).filter(CheckoutSession.order_id == req_orig_order).first()
+
     if cs:
         cs.dropped_at_step = "COMPLETED"
         cs.is_recovered = True
 
     rc = tx.recovery_case or db.query(RecoveryCase).filter(RecoveryCase.transaction_id == tx.id).first()
-    if not rc and cs:
-        rc = db.query(RecoveryCase).filter(RecoveryCase.checkout_session_id == cs.id).first()
+    if not rc and req_rec_case:
+        rc = db.query(RecoveryCase).filter(RecoveryCase.id == req_rec_case).first()
+    if not rc and cs and cs.recovery_case_id:
+        rc = db.query(RecoveryCase).filter(RecoveryCase.id == cs.recovery_case_id).first()
+    if not rc and req_orig_order:
+        orig_tx = db.query(Transaction).filter((Transaction.order_id == req_orig_order) | (Transaction.id == req_orig_order)).first()
+        if orig_tx and orig_tx.recovery_case:
+            rc = orig_tx.recovery_case
+        if not rc:
+            rc = db.query(RecoveryCase).join(Transaction, RecoveryCase.transaction_id == Transaction.id).filter(
+                (Transaction.order_id == req_orig_order) | (Transaction.id == req_orig_order)
+            ).first()
+
     if rc:
         rc.status = "RECOVERED"
         rc.current_step = "RECOVERED"
-        rc.recovered_at = datetime.now(timezone.utc)
+        rc.recovered_at = utcnow()
         logger.info(f"RecoveryCase {rc.id} transitioned to RECOVERED following successful payment {request.razorpay_payment_id}")
+
+        rec_seconds = max(1, int(diff_seconds(utcnow(), rc.created_at, default=60)))
+        outcome = db.query(RecoveryOutcome).filter(RecoveryOutcome.recovery_case_id == rc.id).first()
+        if not outcome:
+            outcome = RecoveryOutcome(
+                id=f"out_{uuid.uuid4().hex[:10]}",
+                workspace_id=rc.workspace_id,
+                recovery_case_id=rc.id,
+                recovered_amount=tx.amount,
+                payment_method_used=normalized_method,
+                time_to_recover_seconds=rec_seconds,
+                settled_at=utcnow()
+            )
+            db.add(outcome)
+        else:
+            outcome.recovered_amount = tx.amount
+            outcome.payment_method_used = normalized_method
+            outcome.settled_at = utcnow()
+
+        db.add(
+            AuditLog(
+                id=f"aud_{uuid.uuid4().hex[:10]}",
+                workspace_id=rc.workspace_id,
+                recovery_case_id=rc.id,
+                transaction_id=tx.id,
+                actor="CHECKOUT_RECOVERY",
+                action_type="CASE_RECOVERED",
+                target_resource=rc.id,
+                details=f"Autonomous Recovery succeeded: Payment {request.razorpay_payment_id} captured ₹{tx.amount:,.2f} via {normalized_method}.",
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+
+        try:
+            from app.core.events import broadcaster
+            broadcaster.publish_sync({
+                "event_type": "CASE_RECOVERED",
+                "workspace_id": str(rc.workspace_id),
+                "payload": {
+                    "case_id": rc.id,
+                    "status": "RECOVERED",
+                    "recovered_amount": tx.amount,
+                    "order_id": tx.order_id,
+                    "payment_id": request.razorpay_payment_id
+                }
+            })
+        except Exception as b_err:
+            logger.debug(f"Event broadcast notice: {b_err}")
 
     # Audit Trail log
     audit_entry = AuditLog(

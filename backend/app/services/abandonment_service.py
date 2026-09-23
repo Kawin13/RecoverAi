@@ -325,7 +325,7 @@ class AbandonmentService:
             strategy=metrics["selected_strategy"],
             customer_name=customer.name,
             amount=session.cart_amount,
-            action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={session.order_id}&recover=true",
+            action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={session.order_id}&recovery_case={case.id}&amount={session.cart_amount}&recover=true&auto_open=true",
             language="en",
             recovery_case_id=case.id,
             workspace_id=ws_id,

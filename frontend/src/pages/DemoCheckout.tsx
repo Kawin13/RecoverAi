@@ -277,6 +277,7 @@ export const DemoCheckout: React.FC = () => {
   const autoOpenAttemptedRef = useRef(false)
 
   const [config, setConfig] = useState<PaymentConfig | null>(null)
+  const [resolvedRecoveryCaseId, setResolvedRecoveryCaseId] = useState<string | null>(recoveryCaseParam || null)
   const [selectedProduct, setSelectedProduct] = useState<ProductItem>(PRODUCTS[0])
   const [selectedMethod, setSelectedMethod] = useState<'UPI' | 'Card' | 'NetBanking' | 'Wallet'>('UPI')
   const [customerName, setCustomerName] = useState('Aditya Sharma')
@@ -412,8 +413,9 @@ export const DemoCheckout: React.FC = () => {
     return () => clearInterval(interval)
   }, [selectedMethod, upiMode])
 
-  // 4. Auto-configure recovery product and rail when navigating from email link
+  // 4. Auto-configure recovery product, exact amount, and customer details dynamically
   useEffect(() => {
+    // Immediate parameter initialization if amount is in query string
     if (amountParam) {
       const parsedAmt = parseFloat(amountParam)
       if (!isNaN(parsedAmt) && parsedAmt > 0) {
@@ -442,7 +444,49 @@ export const DemoCheckout: React.FC = () => {
         setSelectedMethod(methodParam as any)
       }
     }
-  }, [amountParam, methodParam, orderIdParam])
+
+    // Dynamic backend order info resolution (truthful data from database)
+    if (orderIdParam || recoveryCaseParam || paymentLinkIdParam) {
+      api.getOrderInfo({
+        order_id: orderIdParam || undefined,
+        recovery_case: recoveryCaseParam || undefined,
+        payment_link_id: paymentLinkIdParam || undefined
+      })
+        .then((info) => {
+          if (!info) return
+          if (info.recovery_case_id) {
+            setResolvedRecoveryCaseId(info.recovery_case_id)
+          }
+          if (info.customer_name) setCustomerName(info.customer_name)
+          if (info.customer_email) setCustomerEmail(info.customer_email)
+          if (info.customer_phone) setCustomerPhone(info.customer_phone)
+
+          if (info.amount && info.amount > 0) {
+            const found = PRODUCTS.find((p) => Math.abs(p.price - info.amount) < 1)
+            if (found) {
+              setSelectedProduct(found)
+            } else {
+              setSelectedProduct({
+                id: 'recovery_item',
+                name: info.product_name || 'Recovered Order Item',
+                category: 'Order Recovery',
+                price: info.amount,
+                badge: '1-Click Recovery',
+                description: `Direct payment recovery for Order #${info.order_id || orderIdParam || 'Pending'}.`,
+                features: [
+                  'Direct Razorpay Test Gateway',
+                  'HMAC-SHA256 signature verification',
+                  'Autonomous Revenue Recovery ledger update'
+                ]
+              })
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not fetch recovery order info:', err)
+        })
+    }
+  }, [amountParam, methodParam, orderIdParam, recoveryCaseParam, paymentLinkIdParam])
 
   // 5. Auto-launch Razorpay Checkout Modal when in recovery mode
   useEffect(() => {
@@ -679,6 +723,7 @@ export const DemoCheckout: React.FC = () => {
       }
 
       const instrumentDetails = getInstrumentDetails()
+      const targetRecoveryCase = recoveryCaseParam || resolvedRecoveryCaseId || undefined
       const orderData = await api.createPaymentOrder({
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
@@ -689,7 +734,9 @@ export const DemoCheckout: React.FC = () => {
         customer_phone: customerPhone,
         method: selectedMethod,
         payment_instrument_details: instrumentDetails,
-        session_id: activeSessionId || undefined
+        session_id: activeSessionId || undefined,
+        recovery_case_id: targetRecoveryCase,
+        original_order_id: orderIdParam || undefined
       })
 
       if (window.Razorpay) {
@@ -707,7 +754,8 @@ export const DemoCheckout: React.FC = () => {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                transaction_id: orderData.transaction_id
+                transaction_id: orderData.transaction_id,
+                recovery_case_id: targetRecoveryCase
               })
               setCheckoutResult(verifyRes)
               if (activeSessionId) {
