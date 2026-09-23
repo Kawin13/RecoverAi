@@ -339,7 +339,7 @@ class EmailService:
                 
                 # Eligible for demo redirect if specific synthetic demo persona or marked as demo
                 is_demo_eligible = bool(auto_redirect and primary_test_email and (
-                    any(norm_recip.endswith(d) for d in ("@techcorp.in", "@zenithai.com", "@recoverai.io", "@local.dev"))
+                    any(norm_recip.endswith(d) for d in ("@techcorp.in", "@zenithai.com", "@recoverai.io", "@local.dev", "@example.com", "@checkout.com", "@test.com"))
                     or template_context.get("is_demo", False)
                     or template_context.get("is_simulated", False)
                     or template_context.get("auto_redirect_demo", False)

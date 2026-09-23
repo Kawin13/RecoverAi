@@ -268,8 +268,20 @@ def test_cart_abandonment_scanner(db_session):
     assert recovery_job is not None
 
 
-def test_supervisor_approval_unpauses_case_and_enqueues_job(db_session):
+def test_supervisor_approval_unpauses_case_and_enqueues_job(db_session, monkeypatch):
     """When an approval guardrail is approved, case is unpaused and PROCESS_RECOVERY_CASE job enqueued."""
+    from app.services.razorpay_service import razorpay_service
+    monkeypatch.setattr(razorpay_service, "create_payment_link", lambda *args, **kwargs: {
+        "success": True,
+        "payment_link_id": f"plink_mock_{uuid.uuid4().hex[:8]}",
+        "short_url": f"https://rzp.io/rzp/mock_{uuid.uuid4().hex[:6]}",
+        "amount": 75.0,
+        "status": "created",
+        "reference_id": f"rcov_mock_{uuid.uuid4().hex[:6]}",
+        "created_at": datetime.now(timezone.utc),
+        "is_live_demo": True
+    })
+
     cust, tx = _create_test_customer_and_tx(db_session, amount=7500.0)
     ws_id = tx.workspace_id
 

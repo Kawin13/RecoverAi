@@ -139,20 +139,89 @@ def _sanitize(value: Any) -> str:
     return html.escape(str(value).strip())
 
 
+def render_payment_failed_template(context: Dict[str, Any]) -> Tuple[str, str, str]:
+    customer_name = _sanitize(context.get("customer_name") or "Valued Customer")
+    raw_amount = context.get("amount") or 0.0
+    amount_str = f"{float(raw_amount):,.2f}"
+    merchant_name = _sanitize(context.get("merchant_name") or "RecoverAI")
+    order_id = _sanitize(context.get("order_id") or "N/A")
+    failure_reason = _sanitize(context.get("failure_reason") or "Payment authorization declined by issuing bank")
+    action_url = context.get("action_url") or ""
+
+    subject = f"Payment Failed: Order #{order_id} (₹{amount_str})"
+
+    # Plain text version
+    text_content = (
+        f"Hi {customer_name},\n\n"
+        f"We wanted to let you know that your recent payment attempt of ₹{amount_str} for Order #{order_id} was unsuccessful.\n\n"
+        f"Status: Payment Failed\n"
+        f"Reason: {failure_reason}\n\n"
+        f"Please rest assured that if any funds were debited, your issuing bank will automatically release the hold.\n\n"
+        f"Our autonomous recovery engine is reviewing your transaction to help you complete it securely.\n"
+        f"{'You can review and retry your order here: ' + action_url if action_url else ''}\n\n"
+        f"— {merchant_name}"
+    )
+
+    # HTML body content
+    action_btn_html = (
+        f'<div class="btn-container">'
+        f'<a href="{html.escape(action_url)}" class="btn" target="_blank" rel="noopener noreferrer">Retry Payment</a>'
+        f'</div>'
+        if action_url else ''
+    )
+
+    body_html = f"""
+      <div class="greeting">Payment Unsuccessful</div>
+      <p>Hi {customer_name},</p>
+      <p>We wanted to let you know that your recent payment attempt of <strong>₹{amount_str}</strong> could not be completed.</p>
+      <div class="highlight-box" style="background-color: #fef2f2; border: 1px solid #fecaca; color: #991b1b;">
+        <p style="margin: 4px 0;"><strong>Order Reference:</strong> #{order_id}</p>
+        <p style="margin: 4px 0;"><strong>Amount:</strong> ₹{amount_str}</p>
+        <p style="margin: 4px 0;"><strong>Reason:</strong> {failure_reason}</p>
+      </div>
+      <p style="font-size: 14px; color: #475569;">
+        <strong>Safety Note:</strong> If any funds were deducted, your issuing bank will automatically release the hold within standard settlement hours.
+      </p>
+      {action_btn_html}
+      <p style="font-size: 13px; color: #64748b;">Our recovery assistant is actively preparing an alternate payment solution. You may receive an updated 1-click link shortly.</p>
+      <p style="margin-top: 24px;">Warm regards,<br><strong>{merchant_name}</strong></p>
+    """
+
+    footer_html = f"Secured by RecoverAI &bull; Razorpay Test Mode &bull; {merchant_name}"
+
+    html_content = BASE_EMAIL_LAYOUT.format(
+        subject=subject,
+        merchant_name=merchant_name,
+        body_content=body_html,
+        footer_content=footer_html
+    )
+
+    return subject, text_content, html_content
+
+
 def render_payment_link_template(context: Dict[str, Any]) -> Tuple[str, str, str]:
     customer_name = _sanitize(context.get("customer_name") or "Valued Customer")
     raw_amount = context.get("amount") or 0.0
     amount_str = f"{float(raw_amount):,.2f}"
     merchant_name = _sanitize(context.get("merchant_name") or "RecoverAI")
     action_url = context.get("action_url") or ""
+    attempt_number = context.get("attempt_number")
+    max_attempts = context.get("max_attempts") or 3
 
-    subject = "Complete your payment"
+    if attempt_number:
+        subject = f"Complete your payment - ₹{amount_str} (Attempt {attempt_number}/{max_attempts})"
+        attempt_badge_html = f'<div style="display: inline-block; padding: 4px 10px; background-color: #eef2ff; color: #4338ca; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 12px;">Recovery Attempt {attempt_number} of {max_attempts}</div>'
+        attempt_text = f" (Recovery Attempt {attempt_number}/{max_attempts})"
+    else:
+        subject = "Complete your payment"
+        attempt_badge_html = ""
+        attempt_text = ""
 
     # Plain text version
     text_content = (
-        f"Hi {customer_name},\n\n"
+        f"Hi {customer_name}{attempt_text},\n\n"
         f"We noticed that your payment of ₹{amount_str} could not be completed.\n\n"
-        f"You can securely complete your payment using the link below:\n"
+        f"You can securely complete your payment using your new 1-click recovery link below:\n"
         f"{action_url}\n\n"
         f"If you've already completed the payment, you can ignore this message.\n\n"
         f"— {merchant_name}"
@@ -160,11 +229,12 @@ def render_payment_link_template(context: Dict[str, Any]) -> Tuple[str, str, str
 
     # HTML body content
     body_html = f"""
+      {attempt_badge_html}
       <div class="greeting">Hi {customer_name},</div>
       <p>We noticed that your recent payment of <strong>₹{amount_str}</strong> could not be completed.</p>
-      <p>You can securely complete your payment using the official payment link below:</p>
+      <p>We've generated a new, verified 1-click payment link to help you finish your transaction seamlessly:</p>
       <div class="btn-container">
-        <a href="{html.escape(action_url)}" class="btn" target="_blank" rel="noopener noreferrer">Complete Payment</a>
+        <a href="{html.escape(action_url)}" class="btn" target="_blank" rel="noopener noreferrer">Complete Payment Now</a>
       </div>
       <p style="font-size: 13px; color: #64748b;">If you've already completed the payment or believe this is in error, you can safely ignore this message.</p>
       <p style="margin-top: 24px;">Warm regards,<br><strong>{merchant_name}</strong></p>
@@ -393,7 +463,9 @@ def render_template(template_type: str, context: Dict[str, Any]) -> Tuple[str, s
     Renders (subject, text, html) for the specified TemplateType.
     """
     norm = str(template_type).upper()
-    if norm == TemplateType.PAYMENT_LINK.value:
+    if norm in (TemplateType.PAYMENT_FAILED.value, "PAYMENT_FAILED"):
+        return render_payment_failed_template(context)
+    elif norm == TemplateType.PAYMENT_LINK.value:
         return render_payment_link_template(context)
     elif norm == TemplateType.CART_ABANDONMENT.value:
         return render_cart_abandonment_template(context)

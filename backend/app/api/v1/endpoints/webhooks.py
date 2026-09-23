@@ -447,6 +447,34 @@ async def process_razorpay_webhook(
                 )
             )
 
+            # Customer payment failure email notification
+            from app.services.notification_service import notification_service
+            try:
+                cust = tx.customer
+                recipient_email = cust.email if cust and cust.email and "@" in cust.email else None
+                if recipient_email:
+                    base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+                    checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id}&recovery_case={case.id}&amount={tx.amount}"
+                    notification_service.send_recovery_notification(
+                        recipient=recipient_email,
+                        channel="EMAIL",
+                        strategy="PAYMENT_FAILED",
+                        template_type="PAYMENT_FAILED",
+                        customer_name=cust.name if cust and cust.name else "Valued Customer",
+                        amount=tx.amount,
+                        action_url=checkout_url,
+                        recovery_case_id=case.id,
+                        transaction_id=tx.id,
+                        workspace_id=str(workspace_id),
+                        customer_id=cust.id if cust else None,
+                        order_id=tx.order_id,
+                        failure_reason=error_description or error_code,
+                        is_demo=True,
+                        db=db
+                    )
+            except Exception as exc:
+                logger.warning(f"[Webhooks] Failed to send payment failed notice: {exc}")
+
             # Real-Time SSE Broadcasts (Strictly Scoped)
             event_broadcaster.broadcast_sync("TRANSACTION_UPDATED", {
                 "transaction_id": tx.id,

@@ -54,15 +54,35 @@ class RecoveryExecutor:
         cust_email = (cust.email if cust and cust.email else "customer@example.com")
         cust_phone = (cust.phone if cust and cust.phone else "+919876543210")
         amount = case.risk_amount
+        max_attempts = case.max_attempts or 3
+
+        # Strict bounded attempt tracking: Increment attempt count per execution
+        case.attempt_count = (case.attempt_count or 0) + 1
+        action_id = f"act_{uuid.uuid4().hex[:10]}"
+
+        # Cease execution if attempt count exceeds max_attempts ceiling
+        if case.attempt_count > max_attempts:
+            logger.info(f"[RecoveryExecutor] Case {case.id} reached max recovery attempts ({case.attempt_count - 1}/{max_attempts}). Halting further interventions.")
+            case.status = "STOPPED"
+            case.current_step = "STOPPED"
+            db.commit()
+            return {
+                "strategy": strategy,
+                "status": "STOPPED",
+                "attempt_number": case.attempt_count,
+                "max_attempts": max_attempts,
+                "reason": f"Maximum recovery attempts exceeded ({case.attempt_count - 1}/{max_attempts})"
+            }
 
         execution_data: Dict[str, Any] = {
             "strategy": strategy,
             "executed_at": datetime.now(timezone.utc).isoformat(),
             "case_id": case.id,
-            "attempt_number": case.attempt_count
+            "attempt_number": case.attempt_count,
+            "max_attempts": max_attempts
         }
 
-        if strategy == "PAYMENT_LINK":
+        if strategy in ("PAYMENT_LINK", "SMART_PAYLINK_1CLICK", "1-CLICK PAYLINK"):
             # Genuine Razorpay Test Payment Link creation for live demo
             amount_paise = int(amount * 100)
             link_res = razorpay_service.create_payment_link(
@@ -70,8 +90,8 @@ class RecoveryExecutor:
                 customer_name=cust_name,
                 customer_email=cust_email,
                 customer_contact=cust_phone,
-                description=f"RecoverAI 1-Click Recovery for Order #{tx.order_id if tx else case.id}",
-                notes={"recovery_case_id": case.id, "transaction_id": tx.id if tx else ""},
+                description=f"RecoverAI 1-Click Recovery for Order #{tx.order_id if tx else case.id} (Attempt {case.attempt_count}/{max_attempts})",
+                notes={"recovery_case_id": case.id, "transaction_id": tx.id if tx else "", "attempt": str(case.attempt_count)},
                 is_live_demo=is_live_demo
             )
 
@@ -92,18 +112,23 @@ class RecoveryExecutor:
             db.add(plink_record)
             db.flush()
 
-            # Dispatch notification via Email (or SMS simulation fallback if email missing)
+            # Dispatch notification via Email with new generated payment link and attempt count
             recipient_email = cust_email if cust_email and "@" in cust_email else None
             receipt = notification_service.send_recovery_notification(
                 recipient=recipient_email or cust_phone,
                 channel="EMAIL" if recipient_email else "SMS_SIMULATION",
-                strategy=strategy,
+                strategy="PAYMENT_LINK",
                 customer_name=cust_name,
                 amount=amount,
                 action_url=link_res["short_url"],
                 recovery_case_id=case.id,
                 workspace_id=str(case.workspace_id),
                 customer_id=cust.id if cust else None,
+                attempt_number=case.attempt_count,
+                max_attempts=max_attempts,
+                order_id=tx.order_id if tx else case.id,
+                recovery_action_id=action_id,
+                is_demo=is_live_demo,
                 db=db
             )
 
@@ -111,7 +136,9 @@ class RecoveryExecutor:
                 "payment_link_id": link_res["payment_link_id"],
                 "short_url": link_res["short_url"],
                 "notification_id": receipt.notification_id,
-                "delivery_label": receipt.delivery_label
+                "delivery_label": receipt.delivery_label,
+                "attempt_number": case.attempt_count,
+                "max_attempts": max_attempts
             })
 
         elif strategy == "UPI_SWITCH":
@@ -225,7 +252,7 @@ class RecoveryExecutor:
 
         # Save action history in recovery_actions table
         rec_action = RecoveryAction(
-            id=f"act_{uuid.uuid4().hex[:10]}",
+            id=action_id,
             workspace_id=case.workspace_id,
             recovery_case_id=case.id,
             strategy=strategy,

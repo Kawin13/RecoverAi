@@ -491,6 +491,34 @@ def record_payment_failure(
     )
     db.commit()
 
+    # 4b. Dispatch immediate Payment Failed customer notification
+    from app.services.notification_service import notification_service
+    try:
+        cust = tx.customer
+        recipient_email = cust.email if cust and cust.email and "@" in cust.email else None
+        if recipient_email:
+            base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+            checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id}&recovery_case={recovery_case.id}&amount={tx.amount}"
+            notification_service.send_recovery_notification(
+                recipient=recipient_email,
+                channel="EMAIL",
+                strategy="PAYMENT_FAILED",
+                template_type="PAYMENT_FAILED",
+                customer_name=cust.name if cust and cust.name else "Valued Customer",
+                amount=tx.amount,
+                action_url=checkout_url,
+                recovery_case_id=recovery_case.id,
+                transaction_id=tx.id,
+                workspace_id=str(tx.workspace_id),
+                customer_id=cust.id if cust else None,
+                order_id=tx.order_id,
+                failure_reason=request.error_description or request.error_code or "Payment Authorization Declined",
+                is_demo=True,
+                db=db
+            )
+    except Exception as exc:
+        logger.warning(f"[Payments] Payment failed email dispatch notice: {exc}")
+
     # 5. Automatically execute Autonomous Recovery Pipeline (Diagnostics -> ERV -> Guardrails -> Dispatch)
     from app.services.recovery_executor import recovery_state_machine
     pipeline_steps = []

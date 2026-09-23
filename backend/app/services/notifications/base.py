@@ -30,6 +30,7 @@ class NotificationChannel(str, Enum):
 
 
 class TemplateType(str, Enum):
+    PAYMENT_FAILED = "PAYMENT_FAILED"
     PAYMENT_LINK = "PAYMENT_LINK"
     CART_ABANDONMENT = "CART_ABANDONMENT"
     ADMIN_APPROVAL = "ADMIN_APPROVAL"

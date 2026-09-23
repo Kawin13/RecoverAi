@@ -112,6 +112,13 @@ class NotificationService:
         custom_message: Optional[str] = None,
         workspace_id: Optional[str] = None,
         customer_id: Optional[str] = None,
+        attempt_number: int = 1,
+        max_attempts: int = 3,
+        order_id: Optional[str] = None,
+        failure_reason: Optional[str] = None,
+        recovery_action_id: Optional[str] = None,
+        is_demo: bool = True,
+        template_type: Optional[str] = None,
         db: Optional[Any] = None
     ) -> NotificationReceipt:
         """
@@ -153,23 +160,40 @@ class NotificationService:
                 close_db = True
 
             try:
-                template_type = "PAYMENT_LINK" if strategy == "PAYMENT_LINK" else ("CART_ABANDONMENT" if "ABANDON" in strategy else "PERSONALIZED_REMINDER")
+                resolved_template = template_type
+                if not resolved_template:
+                    if strategy == "PAYMENT_FAILED":
+                        resolved_template = "PAYMENT_FAILED"
+                    elif strategy in ("PAYMENT_LINK", "SMART_PAYLINK_1CLICK", "1-CLICK PAYLINK"):
+                        resolved_template = "PAYMENT_LINK"
+                    elif "ABANDON" in strategy:
+                        resolved_template = "CART_ABANDONMENT"
+                    else:
+                        resolved_template = "PERSONALIZED_REMINDER"
+
                 context = {
                     "customer_name": customer_name,
                     "amount": amount,
                     "merchant_name": "RecoverAI",
                     "action_url": action_url,
                     "custom_message": custom_message,
-                    "strategy": strategy
+                    "strategy": strategy,
+                    "order_id": order_id,
+                    "failure_reason": failure_reason,
+                    "attempt_number": attempt_number,
+                    "max_attempts": max_attempts,
+                    "is_demo": is_demo
                 }
                 res = email_service.send_recovery_email(
                     recipient=recipient,
-                    template_type=template_type,
+                    template_type=resolved_template,
                     template_context=context,
                     workspace_id=workspace_id or DEFAULT_WORKSPACE_ID,
                     db=session_db,
                     recovery_case_id=recovery_case_id,
-                    customer_id=customer_id
+                    customer_id=customer_id,
+                    recovery_action_id=recovery_action_id,
+                    attempt_number=attempt_number
                 )
                 delivery_status = res.status
                 provider_msg_id = res.provider_message_id
