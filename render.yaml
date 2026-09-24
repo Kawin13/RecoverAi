@@ -34,9 +34,9 @@ services:
       - key: APP_ENCRYPTION_KEY
         sync: false
       - key: FRONTEND_PUBLIC_URL
-        sync: false
+        value: "https://recover-ai-rho-steel.vercel.app"
       - key: CORS_ORIGINS
-        value: "https://your-frontend-domain.vercel.app"
+        value: "https://recover-ai-rho-steel.vercel.app,http://localhost:3000"
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET

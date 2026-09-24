@@ -88,17 +88,23 @@ logger.info("BOOT 2: FastAPI application created")
 
 # CORS Configuration - Strictly rejects wildcard origin when allow_credentials=True
 configured_origins = [orig.strip() for orig in (settings.CORS_ORIGINS or []) if orig.strip() and orig.strip() != "*"]
+if settings.FRONTEND_PUBLIC_URL and settings.FRONTEND_PUBLIC_URL.strip() not in configured_origins:
+    configured_origins.append(settings.FRONTEND_PUBLIC_URL.strip())
+if "https://recover-ai-rho-steel.vercel.app" not in configured_origins:
+    configured_origins.append("https://recover-ai-rho-steel.vercel.app")
 if not configured_origins:
     configured_origins = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "https://recover-ai-rho-steel.vercel.app",
     ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=configured_origins,
+    allow_origin_regex=getattr(settings, "CORS_ORIGIN_REGEX", r"^https:\/\/.*\.vercel\.app$"),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

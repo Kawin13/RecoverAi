@@ -1,5 +1,7 @@
 import os
-from typing import List, Optional, Set
+import json
+from typing import List, Optional, Set, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 backend_env = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
@@ -20,7 +22,23 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",
+        "https://recover-ai-rho-steel.vercel.app",
     ]
+    CORS_ORIGIN_REGEX: str = r"^https:\/\/.*\.vercel\.app$"
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            v_stripped = v.strip()
+            if v_stripped.startswith("[") and v_stripped.endswith("]"):
+                try:
+                    return json.loads(v_stripped)
+                except Exception:
+                    pass
+            return [x.strip() for x in v_stripped.split(",") if x.strip()]
+        return v
+
     # Frontend Public URL (Used for generating recovery links, abandonment links, checkout redirects)
     FRONTEND_PUBLIC_URL: str = "http://localhost:3000"
 
