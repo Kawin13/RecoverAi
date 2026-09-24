@@ -46,7 +46,9 @@ services:
       - key: EMAIL_FROM_ADDRESS
         value: "RecoverAI <onboarding@resend.dev>"
       - key: EMAIL_TEST_MODE
-        value: "true"
+        value: "false"
+      - key: EMAIL_AUTO_REDIRECT_DEMO
+        value: "false"
       - key: EMAIL_TEST_RECIPIENTS
         sync: false
 
@@ -92,6 +94,8 @@ services:
       - key: EMAIL_FROM_ADDRESS
         value: "RecoverAI <onboarding@resend.dev>"
       - key: EMAIL_TEST_MODE
-        value: "true"
+        value: "false"
+      - key: EMAIL_AUTO_REDIRECT_DEMO
+        value: "false"
       - key: EMAIL_TEST_RECIPIENTS
         sync: false
