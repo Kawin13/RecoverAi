@@ -326,14 +326,14 @@ export const Abandonment: React.FC = () => {
 
       {/* INTERACTIVE CHECKOUT SIMULATOR & TIMEOUT CONTROLLER */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-surface rounded-2xl border border-border/80 p-6 shadow-fintech-card space-y-5">
-          <div className="flex items-center justify-between border-b border-border/70 pb-4">
+        <div className="lg:col-span-2 bg-surface rounded-2xl border border-border/80 p-4 sm:p-6 shadow-fintech-card space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-4">
             <div>
-              <div className="flex items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base font-bold text-navy font-display">
                   Interactive Checkout Session Simulator
                 </h3>
-                <span className="px-2.5 py-0.5 bg-surface-blue text-primary border border-surface-blue-border text-[10px] font-mono font-bold rounded-full">
+                <span className="px-2.5 py-0.5 bg-surface-blue text-primary border border-surface-blue-border text-[10px] font-mono font-bold rounded-full whitespace-nowrap">
                   SIMULATED DEMO EVENT ({sessions.length} ACTIVE)
                 </span>
               </div>
@@ -344,9 +344,9 @@ export const Abandonment: React.FC = () => {
 
             {/* Countdown Badge */}
             {isTimerRunning && (
-              <div className="flex items-center gap-2 bg-primary-light border border-primary-border px-3.5 py-1.5 rounded-full shadow-xs">
+              <div className="flex items-center gap-2 bg-primary-light border border-primary-border px-3.5 py-1.5 rounded-full shadow-xs shrink-0 self-start sm:self-auto">
                 <Clock className="w-4 h-4 text-primary animate-spin" />
-                <span className="text-xs font-mono font-bold text-primary">
+                <span className="text-xs font-mono font-bold text-primary whitespace-nowrap">
                   Timeout in {countdownSeconds}s
                 </span>
               </div>
@@ -354,42 +354,44 @@ export const Abandonment: React.FC = () => {
           </div>
 
           {/* Session Progress Stepper */}
-          <div className="flex items-center justify-between px-3 py-3.5 bg-slate-50 rounded-2xl border border-border text-xs">
-            <div className={`flex items-center gap-1.5 ${simStep >= 1 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
-              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 1 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>1</span>
-              <span>Started</span>
-            </div>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
-            <div className={`flex items-center gap-1.5 ${simStep >= 2 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
-              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 2 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>2</span>
-              <span>Identified</span>
-            </div>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
-            <div className={`flex items-center gap-1.5 ${simStep >= 3 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
-              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 3 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>3</span>
-              <span>Method Viewed</span>
-            </div>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
-            <div className={`flex items-center gap-1.5 ${simStep >= 4 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
-              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 4 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>4</span>
-              <span>Payment Initiated</span>
-            </div>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
-            <div className={`flex items-center gap-1.5 ${simStep === 5 ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}`}>
-              <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep === 5 ? 'bg-rose-600 text-white border-rose-600' : 'border-slate-300'}`}>5</span>
-              <span>Abandoned</span>
+          <div className="overflow-x-auto pb-1 -mx-1 px-1">
+            <div className="flex items-center gap-2 min-w-max md:min-w-0 md:justify-between px-3.5 py-3 bg-slate-50 rounded-2xl border border-border text-xs">
+              <div className={`flex items-center gap-1.5 shrink-0 ${simStep >= 1 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+                <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 1 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>1</span>
+                <span className="whitespace-nowrap">Started</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+              <div className={`flex items-center gap-1.5 shrink-0 ${simStep >= 2 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+                <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 2 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>2</span>
+                <span className="whitespace-nowrap">Identified</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+              <div className={`flex items-center gap-1.5 shrink-0 ${simStep >= 3 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+                <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 3 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>3</span>
+                <span className="whitespace-nowrap">Method Viewed</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+              <div className={`flex items-center gap-1.5 shrink-0 ${simStep >= 4 ? 'text-primary font-bold' : 'text-slate-400 font-medium'}`}>
+                <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep >= 4 ? 'bg-primary text-white border-primary' : 'border-slate-300'}`}>4</span>
+                <span className="whitespace-nowrap">Payment Initiated</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+              <div className={`flex items-center gap-1.5 shrink-0 ${simStep === 5 ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}`}>
+                <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${simStep === 5 ? 'bg-rose-600 text-white border-rose-600' : 'border-slate-300'}`}>5</span>
+                <span className="whitespace-nowrap">Abandoned</span>
+              </div>
             </div>
           </div>
 
           {/* Interactive Controls */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
             <div>
               <label className="text-[11px] text-slate-500 font-semibold">Customer Name</label>
               <input
                 type="text"
                 value={simCustomerName}
                 onChange={(e) => setSimCustomerName(e.target.value)}
-                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs"
+                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs truncate"
               />
             </div>
             <div>
@@ -398,7 +400,7 @@ export const Abandonment: React.FC = () => {
                 type="email"
                 value={simCustomerEmail}
                 onChange={(e) => setSimCustomerEmail(e.target.value)}
-                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs"
+                className="mt-1 w-full px-3 py-2 text-xs border border-border rounded-xl bg-surface font-mono text-navy font-medium focus:border-primary focus:outline-none shadow-2xs truncate"
               />
             </div>
             <div>
@@ -438,43 +440,45 @@ export const Abandonment: React.FC = () => {
           </div>
 
           {/* Action Step Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/70">
-            <button
-              onClick={handleSimStartCheckout}
-              disabled={simStep !== 0 && simStep !== 5}
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold shadow-fintech-purple transition-all disabled:opacity-40 cursor-pointer"
-            >
-              1. Start Checkout
-            </button>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2.5 pt-3 border-t border-border/70">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1">
+              <button
+                onClick={handleSimStartCheckout}
+                disabled={simStep !== 0 && simStep !== 5}
+                className="px-3.5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold shadow-fintech-purple transition-all disabled:opacity-40 cursor-pointer text-center"
+              >
+                1. Start Checkout
+              </button>
 
-            <button
-              onClick={handleSimIdentifyCustomer}
-              disabled={simStep !== 1}
-              className="px-4 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer"
-            >
-              2. Enter Contact Info
-            </button>
+              <button
+                onClick={handleSimIdentifyCustomer}
+                disabled={simStep !== 1}
+                className="px-3.5 py-2.5 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer text-center"
+              >
+                2. Enter Contact Info
+              </button>
 
-            <button
-              onClick={handleSimViewPaymentMethod}
-              disabled={simStep !== 2}
-              className="px-4 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer"
-            >
-              3. View Payment Instrument
-            </button>
+              <button
+                onClick={handleSimViewPaymentMethod}
+                disabled={simStep !== 2}
+                className="px-3.5 py-2.5 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer text-center"
+              >
+                3. View Instrument
+              </button>
 
-            <button
-              onClick={handleSimInitiatePayment}
-              disabled={simStep !== 3}
-              className="px-4 py-2 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer"
-            >
-              4. Initiate Payment Switch
-            </button>
+              <button
+                onClick={handleSimInitiatePayment}
+                disabled={simStep !== 3}
+                className="px-3.5 py-2.5 bg-surface hover:bg-slate-50 border border-border text-navy rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 shadow-xs cursor-pointer text-center"
+              >
+                4. Initiate Payment
+              </button>
+            </div>
 
             <button
               onClick={handleSimulateAbandon}
               disabled={simStep === 0 || simStep === 5}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors disabled:opacity-40 ml-auto cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors disabled:opacity-40 cursor-pointer text-center"
             >
               Trigger Abandonment Now
             </button>
