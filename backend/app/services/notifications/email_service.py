@@ -501,6 +501,52 @@ class EmailService:
             text_content=text_body
         )
 
+        # Sandbox Fallback: If Resend rejects because destination is restricted to account owner on onboarding@resend.dev
+        if (
+            not send_res.success
+            and send_res.error_message
+            and "only send testing emails to your own email address" in send_res.error_message
+        ):
+            import re
+            m = re.search(r"\(([^)]+@[^)]+)\)", send_res.error_message)
+            verified_owner = m.group(1) if m else (settings.get_primary_test_recipient() or "kawindharma@gmail.com")
+            if verified_owner and verified_owner.lower() != actual_dispatch_to.lower():
+                logger.warning(
+                    f"[EmailService] Resend sandbox restriction: destination '{actual_dispatch_to}' redirected "
+                    f"to verified owner '{verified_owner}'."
+                )
+                sandbox_banner_html = (
+                    f'<div style="background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; '
+                    f'padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 13px; '
+                    f'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;">'
+                    f'<strong>⚠️ Resend Sandbox Notice:</strong> This email was addressed to '
+                    f'<code>{cleaned_recipient}</code>. Because <code>onboarding@resend.dev</code> only permits '
+                    f'delivery to your verified account owner, it was routed to <code>{verified_owner}</code>. '
+                    f'To send to any recipient, verify your domain at <strong>resend.com/domains</strong>.'
+                    f'</div>'
+                )
+                sandbox_banner_text = (
+                    f"[RESEND SANDBOX NOTICE: Originally addressed to {cleaned_recipient}. Delivered to {verified_owner} "
+                    f"due to Resend sandbox restrictions. Verify a custom domain at resend.com/domains to send to any address]\n\n"
+                )
+                retry_res = resend_adapter.send_sync(
+                    to=verified_owner,
+                    subject=subject,
+                    html_content=sandbox_banner_html + html_body,
+                    text_content=sandbox_banner_text + text_body
+                )
+                if retry_res.success:
+                    send_res = retry_res
+                    was_redirected = True
+                    original_intended_recipient = cleaned_recipient
+                    actual_dispatch_to = verified_owner
+                    msg.metadata_json = json.dumps({
+                        "was_redirected": True,
+                        "actual_dispatch_to": verified_owner,
+                        "original_recipient": cleaned_recipient,
+                        "sandbox_notice": "Delivered to verified owner due to Resend sandbox unverified domain policy."
+                    })
+
         # 7. Update status based on provider acceptance
         if send_res.success:
             msg.status = NotificationStatus.SENT.value
