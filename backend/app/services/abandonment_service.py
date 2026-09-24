@@ -16,6 +16,7 @@ from app.core.events import event_broadcaster
 from app.services.notification_service import notification_service
 from app.core.datetime_utils import diff_seconds
 from app.models import CheckoutSession, Customer, Transaction, RecoveryCase, AuditLog
+from app.models.workspaces import DEFAULT_WORKSPACE_ID
 from app.schemas.checkout_sessions import (
     CheckoutSessionCreate,
     CheckoutSessionTransition,
@@ -28,7 +29,12 @@ from app.schemas.checkout_sessions import (
 DEFAULT_DEMO_ABANDONMENT_TIMEOUT_SECONDS = 15
 
 class AbandonmentService:
-    def create_session(self, data: CheckoutSessionCreate, db: Session) -> CheckoutSession:
+    def create_session(
+        self,
+        data: CheckoutSessionCreate,
+        db: Session,
+        workspace_id: Optional[str] = None
+    ) -> CheckoutSession:
         """Initializes a new checkout session in the STARTED state."""
         # Find or create customer
         customer = None
@@ -53,9 +59,11 @@ class AbandonmentService:
         session_id = f"chk_{uuid.uuid4().hex[:10]}"
         order_id = data.order_id or f"order_chk_{uuid.uuid4().hex[:8]}"
         now = datetime.now(timezone.utc)
+        resolved_ws = workspace_id or getattr(data, "workspace_id", None) or DEFAULT_WORKSPACE_ID
 
         session = CheckoutSession(
             id=session_id,
+            workspace_id=resolved_ws,
             customer_id=customer.id,
             order_id=order_id,
             cart_amount=data.cart_amount,

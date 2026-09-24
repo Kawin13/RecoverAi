@@ -39,10 +39,21 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
     ...((init?.headers as Record<string, string>) || {})
   }
 
-  let res = await fetch(url, {
-    ...init,
-    headers: mergedHeaders
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: mergedHeaders
+    })
+  } catch (err: any) {
+    // Retry once after 1.2s to transparently handle Render cold boots or transient connection resets
+    console.warn('[API] authFetch encountered network error, retrying once...', err?.message || err)
+    await new Promise((r) => setTimeout(r, 1200))
+    res = await fetch(url, {
+      ...init,
+      headers: mergedHeaders
+    })
+  }
 
   if (res.status === 401) {
     try {

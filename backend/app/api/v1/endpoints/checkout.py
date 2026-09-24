@@ -168,8 +168,24 @@ def abandon_checkout_session(
         raise HTTPException(status_code=404, detail="Checkout session not found")
 
     trans = CheckoutSessionTransition(new_status="ABANDONED")
-    abandonment_service.transition_session(session_id, trans, db)
-    return {"status": "success", "message": f"Session {session_id} abandoned and recovery initiated."}
+    updated_session = abandonment_service.transition_session(session_id, trans, db)
+    
+    # Query created recovery case to return dynamic, calculated ERV & strategy
+    case = None
+    if updated_session.recovery_case_id:
+        case = db.query(RecoveryCase).filter(RecoveryCase.id == updated_session.recovery_case_id).first()
+
+    return {
+        "status": "success",
+        "message": f"Session {session_id} abandoned and recovery initiated.",
+        "session_id": session_id,
+        "case_id": case.id if case else updated_session.recovery_case_id,
+        "recovery_case_id": case.id if case else updated_session.recovery_case_id,
+        "expected_recovery_value": float(case.expected_recovery_value) if case and case.expected_recovery_value else 0.0,
+        "recovery_probability": float(case.recovery_probability) if case and case.recovery_probability else 0.0,
+        "selected_strategy": case.selected_strategy if case else "PAYMENT_LINK",
+        "channel": case.channel if case else "EMAIL"
+    }
 
 @router.post("/check-abandoned", summary="Scan Timed-Out Checkout Sessions")
 def check_timed_out_sessions(

@@ -36,6 +36,7 @@ import {
   CreateOrderResponse,
   VerifyPaymentResponse
 } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 
 // Declare global Razorpay on window
 declare global {
@@ -280,9 +281,11 @@ export const DemoCheckout: React.FC = () => {
   const [resolvedRecoveryCaseId, setResolvedRecoveryCaseId] = useState<string | null>(recoveryCaseParam || null)
   const [selectedProduct, setSelectedProduct] = useState<ProductItem>(PRODUCTS[0])
   const [selectedMethod, setSelectedMethod] = useState<'UPI' | 'Card' | 'NetBanking' | 'Wallet'>('UPI')
-  const [customerName, setCustomerName] = useState('Aditya Sharma')
-  const [customerEmail, setCustomerEmail] = useState('aditya.sharma@techcorp.in')
-  const [customerPhone, setCustomerPhone] = useState('+91 98450 12345')
+  const { user } = useAuth()
+  const [customerName, setCustomerName] = useState(user?.user_metadata?.full_name || 'Aditya Sharma')
+  const [customerEmail, setCustomerEmail] = useState(user?.email || 'aditya.sharma@techcorp.in')
+  const [customerPhone, setCustomerPhone] = useState(user?.user_metadata?.phone || '+91 98450 12345')
+  const sessionInitializedRef = useRef(false)
 
   // Payment Instrument Form State
   // 1. UPI State
@@ -381,6 +384,8 @@ export const DemoCheckout: React.FC = () => {
 
   // 2. Initialize Checkout Session for cart funnel tracking
   useEffect(() => {
+    if (sessionInitializedRef.current) return
+    sessionInitializedRef.current = true
     let cancelled = false
     api.createCheckoutSession({
       customer_name: customerName,
@@ -402,7 +407,7 @@ export const DemoCheckout: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [customerName, customerEmail, customerPhone, selectedProduct.id])
+  }, [])
 
   // 3. Dynamic QR Timer Countdown
   useEffect(() => {

@@ -93,7 +93,7 @@ export interface AbandonmentCaseItem {
 
 export const checkoutApi = {
   async createCheckoutSession(data: CreateCheckoutSessionPayload): Promise<CheckoutSessionItem> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/sessions`, {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -115,7 +115,7 @@ export const checkoutApi = {
   },
 
   async transitionCheckoutSession(sessionId: string, payload: TransitionCheckoutSessionPayload): Promise<CheckoutSessionItem> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/sessions/${sessionId}/transition`, {
+    const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/sessions/${sessionId}/transition`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -128,8 +128,9 @@ export const checkoutApi = {
   },
 
   async abandonCheckoutSession(sessionId: string): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/sessions/${sessionId}/abandon`, {
-      method: 'POST'
+    const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/sessions/${sessionId}/abandon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
@@ -166,7 +167,7 @@ export const checkoutApi = {
     if (params.recovery_case) q.set('recovery_case', params.recovery_case)
     if (params.payment_link_id) q.set('payment_link_id', params.payment_link_id)
 
-    const res = await fetch(`${API_BASE_URL}/api/v1/checkout/order-info?${q.toString()}`)
+    const res = await authFetch(`${API_BASE_URL}/api/v1/checkout/order-info?${q.toString()}`)
     if (!res.ok) return null
     return await res.json()
   }

@@ -18,8 +18,11 @@ import {
   Sparkles,
   MessageSquare,
   Shield,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  X
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export const Abandonment: React.FC = () => {
   const { status: _status } = useRealtime()
@@ -31,9 +34,11 @@ export const Abandonment: React.FC = () => {
   const [selectedCase, setSelectedCase] = useState<AbandonmentCaseItem | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const { user } = useAuth()
+
   // Interactive Checkout Simulator State
-  const [simCustomerName, setSimCustomerName] = useState('Pooja Sharma')
-  const [simCustomerEmail, setSimCustomerEmail] = useState('pooja.s@example.com')
+  const [simCustomerName, setSimCustomerName] = useState(user?.user_metadata?.full_name || 'Pooja Sharma')
+  const [simCustomerEmail, setSimCustomerEmail] = useState(user?.email || 'pooja.s@example.com')
   const [simCustomerTier, setSimCustomerTier] = useState('VIP')
   const [simCartAmount, setSimCartAmount] = useState(3800)
   const [simSelectedMethod, setSimSelectedMethod] = useState('UPI')
@@ -43,6 +48,7 @@ export const Abandonment: React.FC = () => {
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false)
   const [scannerRunning, setScannerRunning] = useState(false)
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const loadData = async () => {
     try {
@@ -92,6 +98,7 @@ export const Abandonment: React.FC = () => {
 
   // Simulator Actions
   const handleSimStartCheckout = async () => {
+    setErrorMessage(null)
     try {
       const sess = await api.createCheckoutSession({
         customer_name: simCustomerName,
@@ -108,12 +115,13 @@ export const Abandonment: React.FC = () => {
       setFeedbackBanner(`Checkout session ${sess.id} started. 15s abandonment countdown active!`)
       await loadData()
     } catch (err: any) {
-      alert(`Failed to start simulated checkout: ${err.message}`)
+      setErrorMessage(`Failed to start simulated checkout: ${err?.message || 'Server connection error'}`)
     }
   }
 
   const handleSimIdentifyCustomer = async () => {
     if (!activeSimSession) return
+    setErrorMessage(null)
     try {
       const updated = await api.transitionCheckoutSession(activeSimSession.id, {
         new_status: 'CUSTOMER_IDENTIFIED'
@@ -123,12 +131,13 @@ export const Abandonment: React.FC = () => {
       setCountdownSeconds(15)
       await loadData()
     } catch (err: any) {
-      alert(`Error: ${err.message}`)
+      setErrorMessage(`Transition error: ${err?.message || 'Failed to update contact info'}`)
     }
   }
 
   const handleSimViewPaymentMethod = async () => {
     if (!activeSimSession) return
+    setErrorMessage(null)
     try {
       const updated = await api.transitionCheckoutSession(activeSimSession.id, {
         new_status: 'PAYMENT_METHOD_VIEWED',
@@ -139,12 +148,13 @@ export const Abandonment: React.FC = () => {
       setCountdownSeconds(15)
       await loadData()
     } catch (err: any) {
-      alert(`Error: ${err.message}`)
+      setErrorMessage(`Transition error: ${err?.message || 'Failed to view payment method'}`)
     }
   }
 
   const handleSimInitiatePayment = async () => {
     if (!activeSimSession) return
+    setErrorMessage(null)
     try {
       const updated = await api.transitionCheckoutSession(activeSimSession.id, {
         new_status: 'PAYMENT_INITIATED'
@@ -154,31 +164,35 @@ export const Abandonment: React.FC = () => {
       setCountdownSeconds(15)
       await loadData()
     } catch (err: any) {
-      alert(`Error: ${err.message}`)
+      setErrorMessage(`Payment switch error: ${err?.message || 'Failed to initiate payment rail'}`)
     }
   }
 
   const handleSimulateAbandon = async () => {
     if (!activeSimSession) return
+    setErrorMessage(null)
     try {
       setIsTimerRunning(false)
       const res = await api.abandonCheckoutSession(activeSimSession.id)
       setSimStep(5)
-      setFeedbackBanner(`Cart marked Abandoned! RecoverAI Case #${res?.case_id || activeSimSession.id} synthesized with ERV: ${formatINR(res?.expected_recovery_value || 0)}`)
+      const caseDisplay = res?.case_id || res?.recovery_case_id || activeSimSession.recovery_case_id || activeSimSession.id
+      const ervDisplay = res?.expected_recovery_value ?? 0
+      setFeedbackBanner(`Cart marked Abandoned! RecoverAI Case #${caseDisplay} synthesized with ERV: ${formatINR(ervDisplay)}`)
       await loadData()
     } catch (err: any) {
-      alert(`Abandonment trigger error: ${err.message}`)
+      setErrorMessage(`Abandonment trigger notice: ${err?.message || 'Could not complete abandonment trigger'}`)
     }
   }
 
   const handleRunScanner = async () => {
+    setErrorMessage(null)
     try {
       setScannerRunning(true)
       const res = await api.checkTimedOutSessions(15)
       setFeedbackBanner(`Abandonment Scanner evaluated active sessions. Dispatched ${res?.abandoned_count ?? 0} new recovery actions.`)
       await loadData()
     } catch (err: any) {
-      alert(`Scanner error: ${err.message}`)
+      setErrorMessage(`Scanner error: ${err?.message || 'Failed to scan timed out sessions'}`)
     } finally {
       setScannerRunning(false)
     }
@@ -221,6 +235,19 @@ export const Abandonment: React.FC = () => {
           </div>
           <button onClick={() => setFeedbackBanner(null)} className="text-emerald-700 hover:text-emerald-900 text-xs font-bold cursor-pointer">
             Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Error message */}
+      {errorMessage && (
+        <div className="bg-rose-50 border border-rose-300 text-rose-900 rounded-2xl p-4 flex items-center justify-between text-xs animate-in fade-in duration-200 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+            <span className="font-medium">{errorMessage}</span>
+          </div>
+          <button onClick={() => setErrorMessage(null)} className="text-rose-700 hover:text-rose-900 text-xs font-bold cursor-pointer">
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
