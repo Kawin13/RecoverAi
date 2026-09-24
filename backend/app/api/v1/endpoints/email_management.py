@@ -19,7 +19,7 @@ from sqlalchemy import func, desc
 from app.database.session import get_db
 from app.core.config import settings
 from app.core.logging import logger
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_admin
 from app.models import CustomerMessage, WorkspaceSettings, AuditLog
 from app.services.notifications import email_service
 from app.services.workspace_service import get_workspace_settings, update_workspace_settings
@@ -117,7 +117,7 @@ def get_email_status(
 def send_test_email(
     request: SendTestEmailRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_admin)
 ):
     """Dispatches an on-demand test email to verify Resend delivery, templates, and redirect policies."""
     ws_id = current_user.get("workspace_id") or DEFAULT_WORKSPACE_ID
@@ -238,7 +238,7 @@ def get_email_history(
 def update_email_policies(
     payload: EmailSettingsUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_admin)
 ):
     """Updates workspace-level email policies including quiet hours, cooldown, and master toggle."""
     ws_id = current_user.get("workspace_id") or DEFAULT_WORKSPACE_ID

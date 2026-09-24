@@ -18,7 +18,8 @@ import {
   Send,
   ToggleLeft,
   ToggleRight,
-  Inbox
+  Inbox,
+  Lock
 } from 'lucide-react'
 import { workspaceApi, RazorpayIntegrationStatus } from '../services/workspaceApi'
 import {
@@ -27,11 +28,14 @@ import {
   EmailMessageItem
 } from '../services/emailManagementApi'
 import { useWorkspace } from '../context/WorkspaceContext'
+import { useAuth } from '../context/AuthContext'
 import { SkeletonLoader } from '../components/common/SkeletonLoader'
 import { formatTimeAgo } from '../lib/utils'
 
 export const Integrations: React.FC = () => {
+  const { role } = useAuth()
   const { activeWorkspace } = useWorkspace()
+  const isAdmin = role === 'admin' || activeWorkspace?.role === 'admin'
   
   // Razorpay state
   const [status, setStatus] = useState<RazorpayIntegrationStatus | null>(null)
@@ -123,7 +127,7 @@ export const Integrations: React.FC = () => {
   // Razorpay connect handler
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activeWorkspace) return
+    if (!isAdmin || !activeWorkspace) return
     setConnecting(true)
     setConnectError(null)
     try {
@@ -144,7 +148,7 @@ export const Integrations: React.FC = () => {
 
   // Toggle email recovery
   const handleToggleEmailEnabled = async () => {
-    if (!emailStatus) return
+    if (!isAdmin || !emailStatus) return
     const newState = !emailStatus.workspace_email_enabled
     setTogglingEmail(true)
     try {
@@ -160,6 +164,7 @@ export const Integrations: React.FC = () => {
   // Send test email
   const handleSendTestEmail = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isAdmin) return
     setSendingTest(true)
     setTestResult(null)
     try {
@@ -230,6 +235,21 @@ export const Integrations: React.FC = () => {
         </p>
       </div>
 
+      {/* View-Only Notice Banner for Operators */}
+      {!isAdmin && (
+        <div className="flex items-center gap-3 p-4 bg-amber-50/80 border border-amber-200/80 rounded-2xl shadow-2xs text-xs text-amber-900">
+          <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0">
+            <Lock className="w-4 h-4 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="font-bold text-navy">View-Only Operator Access</span>
+            <p className="text-[11px] text-slate-600 mt-0.5">
+              You are signed in with Operator privileges. Settings and credentials are view-only. Only Workspace Administrators can modify payment keys, toggle recovery delivery, or dispatch diagnostic emails.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 1. Resend Transactional Email Card */}
       <div className="bg-surface rounded-2xl border border-border shadow-fintech-card overflow-hidden">
         {/* Card Header */}
@@ -267,14 +287,21 @@ export const Integrations: React.FC = () => {
             >
               <RefreshCw className={`w-4 h-4 ${emailLoading ? 'animate-spin' : ''}`} />
             </button>
-            <button
-              type="button"
-              onClick={() => setShowTestModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-            >
-              <Send className="w-3.5 h-3.5" />
-              Send Test Email
-            </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={() => setShowTestModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Send Test Email
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-500 rounded-xl text-xs font-semibold border border-slate-200" title="Only administrators can send diagnostic test emails">
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Admin Only</span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -340,21 +367,33 @@ export const Integrations: React.FC = () => {
                     When active, RecoverAI dispatches recovery emails automatically when payments fail or carts abandon.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  disabled={togglingEmail}
-                  onClick={handleToggleEmailEnabled}
-                  className="flex items-center gap-1.5 text-xs font-bold text-primary hover:opacity-80 transition-all disabled:opacity-50"
-                >
-                  {togglingEmail ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : emailStatus.workspace_email_enabled ? (
-                    <ToggleRight className="w-7 h-7 text-primary" />
-                  ) : (
-                    <ToggleLeft className="w-7 h-7 text-slate-300" />
-                  )}
-                  <span>{emailStatus.workspace_email_enabled ? 'Enabled' : 'Paused'}</span>
-                </button>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    disabled={togglingEmail}
+                    onClick={handleToggleEmailEnabled}
+                    className="flex items-center gap-1.5 text-xs font-bold text-primary hover:opacity-80 transition-all disabled:opacity-50"
+                  >
+                    {togglingEmail ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : emailStatus.workspace_email_enabled ? (
+                      <ToggleRight className="w-7 h-7 text-primary" />
+                    ) : (
+                      <ToggleLeft className="w-7 h-7 text-slate-300" />
+                    )}
+                    <span>{emailStatus.workspace_email_enabled ? 'Enabled' : 'Paused'}</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500" title="Only Workspace Administrators can toggle email recovery">
+                    {emailStatus.workspace_email_enabled ? (
+                      <ToggleRight className="w-7 h-7 text-slate-400" />
+                    ) : (
+                      <ToggleLeft className="w-7 h-7 text-slate-300" />
+                    )}
+                    <span>{emailStatus.workspace_email_enabled ? 'Enabled' : 'Paused'}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">(Admin Only)</span>
+                  </div>
+                )}
               </div>
 
               {/* 24-hr Stats Banner */}
@@ -524,7 +563,12 @@ export const Integrations: React.FC = () => {
 
               {/* Connect / Update Keys Toggle Form */}
               <div className="pt-2">
-                {!showConnectForm ? (
+                {!isAdmin ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl">
+                    <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Razorpay API credentials can only be updated by Workspace Administrators.</span>
+                  </div>
+                ) : !showConnectForm ? (
                   <button
                     type="button"
                     onClick={() => setShowConnectForm(true)}
@@ -604,7 +648,7 @@ export const Integrations: React.FC = () => {
       </div>
 
       {/* Test Email Modal */}
-      {showTestModal && (
+      {showTestModal && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-surface rounded-2xl border border-border shadow-2xl max-w-md w-full p-6 space-y-5 animate-scale-up">
             <div className="flex items-center justify-between border-b border-border pb-4">
