@@ -338,8 +338,9 @@ class EmailService:
                 delivery_label="POLICY BLOCKED"
             )
 
-        # 4. Phase 4 - No-Domain Development Test Mode Check
-        is_test_mode = getattr(settings, "EMAIL_TEST_MODE", True)
+        # 4. Dispatch Recipient Resolution
+        # Always dispatch directly to the entered recipient email address
+        is_test_mode = getattr(settings, "EMAIL_TEST_MODE", False)
         actual_dispatch_to = cleaned_recipient
         was_redirected = False
         original_intended_recipient = None
@@ -347,24 +348,23 @@ class EmailService:
         if is_test_mode:
             allowed_recipients = settings.get_allowed_test_recipients()
             norm_recip = cleaned_recipient.lower()
-            if not allowed_recipients or norm_recip not in allowed_recipients:
+            if allowed_recipients and norm_recip not in allowed_recipients:
                 auto_redirect = getattr(settings, "EMAIL_AUTO_REDIRECT_DEMO", False)
                 primary_test_email = settings.get_primary_test_recipient()
-                
-                # Eligible for demo redirect if specific synthetic demo persona or marked as demo
-                is_demo_eligible = bool(auto_redirect and primary_test_email and (
-                    any(norm_recip.endswith(d) for d in ("@techcorp.in", "@zenithai.com", "@recoverai.io", "@local.dev", "@example.com", "@checkout.com", "@test.com"))
-                    or template_context.get("is_demo", False)
-                    or template_context.get("is_simulated", False)
-                    or template_context.get("auto_redirect_demo", False)
-                ))
+                # Only redirect synthetic placeholder domains (@techcorp.in, @zenithai.com) in mock tests
+                # Real entered user email addresses are NEVER hijacked or redirected
+                SYNTHETIC_MOCK_DOMAINS = ("@techcorp.in", "@zenithai.com", "@local.dev")
+                is_synthetic_mock = any(norm_recip.endswith(d) for d in SYNTHETIC_MOCK_DOMAINS)
+                is_demo_eligible = bool(
+                    auto_redirect and primary_test_email and (is_synthetic_mock or template_context.get("auto_redirect_demo", False))
+                )
 
                 if is_demo_eligible:
                     actual_dispatch_to = primary_test_email
                     was_redirected = True
                     original_intended_recipient = cleaned_recipient
                     logger.info(
-                        f"[EmailService] EMAIL_TEST_MODE auto-redirected demo email for '{cleaned_recipient}' "
+                        f"[EmailService] EMAIL_TEST_MODE redirected synthetic mock email for '{cleaned_recipient}' "
                         f"to verified test recipient '{primary_test_email}'."
                     )
 

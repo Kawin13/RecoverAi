@@ -33,7 +33,7 @@ import { SkeletonLoader } from '../components/common/SkeletonLoader'
 import { formatTimeAgo } from '../lib/utils'
 
 export const Integrations: React.FC = () => {
-  const { role } = useAuth()
+  const { role, user } = useAuth()
   const { activeWorkspace } = useWorkspace()
   const isAdmin = role === 'admin' || activeWorkspace?.role === 'admin'
   
@@ -94,8 +94,12 @@ export const Integrations: React.FC = () => {
     try {
       const s = await emailManagementApi.getStatus()
       setEmailStatus(s)
-      if (s.primary_test_recipient && !testRecipient) {
-        setTestRecipient(s.primary_test_recipient)
+      if (!testRecipient) {
+        if (user?.email) {
+          setTestRecipient(user.email)
+        } else if (s.primary_test_recipient) {
+          setTestRecipient(s.primary_test_recipient)
+        }
       }
     } catch (err: any) {
       setEmailError(err.message || 'Failed to load email service status')
@@ -677,10 +681,10 @@ export const Integrations: React.FC = () => {
                   required
                   value={testRecipient}
                   onChange={e => setTestRecipient(e.target.value)}
-                  placeholder="e.g. kawindharma@gmail.com"
+                  placeholder="e.g. customer@example.com"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-slate-50 text-xs font-mono text-navy focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Must be in EMAIL_TEST_RECIPIENTS allowlist while in test mode.</p>
+                <p className="text-[10px] text-slate-400 mt-1">Dispatches recovery email directly to this entered recipient address.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

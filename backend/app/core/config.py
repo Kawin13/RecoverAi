@@ -72,9 +72,9 @@ class Settings(BaseSettings):
     RESEND_WEBHOOK_SECRET: str = ""
     EMAIL_ENABLED: bool = True
     EMAIL_FROM_ADDRESS: str = "RecoverAI <onboarding@resend.dev>"
-    EMAIL_TEST_MODE: bool = True
+    EMAIL_TEST_MODE: bool = False
     EMAIL_TEST_RECIPIENTS: str = ""
-    EMAIL_AUTO_REDIRECT_DEMO: bool = True
+    EMAIL_AUTO_REDIRECT_DEMO: bool = False
 
     model_config = SettingsConfigDict(
         env_file=[backend_env, root_env, ".env"],

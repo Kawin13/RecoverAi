@@ -1550,13 +1550,23 @@ export const DemoCheckout: React.FC = () => {
                   >
                     Priyanka (Growth)
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPersona('Kawin Dharma', 'kawindharma@gmail.com', '+91 98450 99999')}
-                    className="px-2.5 py-1 bg-moss-green-light hover:bg-moss-green/20 text-[10px] font-bold text-moss-green-dark rounded-full border border-moss-green/30 transition-colors cursor-pointer"
-                  >
-                    Kawin (Verified Test)
-                  </button>
+                  {user?.email ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPersona(user.user_metadata?.full_name || 'My Account', user.email!, user.user_metadata?.phone || '+91 98450 99999')}
+                      className="px-2.5 py-1 bg-moss-green-light hover:bg-moss-green/20 text-[10px] font-bold text-moss-green-dark rounded-full border border-moss-green/30 transition-colors cursor-pointer"
+                    >
+                      {user.user_metadata?.full_name?.split(' ')[0] || 'My Account'} (You)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPersona('Rahul Verma', 'rahul.verma@example.com', '+91 98450 99999')}
+                      className="px-2.5 py-1 bg-surface-blue hover:bg-primary-light text-[10px] font-bold text-primary rounded-full border border-surface-blue-border transition-colors cursor-pointer"
+                    >
+                      Rahul (Standard)
+                    </button>
+                  )}
                 </div>
               </div>
 
