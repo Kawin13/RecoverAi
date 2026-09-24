@@ -14,7 +14,6 @@ import {
   ShoppingBag,
   ShoppingCart,
   Users,
-  Zap,
   Settings
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -155,11 +154,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     {
       label: 'Workspace',
       items: [
-        { label: 'Integrations', path: '/integrations', icon: Zap },
+        { label: 'Settings', path: '/settings', icon: Settings },
         { label: 'Account', path: '/account', icon: User },
-        ...(role === 'admin'
-          ? [{ label: 'Settings', path: '/guardrails', icon: Settings }]
-          : []),
       ],
     },
   ]

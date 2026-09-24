@@ -224,9 +224,9 @@ export const Integrations: React.FC = () => {
     <div className="space-y-8 max-w-4xl pb-16">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-navy tracking-tight font-display">Integrations & Channels</h1>
+        <h1 className="text-2xl font-bold text-navy tracking-tight font-display">Workspace Settings</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Manage payment rails and autonomous customer recovery channels for your workspace.
+          Manage payment gateway configurations, email channels, and integration credentials for your workspace.
         </p>
       </div>
 

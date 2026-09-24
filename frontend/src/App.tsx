@@ -111,7 +111,7 @@ export const App: React.FC = () => {
                   <Route path="/audit" element={<AuditTrail />} />
                   <Route path="/audit-trail" element={<Navigate to="/audit" replace />} />
                   <Route path="/guardrails" element={<Guardrails />} />
-                  <Route path="/integrations" element={<Integrations />} />
+                  <Route path="/integrations" element={<Navigate to="/settings" replace />} />
                   <Route
                     path="/admin/users"
                     element={
@@ -121,7 +121,7 @@ export const App: React.FC = () => {
                     }
                   />
                   <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
-                  <Route path="/settings" element={<Navigate to="/account" replace />} />
+                  <Route path="/settings" element={<Integrations />} />
                   <Route path="/account" element={<Account />} />
                 </Route>
 
