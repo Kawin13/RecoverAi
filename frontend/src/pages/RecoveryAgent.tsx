@@ -346,6 +346,36 @@ export const RecoveryAgent: React.FC = () => {
     }
   }
 
+  const renderNotificationBody = (body: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const parts = body.split(urlRegex)
+
+    return (
+      <div className="text-xs text-slate-600 leading-relaxed font-sans bg-slate-50 p-3 rounded-xl border border-border break-words [overflow-wrap:anywhere] [word-break:break-word] select-text min-w-0">
+        {parts.map((part, idx) => {
+          if (part.match(/^https?:\/\//i)) {
+            return (
+              <a
+                key={idx}
+                href={part}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 my-1 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 font-mono text-[11px] font-semibold transition-all max-w-full group"
+                title={part}
+              >
+                <ExternalLink className="w-3 h-3 shrink-0 text-primary group-hover:scale-110 transition-transform" />
+                <span className="truncate max-w-[200px] sm:max-w-xs">{part}</span>
+                <span className="text-[10px] text-primary/70 shrink-0 font-sans">↗</span>
+              </a>
+            )
+          }
+          return <span key={idx}>{part}</span>
+        })}
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -673,9 +703,9 @@ export const RecoveryAgent: React.FC = () => {
       )}
 
       {/* Main Content Layout: Active Workflows Table + Honest Notification Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
         {/* Left 2 Cols: Active Workflows List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-primary" />
@@ -810,7 +840,7 @@ export const RecoveryAgent: React.FC = () => {
         </div>
 
         {/* Right Col: Honest Notification Feed */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Send className="w-4 h-4 text-primary" />
@@ -834,36 +864,36 @@ export const RecoveryAgent: React.FC = () => {
               notifications.map(notif => {
                 const isBlocked = notif.delivery_label === 'BLOCKED_TEST_RECIPIENT' || notif.status === 'BLOCKED'
                 return (
-                  <div key={notif.notification_id} className="p-4 rounded-2xl border border-border/80 bg-surface space-y-2.5 shadow-fintech-card">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        {notif.channel === 'WHATSAPP_SIMULATION' && <Smartphone className="w-3.5 h-3.5 text-emerald-600" />}
-                        {notif.channel === 'SMS_SIMULATION' && <MessageSquare className="w-3.5 h-3.5 text-primary" />}
-                        {(notif.channel === 'EMAIL_SIMULATION' || notif.channel === 'EMAIL' || notif.channel === 'resend') && (
-                          <Mail className="w-3.5 h-3.5 text-primary" />
-                        )}
-                        {notif.channel === 'IN_APP' && <Sparkles className="w-3.5 h-3.5 text-amber-600" />}
-                        <span className="text-xs font-bold text-navy">{notif.title}</span>
+                  <div key={notif.notification_id} className="p-4 rounded-2xl border border-border/80 bg-surface space-y-2.5 shadow-fintech-card min-w-0 overflow-hidden">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="flex items-start gap-1.5 min-w-0 flex-1">
+                        <div className="mt-0.5 shrink-0">
+                          {notif.channel === 'WHATSAPP_SIMULATION' && <Smartphone className="w-3.5 h-3.5 text-emerald-600" />}
+                          {notif.channel === 'SMS_SIMULATION' && <MessageSquare className="w-3.5 h-3.5 text-primary" />}
+                          {(notif.channel === 'EMAIL_SIMULATION' || notif.channel === 'EMAIL' || notif.channel === 'resend') && (
+                            <Mail className="w-3.5 h-3.5 text-primary" />
+                          )}
+                          {notif.channel === 'IN_APP' && <Sparkles className="w-3.5 h-3.5 text-amber-600" />}
+                        </div>
+                        <span className="text-xs font-bold text-navy break-words min-w-0 leading-snug">{notif.title}</span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border ${getBadgeStyle(notif.status, notif.delivery_label)}`}>
+                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border whitespace-nowrap ${getBadgeStyle(notif.status, notif.delivery_label)}`}>
                         {getBadgeLabel(notif.status, notif.delivery_label)}
                       </span>
                     </div>
 
                     {isBlocked && (
-                      <div className="flex items-center gap-1.5 p-2 bg-amber-50/80 border border-amber-200/80 rounded-lg text-[11px] text-amber-800 font-medium">
+                      <div className="flex items-center gap-1.5 p-2 bg-amber-50/80 border border-amber-200/80 rounded-lg text-[11px] text-amber-800 font-medium min-w-0">
                         <AlertOctagon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span>Email delivery restricted to configured test recipients.</span>
+                        <span className="break-words min-w-0">Email delivery restricted to configured test recipients.</span>
                       </div>
                     )}
 
-                    <p className="text-xs text-slate-600 leading-relaxed font-sans bg-slate-50 p-3 rounded-xl border border-border">
-                      {notif.body}
-                    </p>
+                    {renderNotificationBody(notif.body)}
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-mono">
-                      <span>{maskRecipient(notif.recipient)}</span>
-                      <span>{formatTimeAgo(notif.dispatched_at)}</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-mono min-w-0 gap-2">
+                      <span className="truncate min-w-0" title={notif.recipient}>{maskRecipient(notif.recipient)}</span>
+                      <span className="shrink-0 whitespace-nowrap">{formatTimeAgo(notif.dispatched_at)}</span>
                     </div>
                   </div>
                 )
