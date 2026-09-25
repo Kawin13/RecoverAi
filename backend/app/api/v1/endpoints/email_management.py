@@ -129,7 +129,7 @@ def send_test_email(
             detail="No recipient specified and no EMAIL_TEST_RECIPIENTS configured in settings."
         )
 
-    base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+    base_url = settings.get_frontend_url()
     action_url = request.action_url or f"{base_url}/demo-checkout?test_recovery=true&amount={request.amount}"
 
     context = {

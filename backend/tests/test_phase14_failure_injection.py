@@ -249,7 +249,7 @@ def test_razorpay_payment_link_creation_failure_fallback():
         )
         assert link is not None
         assert link["payment_link_id"].startswith("demo_plink_")
-        assert "localhost:3000/demo-checkout" in link["short_url"]
+        assert "/demo-checkout" in link["short_url"]
         assert link["amount"] == 2500.0
 
 # =========================================================================

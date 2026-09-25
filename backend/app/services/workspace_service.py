@@ -444,7 +444,7 @@ def create_workspace_invitation(
     db.add(invitation)
     db.commit()
 
-    invite_url = f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/invite/{raw_token}"
+    invite_url = f"{settings.get_frontend_url()}/invite/{raw_token}"
 
     # Dispatch TEAM_INVITATION email via Resend if email is configured
     try:

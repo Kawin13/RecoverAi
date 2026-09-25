@@ -85,6 +85,8 @@ services:
         sync: false
       - key: APP_ENCRYPTION_KEY
         sync: false
+      - key: FRONTEND_PUBLIC_URL
+        value: "https://recover-ai-rho-steel.vercel.app"
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET

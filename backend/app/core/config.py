@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         return v
 
     # Frontend Public URL (Used for generating recovery links, abandonment links, checkout redirects)
-    FRONTEND_PUBLIC_URL: str = "http://localhost:3000"
+    FRONTEND_PUBLIC_URL: str = "https://recover-ai-rho-steel.vercel.app"
 
     # Database
     DATABASE_URL: str = ""
@@ -126,5 +126,17 @@ class Settings(BaseSettings):
         if allowed:
             return sorted(list(allowed))[0]
         return None
+
+    def get_frontend_url(self) -> str:
+        """
+        Returns the public frontend URL for customer communications.
+        Guarantees that production or cloud deployments never generate localhost URLs in customer emails.
+        """
+        raw = (self.FRONTEND_PUBLIC_URL or "").strip().rstrip("/")
+        is_prod = str(self.ENVIRONMENT).lower() == "production"
+        is_cloud = bool(os.environ.get("RENDER") or os.environ.get("VERCEL") or is_prod)
+        if not raw or (is_cloud and ("localhost" in raw or "127.0.0.1" in raw)):
+            return "https://recover-ai-rho-steel.vercel.app"
+        return raw or "https://recover-ai-rho-steel.vercel.app"
 
 settings = Settings()

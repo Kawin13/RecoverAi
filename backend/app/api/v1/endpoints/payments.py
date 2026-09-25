@@ -580,7 +580,7 @@ def record_payment_failure(
         cust = tx.customer
         recipient_email = cust.email if cust and cust.email and "@" in cust.email else None
         if recipient_email:
-            base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+            base_url = settings.get_frontend_url()
             checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id}&recovery_case={recovery_case.id}&amount={tx.amount}&auto_open=true"
             notification_service.send_recovery_notification(
                 recipient=recipient_email,

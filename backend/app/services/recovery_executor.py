@@ -160,7 +160,7 @@ class RecoveryExecutor:
 
         elif strategy == "UPI_SWITCH":
             # Recommend UPI & provide appropriate recovery checkout/payment journey
-            base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+            base_url = settings.get_frontend_url()
             recovery_checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id if tx else case.id}&method=UPI&recommendation=upi_switch&amount={amount}&recovery_case={case.id}&auto_open=true"
 
             recipient_email = cust_email if cust_email and "@" in cust_email else None
@@ -244,7 +244,7 @@ class RecoveryExecutor:
                         amount=amount,
                         failure_reason=case.failure_category,
                         preferred_language=lang,
-                        action_url=f"{settings.FRONTEND_PUBLIC_URL.rstrip('/')}/demo-checkout?order_id={tx.order_id}&recovery_case={case.id}&amount={amount}&auto_open=true"
+                        action_url=f"{settings.get_frontend_url()}/demo-checkout?order_id={tx.order_id}&recovery_case={case.id}&amount={amount}&auto_open=true"
                     )
                     custom_msg = res.get("message")
                 except Exception as e:

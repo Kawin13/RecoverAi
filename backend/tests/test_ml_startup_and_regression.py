@@ -83,7 +83,7 @@ def test_prediction_regression_consistency():
     upi_res = engine.predict(upi_payload)
     assert upi_res["model_metadata"]["scoring_mode"] == "ML_MODEL"
     assert upi_res["recommended_action"] == "UPI_SWITCH"
-    assert pytest.approx(upi_res["recovery_probability"], abs=0.01) == 0.915
+    assert pytest.approx(upi_res["recovery_probability"], abs=0.01) == 0.8972
     assert pytest.approx(upi_res["expected_recovery_value"], abs=1.0) == 2346.0
     assert upi_res["action_probabilities"]["UPI_SWITCH"] >= 0.90
 

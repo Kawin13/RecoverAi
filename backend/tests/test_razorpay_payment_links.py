@@ -212,7 +212,7 @@ def test_no_locally_constructed_rzp_io_url():
     assert link["is_live_demo"] is False
     assert link["payment_link_id"].startswith("demo_plink_")
     assert not link["short_url"].startswith("https://rzp.io/")
-    assert "localhost:3000/demo-checkout" in link["short_url"]
+    assert "/demo-checkout" in link["short_url"]
 
 def test_webhook_payment_link_paid_lifecycle(client, db_session):
     """Verifies that Razorpay payment_link.paid webhook marks PaymentLink paid, RecoveryCase RECOVERED, and creates RecoveryOutcome."""

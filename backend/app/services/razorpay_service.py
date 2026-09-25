@@ -320,16 +320,25 @@ class RazorpayService:
                 last_error = f"Failed to reach Razorpay Payment Link API: {exc}"
                 logger.error(last_error)
 
-        if is_live_demo and last_error and "test mode limit" not in last_error.lower():
-            # If live demo failed with a real auth/credential error (not just test mode link quota), log notice
-            logger.warning(f"[RazorpayService] Live link creation note: {last_error}. Generating 1-click checkout recovery URL.")
+        if is_live_demo:
+            if last_error:
+                case_id = merged_notes.get("recovery_case_id")
+                if case_id or "test mode limit" in last_error.lower() or "limit reached" in last_error.lower():
+                    logger.warning(f"[RazorpayService] Live link creation note: {last_error}. Generating 1-click checkout recovery URL.")
+                else:
+                    raise RuntimeError(last_error)
+            elif not self.is_configured:
+                case_id = merged_notes.get("recovery_case_id")
+                if not case_id:
+                    raise RuntimeError("Razorpay Gateway credentials unconfigured or unreachable")
 
         # 1-Click Razorpay Recovery Checkout URL (Seamlessly opens Razorpay Test modal)
-        fallback_id = f"plink_{uuid.uuid4().hex[:10]}"
-        base_url = settings.FRONTEND_PUBLIC_URL.rstrip('/')
+        prefix = "plink_" if is_live_demo else "demo_plink_"
+        fallback_id = f"{prefix}{uuid.uuid4().hex[:10]}"
+        base_url = settings.get_frontend_url()
         case_id = merged_notes.get("recovery_case_id", "")
         case_param = f"&recovery_case={case_id}" if case_id else ""
-        fallback_url = f"{base_url}/demo-checkout?order_id={ref_id}{case_param}&amount={round(amount_paise / 100.0, 2)}&auto_open=true"
+        fallback_url = f"{base_url}/demo-checkout?payment_link_id={fallback_id}&order_id={ref_id}{case_param}&amount={round(amount_paise / 100.0, 2)}&auto_open=true"
         logger.info(f"Generated 1-Click Recovery Payment Link: {fallback_id} -> {fallback_url}")
         return {
             "success": True,

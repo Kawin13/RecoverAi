@@ -132,10 +132,10 @@ class EmailService:
             if not getattr(ws_settings, "email_enabled", True):
                 return False, "WORKSPACE_EMAIL_DISABLED"
 
-            is_payment_failed_alert = (template_type == "PAYMENT_FAILED")
+            is_immediate_recovery = template_type == "PAYMENT_FAILED"
 
             # Max communications check for this case
-            if recovery_case_id and not is_payment_failed_alert:
+            if recovery_case_id and not is_immediate_recovery:
                 max_emails = getattr(ws_settings, "max_emails_per_recovery", 3)
                 existing_count = (
                     db.query(CustomerMessage)
@@ -151,7 +151,7 @@ class EmailService:
 
                 # Cooldown check (bypassed for immediate failure alerts and live demo testing)
                 cooldown_mins = getattr(ws_settings, "email_cooldown_minutes", 30)
-                if not is_payment_failed_alert and not bypass_quiet_hours and cooldown_mins > 0:
+                if not is_immediate_recovery and not bypass_quiet_hours and cooldown_mins > 0:
                     cutoff = utcnow() - timedelta(minutes=cooldown_mins)
                     recent_send = (
                         db.query(CustomerMessage)
@@ -167,7 +167,7 @@ class EmailService:
                         return False, "EMAIL_COOLDOWN_ACTIVE"
 
             # Quiet Hours Check (bypassed for explicit operator diagnostic tests or immediate payment failure alerts)
-            if not is_payment_failed_alert and not bypass_quiet_hours and getattr(ws_settings, "quiet_hours_enabled", True) and getattr(ws_settings, "email_quiet_hours_enabled", True):
+            if not is_immediate_recovery and not bypass_quiet_hours and getattr(ws_settings, "quiet_hours_enabled", True) and getattr(ws_settings, "email_quiet_hours_enabled", True):
                 q_start = getattr(ws_settings, "email_quiet_hours_start", "22:00")
                 q_end = getattr(ws_settings, "email_quiet_hours_end", "08:00")
                 tz = getattr(ws_settings, "timezone", "Asia/Kolkata")
