@@ -78,12 +78,15 @@ def test_prediction_regression_consistency():
         "previous_failures": 1,
         "preferred_method": "UPI",
         "customer_value": "GROWTH",
-        "bank": "State Bank of India"
+        "bank": "State Bank of India",
+        # Pin time features for deterministic output regardless of test run time
+        "hour_of_day": 14,
+        "day_of_week": 2
     }
     upi_res = engine.predict(upi_payload)
     assert upi_res["model_metadata"]["scoring_mode"] == "ML_MODEL"
     assert upi_res["recommended_action"] == "UPI_SWITCH"
-    assert pytest.approx(upi_res["recovery_probability"], abs=0.01) == 0.8972
+    assert pytest.approx(upi_res["recovery_probability"], abs=0.01) == 0.9052
     assert pytest.approx(upi_res["expected_recovery_value"], abs=1.0) == 2346.0
     assert upi_res["action_probabilities"]["UPI_SWITCH"] >= 0.90
 
@@ -98,11 +101,13 @@ def test_prediction_regression_consistency():
         "previous_failures": 1,
         "preferred_method": "CARD",
         "customer_value": "STANDARD",
-        "bank": "HDFC Bank"
+        "bank": "HDFC Bank",
+        "hour_of_day": 14,
+        "day_of_week": 2
     }
     card_res = engine.predict(card_payload)
     assert card_res["recommended_action"] == "PAYMENT_LINK"
-    assert pytest.approx(card_res["recovery_probability"], abs=0.03) == 0.809
+    assert pytest.approx(card_res["recovery_probability"], abs=0.03) == 0.7835
     assert card_res["action_probabilities"]["RETRY_NOW"] <= 0.05
     assert card_res["action_probabilities"]["PAYMENT_LINK"] > card_res["action_probabilities"]["RETRY_NOW"]
 
@@ -117,11 +122,13 @@ def test_prediction_regression_consistency():
         "previous_failures": 2,
         "preferred_method": "NET_BANKING",
         "customer_value": "VIP",
-        "bank": "ICICI Bank"
+        "bank": "ICICI Bank",
+        "hour_of_day": 14,
+        "day_of_week": 2
     }
     vip_res = engine.predict(vip_payload)
     assert vip_res["recovery_probability"] >= 0.75
-    assert pytest.approx(vip_res["recovery_probability"], abs=0.03) == 0.8705
+    assert pytest.approx(vip_res["recovery_probability"], abs=0.03) == 0.8741
     assert vip_res["recommended_action"] == "HUMAN_ESCALATION"
     assert vip_res["expected_recovery_value"] > 75000.0
 
@@ -140,7 +147,9 @@ def test_batch_prediction_regression_consistency():
             "previous_failures": 1,
             "preferred_method": "UPI",
             "customer_value": "GROWTH",
-            "bank": "State Bank of India"
+            "bank": "State Bank of India",
+            "hour_of_day": 14,
+            "day_of_week": 2
         },
         {
             "amount": 4200.0,
@@ -152,12 +161,14 @@ def test_batch_prediction_regression_consistency():
             "previous_failures": 1,
             "preferred_method": "CARD",
             "customer_value": "STANDARD",
-            "bank": "HDFC Bank"
+            "bank": "HDFC Bank",
+            "hour_of_day": 14,
+            "day_of_week": 2
         }
     ]
     batch_res = engine.predict_batch(records)
     assert len(batch_res) == 2
     assert batch_res[0]["recommended_action"] in ["UPI_SWITCH", "PAYMENT_LINK"]
     assert batch_res[1]["recommended_action"] == "PAYMENT_LINK"
-    assert pytest.approx(batch_res[0]["recovery_probability"], abs=0.01) == 0.905
-    assert pytest.approx(batch_res[1]["recovery_probability"], abs=0.01) == 0.784
+    assert pytest.approx(batch_res[0]["recovery_probability"], abs=0.01) == 0.9052
+    assert pytest.approx(batch_res[1]["recovery_probability"], abs=0.01) == 0.7835

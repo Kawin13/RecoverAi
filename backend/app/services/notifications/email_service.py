@@ -509,29 +509,39 @@ class EmailService:
         ):
             import re
             m = re.search(r"\(([^)]+@[^)]+)\)", send_res.error_message)
-            verified_owner = m.group(1) if m else (settings.get_primary_test_recipient() or "kawindharma@gmail.com")
+            verified_owner = m.group(1) if m else None  # Never hardcode — only use what Resend tells us
             if verified_owner and verified_owner.lower() != actual_dispatch_to.lower():
                 logger.warning(
-                    f"[EmailService] Resend sandbox restriction: destination '{actual_dispatch_to}' redirected "
-                    f"to verified owner '{verified_owner}'."
+                    f"[EmailService] Resend sandbox restriction: '{actual_dispatch_to}' redirected to "
+                    f"verified Resend account owner '{verified_owner}'. "
+                    f"Verify a custom domain at resend.com/domains to send to any recipient."
                 )
                 sandbox_banner_html = (
-                    f'<div style="background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; '
-                    f'padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 13px; '
+                    f'<div style="background-color: #fef3c7; border: 2px solid #f59e0b; color: #92400e; '
+                    f'padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; '
                     f'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;">'
-                    f'<strong>⚠️ Resend Sandbox Notice:</strong> This email was addressed to '
-                    f'<code>{cleaned_recipient}</code>. Because <code>onboarding@resend.dev</code> only permits '
-                    f'delivery to your verified account owner, it was routed to <code>{verified_owner}</code>. '
-                    f'To send to any recipient, verify your domain at <strong>resend.com/domains</strong>.'
+                    f'<strong>⚠️ Resend Sandbox — Delivery Redirected</strong><br><br>'
+                    f'This recovery email was <strong>originally addressed to: '
+                    f'<code>{cleaned_recipient}</code></strong>.<br><br>'
+                    f'Because <code>onboarding@resend.dev</code> is a shared Resend test domain, it can only '
+                    f'deliver to your Resend account owner (<code>{verified_owner}</code>).<br><br>'
+                    f'<strong>To send to any customer email, verify a custom domain at '
+                    f'<a href="https://resend.com/domains" style="color:#92400e;">resend.com/domains</a>.</strong>'
                     f'</div>'
                 )
                 sandbox_banner_text = (
-                    f"[RESEND SANDBOX NOTICE: Originally addressed to {cleaned_recipient}. Delivered to {verified_owner} "
-                    f"due to Resend sandbox restrictions. Verify a custom domain at resend.com/domains to send to any address]\n\n"
+                    f"=== RESEND SANDBOX DELIVERY NOTICE ===\n"
+                    f"ORIGINALLY ADDRESSED TO: {cleaned_recipient}\n"
+                    f"DELIVERED TO: {verified_owner} (Resend account owner)\n"
+                    f"REASON: onboarding@resend.dev can only deliver to the Resend account owner.\n"
+                    f"FIX: Verify a custom domain at resend.com/domains to send to any recipient.\n"
+                    f"========================================\n\n"
                 )
+                # Prefix subject so it's instantly clear who this was intended for
+                sandboxed_subject = f"[INTENDED FOR: {cleaned_recipient}] {subject}"
                 retry_res = resend_adapter.send_sync(
                     to=verified_owner,
-                    subject=subject,
+                    subject=sandboxed_subject,
                     html_content=sandbox_banner_html + html_body,
                     text_content=sandbox_banner_text + text_body
                 )
@@ -544,7 +554,7 @@ class EmailService:
                         "was_redirected": True,
                         "actual_dispatch_to": verified_owner,
                         "original_recipient": cleaned_recipient,
-                        "sandbox_notice": "Delivered to verified owner due to Resend sandbox unverified domain policy."
+                        "sandbox_notice": f"Resend sandbox: onboarding@resend.dev can only deliver to account owner. Verify domain at resend.com/domains to send to any recipient."
                     })
 
         # 7. Update status based on provider acceptance
