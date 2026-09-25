@@ -51,8 +51,21 @@ services:
         value: "false"
       - key: EMAIL_TEST_RECIPIENTS
         sync: false
+      # Gmail SMTP Fallback (set in Render dashboard to send to ANY recipient)
+      - key: SMTP_HOST
+        value: "smtp.gmail.com"
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_ADDRESS
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"
 
-  # 2. RecoverAI Autonomous Background Recovery Worker
+
   - type: worker
     name: recoverai-worker
     runtime: python
@@ -101,3 +114,16 @@ services:
         value: "false"
       - key: EMAIL_TEST_RECIPIENTS
         sync: false
+      # Gmail SMTP Fallback (set in Render dashboard to send to ANY recipient)
+      - key: SMTP_HOST
+        value: "smtp.gmail.com"
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_ADDRESS
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"

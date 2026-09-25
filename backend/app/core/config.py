@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     EMAIL_TEST_RECIPIENTS: str = ""
     EMAIL_AUTO_REDIRECT_DEMO: bool = False
 
+    # SMTP Fallback (Gmail SMTP or any SMTP server)
+    # When configured, used as fallback when Resend sandbox blocks delivery to non-owner emails.
+    # Gmail setup: enable 2FA, create App Password at myaccount.google.com/apppasswords
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""  # Gmail address (e.g. yourname@gmail.com)
+    SMTP_PASSWORD: str = ""  # Gmail App Password (16 chars, no spaces)
+    SMTP_FROM_ADDRESS: str = ""  # Defaults to SMTP_USERNAME if blank
+    SMTP_USE_TLS: bool = True
+
     model_config = SettingsConfigDict(
         env_file=[backend_env, root_env, ".env"],
         env_file_encoding="utf-8",

@@ -501,61 +501,93 @@ class EmailService:
             text_content=text_body
         )
 
-        # Sandbox Fallback: If Resend rejects because destination is restricted to account owner on onboarding@resend.dev
+        # Sandbox Fallback: Resend's onboarding@resend.dev can only deliver to the account owner.
+        # Fix order:
+        #   1. If SMTP is configured -> send directly to the intended recipient via SMTP (any address)
+        #   2. If SMTP not configured -> redirect to Resend account owner with a clear notice banner
         if (
             not send_res.success
             and send_res.error_message
             and "only send testing emails to your own email address" in send_res.error_message
         ):
-            import re
-            m = re.search(r"\(([^)]+@[^)]+)\)", send_res.error_message)
-            verified_owner = m.group(1) if m else None  # Never hardcode — only use what Resend tells us
-            if verified_owner and verified_owner.lower() != actual_dispatch_to.lower():
-                logger.warning(
-                    f"[EmailService] Resend sandbox restriction: '{actual_dispatch_to}' redirected to "
-                    f"verified Resend account owner '{verified_owner}'. "
-                    f"Verify a custom domain at resend.com/domains to send to any recipient."
+            from app.services.notifications.smtp_adapter import smtp_adapter as _smtp
+
+            if _smtp.is_configured:
+                # SMTP path: deliver directly to the actual intended recipient
+                logger.info(
+                    f"[EmailService] Resend sandbox blocked '{actual_dispatch_to}'. "
+                    f"Attempting SMTP delivery to intended recipient."
                 )
-                sandbox_banner_html = (
-                    f'<div style="background-color: #fef3c7; border: 2px solid #f59e0b; color: #92400e; '
-                    f'padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; '
-                    f'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;">'
-                    f'<strong>⚠️ Resend Sandbox — Delivery Redirected</strong><br><br>'
-                    f'This recovery email was <strong>originally addressed to: '
-                    f'<code>{cleaned_recipient}</code></strong>.<br><br>'
-                    f'Because <code>onboarding@resend.dev</code> is a shared Resend test domain, it can only '
-                    f'deliver to your Resend account owner (<code>{verified_owner}</code>).<br><br>'
-                    f'<strong>To send to any customer email, verify a custom domain at '
-                    f'<a href="https://resend.com/domains" style="color:#92400e;">resend.com/domains</a>.</strong>'
-                    f'</div>'
+                smtp_res = _smtp.send_sync(
+                    to=actual_dispatch_to,
+                    subject=subject,
+                    html_content=html_body,
+                    text_content=text_body
                 )
-                sandbox_banner_text = (
-                    f"=== RESEND SANDBOX DELIVERY NOTICE ===\n"
-                    f"ORIGINALLY ADDRESSED TO: {cleaned_recipient}\n"
-                    f"DELIVERED TO: {verified_owner} (Resend account owner)\n"
-                    f"REASON: onboarding@resend.dev can only deliver to the Resend account owner.\n"
-                    f"FIX: Verify a custom domain at resend.com/domains to send to any recipient.\n"
-                    f"========================================\n\n"
-                )
-                # Prefix subject so it's instantly clear who this was intended for
-                sandboxed_subject = f"[INTENDED FOR: {cleaned_recipient}] {subject}"
-                retry_res = resend_adapter.send_sync(
-                    to=verified_owner,
-                    subject=sandboxed_subject,
-                    html_content=sandbox_banner_html + html_body,
-                    text_content=sandbox_banner_text + text_body
-                )
-                if retry_res.success:
-                    send_res = retry_res
-                    was_redirected = True
-                    original_intended_recipient = cleaned_recipient
-                    actual_dispatch_to = verified_owner
+                if smtp_res.success:
+                    send_res = smtp_res
                     msg.metadata_json = json.dumps({
-                        "was_redirected": True,
-                        "actual_dispatch_to": verified_owner,
-                        "original_recipient": cleaned_recipient,
-                        "sandbox_notice": f"Resend sandbox: onboarding@resend.dev can only deliver to account owner. Verify domain at resend.com/domains to send to any recipient."
+                        "provider_fallback": "smtp",
+                        "reason": "Resend sandbox restriction bypassed via SMTP"
                     })
+                    logger.info(f"[EmailService] SMTP fallback succeeded -> '{actual_dispatch_to}'")
+                else:
+                    logger.warning(
+                        f"[EmailService] SMTP fallback also failed for '{actual_dispatch_to}': {smtp_res.error_message}"
+                    )
+            else:
+                # No SMTP configured - redirect to Resend account owner with clear notice
+                import re
+                m = re.search(r"\(([^)]+@[^)]+)\)", send_res.error_message)
+                verified_owner = m.group(1) if m else None  # Never hardcode - only use what Resend tells us
+                if verified_owner and verified_owner.lower() != actual_dispatch_to.lower():
+                    logger.warning(
+                        f"[EmailService] Resend sandbox restriction: '{actual_dispatch_to}' redirected to "
+                        f"Resend account owner '{verified_owner}'. "
+                        f"Configure SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD to send to any recipient."
+                    )
+                    sandbox_banner_html = (
+                        f'<div style="background-color: #fef3c7; border: 2px solid #f59e0b; color: #92400e; '
+                        f'padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; '
+                        f'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;">'
+                        f'<strong>WARNING: Resend Sandbox - Delivery Redirected</strong><br><br>'
+                        f'This recovery email was <strong>originally addressed to: '
+                        f'<code>{cleaned_recipient}</code></strong>.<br><br>'
+                        f'Because <code>onboarding@resend.dev</code> is a shared Resend test domain, it can only '
+                        f'deliver to your Resend account owner (<code>{verified_owner}</code>).<br><br>'
+                        f'<strong>To send to any customer email, configure Gmail SMTP in Render env vars:<br>'
+                        f'&nbsp;SMTP_HOST=smtp.gmail.com<br>'
+                        f'&nbsp;SMTP_USERNAME=yourname@gmail.com<br>'
+                        f'&nbsp;SMTP_PASSWORD=your-app-password</strong>'
+                        f'</div>'
+                    )
+                    sandbox_banner_text = (
+                        f"=== RESEND SANDBOX DELIVERY NOTICE ===\n"
+                        f"ORIGINALLY ADDRESSED TO: {cleaned_recipient}\n"
+                        f"DELIVERED TO: {verified_owner} (Resend account owner)\n"
+                        f"REASON: onboarding@resend.dev can only deliver to the Resend account owner.\n"
+                        f"FIX: Set SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD in env vars to send to any recipient.\n"
+                        f"========================================\n\n"
+                    )
+                    sandboxed_subject = f"[INTENDED FOR: {cleaned_recipient}] {subject}"
+                    retry_res = resend_adapter.send_sync(
+                        to=verified_owner,
+                        subject=sandboxed_subject,
+                        html_content=sandbox_banner_html + html_body,
+                        text_content=sandbox_banner_text + text_body
+                    )
+                    if retry_res.success:
+                        send_res = retry_res
+                        was_redirected = True
+                        original_intended_recipient = cleaned_recipient
+                        actual_dispatch_to = verified_owner
+                        msg.metadata_json = json.dumps({
+                            "was_redirected": True,
+                            "actual_dispatch_to": verified_owner,
+                            "original_recipient": cleaned_recipient,
+                            "sandbox_notice": "Resend sandbox: configure SMTP to send to any recipient.",
+                            "fix": "Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in environment variables."
+                        })
 
         # 7. Update status based on provider acceptance
         if send_res.success:
