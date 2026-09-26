@@ -51,17 +51,17 @@ services:
         value: "false"
       - key: EMAIL_TEST_RECIPIENTS
         sync: false
-      # Gmail SMTP Fallback (set in Render dashboard to send to ANY recipient)
+      # Gmail SMTP Fallback (delivers directly to ANY customer email)
       - key: SMTP_HOST
         value: "smtp.gmail.com"
       - key: SMTP_PORT
         value: "587"
       - key: SMTP_USERNAME
-        sync: false
+        value: "kawindharmaraj@gmail.com"
       - key: SMTP_PASSWORD
-        sync: false
+        value: "vttz ioyt ceob rvcq"
       - key: SMTP_FROM_ADDRESS
-        sync: false
+        value: "RecoverAI <kawindharmaraj@gmail.com>"
       - key: SMTP_USE_TLS
         value: "true"
 
@@ -114,16 +114,16 @@ services:
         value: "false"
       - key: EMAIL_TEST_RECIPIENTS
         sync: false
-      # Gmail SMTP Fallback (set in Render dashboard to send to ANY recipient)
+      # Gmail SMTP Fallback (delivers directly to ANY customer email)
       - key: SMTP_HOST
         value: "smtp.gmail.com"
       - key: SMTP_PORT
         value: "587"
       - key: SMTP_USERNAME
-        sync: false
+        value: "kawindharmaraj@gmail.com"
       - key: SMTP_PASSWORD
-        sync: false
+        value: "vttz ioyt ceob rvcq"
       - key: SMTP_FROM_ADDRESS
-        sync: false
+        value: "RecoverAI <kawindharmaraj@gmail.com>"
       - key: SMTP_USE_TLS
         value: "true"

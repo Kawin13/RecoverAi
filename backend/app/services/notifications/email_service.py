@@ -490,7 +490,7 @@ class EmailService:
             metadata={"message_id": message_id, "template_type": template_type}
         )
 
-        # 6. Dispatch to Resend Provider
+        # 6. Dispatch to Primary Provider (Resend)
         msg.status = NotificationStatus.SENDING.value
         db.commit()
 
@@ -505,11 +505,13 @@ class EmailService:
         # Fix order:
         #   1. If SMTP is configured -> send directly to the intended recipient via SMTP (any address)
         #   2. If SMTP not configured -> redirect to Resend account owner with a clear notice banner
-        if (
-            not send_res.success
-            and send_res.error_message
-            and "only send testing emails to your own email address" in send_res.error_message
-        ):
+        err_msg_lower = (send_res.error_message or "").lower()
+        is_sandbox_error = not send_res.success and (
+            "only send testing emails" in err_msg_lower
+            or "testing emails to your own" in err_msg_lower
+        )
+
+        if is_sandbox_error:
             from app.services.notifications.smtp_adapter import smtp_adapter as _smtp
 
             if _smtp.is_configured:
