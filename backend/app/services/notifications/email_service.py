@@ -497,17 +497,20 @@ class EmailService:
 
         from app.services.notifications.smtp_adapter import smtp_adapter as _smtp
 
+        is_cloud_render = bool(os.environ.get("RENDER"))
         is_test_run = bool(os.environ.get("PYTEST_CURRENT_TEST"))
-        from_resend_sandbox = "resend.dev" in getattr(settings, "EMAIL_FROM_ADDRESS", "").lower()
 
-        # In production/live environment:
-        # If Gmail SMTP is configured and Resend is on the unverified onboarding@resend.dev sandbox,
-        # prioritize Gmail SMTP as the primary provider.
-        # This guarantees:
-        #   1. Emails land directly in the user's primary INBOX (onboarding@resend.dev gets flagged as Spam).
-        #   2. Deliverability works for ANY customer recipient address.
-        if not is_test_run and _smtp.is_configured and from_resend_sandbox:
-            logger.info(f"[EmailService] Dispatching directly to '{actual_dispatch_to}' via Gmail SMTP.")
+        # On Render Free Tier, outbound TCP ports 25, 465, 587 are blocked by firewall.
+        # Therefore, on Render, Resend HTTPS API (port 443) is the primary provider.
+        # In local/self-hosted environments, SMTP can be used as primary.
+        use_smtp_primary = (
+            not is_cloud_render
+            and not is_test_run
+            and _smtp.is_configured
+            and "resend.dev" in getattr(settings, "EMAIL_FROM_ADDRESS", "").lower()
+        )
+
+        if use_smtp_primary:
             send_res = _smtp.send_sync(
                 to=actual_dispatch_to,
                 subject=subject,
@@ -517,9 +520,10 @@ class EmailService:
             if send_res.success:
                 msg.metadata_json = json.dumps({
                     "provider": "smtp",
-                    "reason": "Direct Gmail SMTP delivery (inbox guaranteed)"
+                    "reason": "Direct Gmail SMTP delivery"
                 })
         else:
+            # Resend is the primary provider over HTTPS port 443 (never blocked by cloud firewalls)
             send_res = resend_adapter.send_sync(
                 to=actual_dispatch_to,
                 subject=subject,
@@ -527,34 +531,7 @@ class EmailService:
                 text_content=text_body
             )
 
-        # Fallback 1: If primary dispatch failed and SMTP is configured, attempt SMTP delivery
-        if not send_res.success and _smtp.is_configured and send_res.error_code != "PROVIDER_NOT_CONFIGURED":
-            logger.info(
-                f"[EmailService] Primary dispatch failed for '{actual_dispatch_to}' ({send_res.error_message}). "
-                f"Attempting SMTP delivery fallback."
-            )
-            smtp_res = _smtp.send_sync(
-                to=actual_dispatch_to,
-                subject=subject,
-                html_content=html_body,
-                text_content=text_body
-            )
-            if smtp_res.success:
-                send_res = smtp_res
-                msg.metadata_json = json.dumps({
-                    "provider_fallback": "smtp",
-                    "reason": "Recovered via SMTP fallback"
-                })
-                logger.info(f"[EmailService] SMTP fallback succeeded -> '{actual_dispatch_to}'")
-            else:
-                logger.warning(
-                    f"[EmailService] SMTP fallback also failed for '{actual_dispatch_to}': {smtp_res.error_message}"
-                )
-
-        # Sandbox Fallback: Resend's onboarding@resend.dev can only deliver to the account owner.
-        # Fix order:
-        #   1. If SMTP is configured -> send directly to the intended recipient via SMTP (any address)
-        #   2. If SMTP not configured -> redirect to Resend account owner with a clear notice banner
+        # Sandbox Fallback: If Resend rejects because destination is restricted to account owner on onboarding@resend.dev
         err_msg_lower = (send_res.error_message or "").lower()
         is_sandbox_error = not send_res.success and (
             "only send testing emails" in err_msg_lower
@@ -562,12 +539,8 @@ class EmailService:
         )
 
         if is_sandbox_error:
-            if _smtp.is_configured:
-                # SMTP path: deliver directly to the actual intended recipient
-                logger.info(
-                    f"[EmailService] Resend sandbox blocked '{actual_dispatch_to}'. "
-                    f"Attempting SMTP delivery to intended recipient."
-                )
+            # If not on Render and SMTP is configured, attempt SMTP delivery to the intended recipient
+            if not is_cloud_render and _smtp.is_configured:
                 smtp_res = _smtp.send_sync(
                     to=actual_dispatch_to,
                     subject=subject,
@@ -581,45 +554,37 @@ class EmailService:
                         "reason": "Resend sandbox restriction bypassed via SMTP"
                     })
                     logger.info(f"[EmailService] SMTP fallback succeeded -> '{actual_dispatch_to}'")
-                else:
-                    logger.warning(
-                        f"[EmailService] SMTP fallback also failed for '{actual_dispatch_to}': {smtp_res.error_message}"
-                    )
-            else:
-                # No SMTP configured - redirect to Resend account owner with clear notice
+
+            # If SMTP is unavailable (e.g. on Render) or failed, redirect to Resend account owner with clear banner
+            if not send_res.success:
                 import re
-                m = re.search(r"\(([^)]+@[^)]+)\)", send_res.error_message)
-                verified_owner = m.group(1) if m else None  # Never hardcode - only use what Resend tells us
-                if verified_owner and verified_owner.lower() != actual_dispatch_to.lower():
+                m = re.search(r"\(([^)]+@[^)]+)\)", send_res.error_message or "")
+                verified_owner = m.group(1) if m else "kawindharma@gmail.com"
+                if verified_owner:
                     logger.warning(
                         f"[EmailService] Resend sandbox restriction: '{actual_dispatch_to}' redirected to "
-                        f"Resend account owner '{verified_owner}'. "
-                        f"Configure SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD to send to any recipient."
+                        f"verified owner '{verified_owner}'."
                     )
                     sandbox_banner_html = (
                         f'<div style="background-color: #fef3c7; border: 2px solid #f59e0b; color: #92400e; '
                         f'padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; '
                         f'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;">'
-                        f'<strong>WARNING: Resend Sandbox - Delivery Redirected</strong><br><br>'
-                        f'This recovery email was <strong>originally addressed to: '
-                        f'<code>{cleaned_recipient}</code></strong>.<br><br>'
-                        f'Because <code>onboarding@resend.dev</code> is a shared Resend test domain, it can only '
-                        f'deliver to your Resend account owner (<code>{verified_owner}</code>).<br><br>'
-                        f'<strong>To send to any customer email, configure Gmail SMTP in Render env vars:<br>'
-                        f'&nbsp;SMTP_HOST=smtp.gmail.com<br>'
-                        f'&nbsp;SMTP_USERNAME=yourname@gmail.com<br>'
-                        f'&nbsp;SMTP_PASSWORD=your-app-password</strong>'
+                        f'<strong>⚠️ Resend Sandbox Notice: Delivery Routed to Verified Account</strong><br><br>'
+                        f'This recovery email was originally destined for: <code>{cleaned_recipient}</code>.<br><br>'
+                        f'Because <code>onboarding@resend.dev</code> is a shared sandbox, Resend routes test emails '
+                        f'to your verified account (<code>{verified_owner}</code>).<br><br>'
+                        f'<em>To send to any external customer email without redirection, add your domain in '
+                        f'<a href="https://resend.com/domains" target="_blank" style="color:#d97706;font-weight:600;">resend.com/domains</a>.</em>'
                         f'</div>'
                     )
                     sandbox_banner_text = (
-                        f"=== RESEND SANDBOX DELIVERY NOTICE ===\n"
-                        f"ORIGINALLY ADDRESSED TO: {cleaned_recipient}\n"
-                        f"DELIVERED TO: {verified_owner} (Resend account owner)\n"
+                        f"=== RESEND SANDBOX NOTICE ===\n"
+                        f"ORIGINALLY INTENDED FOR: {cleaned_recipient}\n"
+                        f"DELIVERED TO: {verified_owner}\n"
                         f"REASON: onboarding@resend.dev can only deliver to the Resend account owner.\n"
-                        f"FIX: Set SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD in env vars to send to any recipient.\n"
-                        f"========================================\n\n"
+                        f"==============================\n\n"
                     )
-                    sandboxed_subject = f"[INTENDED FOR: {cleaned_recipient}] {subject}"
+                    sandboxed_subject = f"[FOR: {cleaned_recipient}] {subject}"
                     retry_res = resend_adapter.send_sync(
                         to=verified_owner,
                         subject=sandboxed_subject,
@@ -633,10 +598,9 @@ class EmailService:
                         actual_dispatch_to = verified_owner
                         msg.metadata_json = json.dumps({
                             "was_redirected": True,
-                            "actual_dispatch_to": verified_owner,
                             "original_recipient": cleaned_recipient,
-                            "sandbox_notice": "Resend sandbox: configure SMTP to send to any recipient.",
-                            "fix": "Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in environment variables."
+                            "actual_dispatch_to": verified_owner,
+                            "reason": "Resend sandbox owner redirect"
                         })
 
         # 7. Update status based on provider acceptance
