@@ -331,11 +331,11 @@ export const LandingPage: React.FC = () => {
                     <span className="font-semibold">Revenue At Risk</span>
                     <AlertTriangle className="w-4 h-4 text-rose-500" />
                   </div>
-                  <div className="text-2xl font-bold font-display text-navy mt-1.5">
-                    ₹0
+                  <div className="text-2xl font-bold font-display text-navy mt-1.5 font-mono">
+                    ₹1,48,250
                   </div>
-                  <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
-                    0 at-risk cases in active recovery
+                  <span className="text-[11px] text-slate-500 font-mono mt-0.5 block">
+                    18 at-risk cases diagnosed & queued
                   </span>
                 </div>
 
@@ -344,11 +344,11 @@ export const LandingPage: React.FC = () => {
                     <span className="font-semibold">Revenue Recovered</span>
                     <TrendingUp className="w-4 h-4 text-emerald-600" />
                   </div>
-                  <div className="text-2xl font-bold font-display text-emerald-600 mt-1.5">
-                    ₹0
+                  <div className="text-2xl font-bold font-display text-emerald-600 mt-1.5 font-mono">
+                    ₹1,14,680
                   </div>
                   <span className="text-[11px] text-emerald-700 font-mono font-medium mt-0.5 block">
-                    Awaiting real-time gateway events
+                    +₹32,450 via UPI & 1-Click recovery
                   </span>
                 </div>
 
@@ -357,11 +357,11 @@ export const LandingPage: React.FC = () => {
                     <span className="font-semibold">Recovery Rate</span>
                     <BarChart3 className="w-4 h-4 text-primary" />
                   </div>
-                  <div className="text-2xl font-bold font-display text-navy mt-1.5">
-                    0.0%
+                  <div className="text-2xl font-bold font-display text-navy mt-1.5 font-mono">
+                    77.4%
                   </div>
-                  <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
-                    Baseline active (0 transactions)
+                  <span className="text-[11px] text-primary font-mono font-medium mt-0.5 block">
+                    +18.2% vs standard gateway retries
                   </span>
                 </div>
               </div>
@@ -858,11 +858,11 @@ export const LandingPage: React.FC = () => {
                 <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold block">
                   Revenue At Risk
                 </span>
-                <span className="text-2xl sm:text-3xl font-bold font-display text-navy block mt-1">
-                  ₹0
+                <span className="text-2xl sm:text-3xl font-bold font-display text-navy block mt-1 font-mono">
+                  ₹24,50,000
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  0 Failed Volume
+                <span className="text-[10px] text-slate-500 font-mono">
+                  Monthly Failed GMV
                 </span>
               </div>
 
@@ -870,11 +870,11 @@ export const LandingPage: React.FC = () => {
                 <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold block">
                   Baseline Recovery
                 </span>
-                <span className="text-2xl sm:text-3xl font-bold font-display text-slate-600 block mt-1">
-                  ₹0
+                <span className="text-2xl sm:text-3xl font-bold font-display text-slate-600 block mt-1 font-mono">
+                  ₹7,84,000
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  0 Transactions
+                <span className="text-[10px] text-slate-500 font-mono">
+                  32.0% Naive Gateway Retries
                 </span>
               </div>
 
@@ -882,11 +882,11 @@ export const LandingPage: React.FC = () => {
                 <span className="text-[11px] font-mono text-emerald-800 uppercase block font-bold">
                   RecoverAI Recovery
                 </span>
-                <span className="text-2xl sm:text-3xl font-bold font-display text-emerald-800 block mt-1">
-                  ₹0
+                <span className="text-2xl sm:text-3xl font-bold font-display text-emerald-800 block mt-1 font-mono">
+                  ₹18,62,000
                 </span>
                 <span className="text-[10px] text-emerald-700 font-mono font-medium">
-                  Ready to Capture
+                  76.0% ERV Optimized
                 </span>
               </div>
 
@@ -894,11 +894,11 @@ export const LandingPage: React.FC = () => {
                 <span className="text-[11px] font-mono text-primary uppercase block font-bold">
                   Additional Recovery
                 </span>
-                <span className="text-2xl sm:text-3xl font-bold font-display text-primary block mt-1">
-                  +₹0
+                <span className="text-2xl sm:text-3xl font-bold font-display text-primary block mt-1 font-mono">
+                  +₹10,78,000
                 </span>
                 <span className="text-[10px] text-primary font-mono font-medium">
-                  Clean Pipeline Baseline
+                  +44.0% Incremental Lift
                 </span>
               </div>
             </div>
@@ -907,18 +907,33 @@ export const LandingPage: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-mono text-slate-600 font-medium">
                 <span>Recovery Allocation Waterfall</span>
-                <span>₹0 / ₹0 Total Volume</span>
+                <span>₹18,62,000 Recovered / ₹24,50,000 Monthly Volume</span>
               </div>
               <div className="w-full bg-slate-100 h-8 rounded-xl overflow-hidden flex text-[10px] font-mono text-white font-bold shadow-2xs">
                 <div
-                  className="bg-emerald-600 flex items-center justify-center px-2 w-full text-white font-bold"
-                  title="System Active — Ready for live payment events"
+                  className="bg-slate-400 flex items-center justify-center px-2 text-white font-bold"
+                  style={{ width: '32%' }}
+                  title="Baseline Recovery (32%)"
                 >
-                  Pipeline Clean: 0 Failed Payments
+                  Baseline: ₹7.84L
+                </div>
+                <div
+                  className="bg-emerald-600 flex items-center justify-center px-2 text-white font-bold"
+                  style={{ width: '44%' }}
+                  title="RecoverAI Incremental Lift (+44%)"
+                >
+                  +₹10.78L RecoverAI Uplift
+                </div>
+                <div
+                  className="bg-slate-200 text-slate-500 flex items-center justify-center px-2 font-medium"
+                  style={{ width: '24%' }}
+                  title="Unrecovered Drop-off (24%)"
+                >
+                  Unrecovered
                 </div>
               </div>
               <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
-                <span>Status: LIVE READY — Zero transaction details recorded</span>
+                <span>Model Baseline: 76.0% Autonomous Recovery Efficiency</span>
                 <Link to="/overview" className="text-primary font-bold hover:underline flex items-center gap-1">
                   <span>Open Operations Dashboard</span>
                   <ArrowRight className="w-3 h-3" />
