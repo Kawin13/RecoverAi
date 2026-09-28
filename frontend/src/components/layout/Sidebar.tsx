@@ -108,6 +108,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     }
   }, [loadAtRiskCount, subscribe])
 
+  // Lock body scroll only when mobile sidebar drawer is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
+    }
+  }, [isOpen])
+
   const atRiskBadge = atRiskCount !== null
     ? (atRiskCount > 999 ? '999+' : atRiskCount > 0 ? String(atRiskCount) : undefined)
     : undefined
@@ -173,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
 
       <aside
         className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-surface text-navy border-r border-border flex flex-col transition-transform duration-normal ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          isOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none lg:pointer-events-auto'
         }`}
       >
         {/* Brand Header */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Transaction } from '../../types'
 import { MoneyValue } from './MoneyValue'
 import { StatusBadge } from './StatusBadge'
@@ -53,6 +53,26 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   const [selectedLang, setSelectedLang] = useState<string>('EN')
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false)
   const [copiedMessage, setCopiedMessage] = useState<boolean>(false)
+
+  // Prevent background scroll and allow closing with Escape
+  useEffect(() => {
+    if (selectedTx) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setSelectedTx(null)
+        }
+      }
+      window.addEventListener('keydown', handleKeyDown)
+
+      return () => {
+        document.body.style.overflow = originalOverflow
+        window.removeEventListener('keydown', handleKeyDown)
+      }
+    }
+  }, [selectedTx])
 
   const getMethodIcon = (method: Transaction['method']) => {
     switch (method) {
@@ -346,34 +366,39 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       {/* Decision Intelligence Drawer */}
       {selectedTx && (
         <div 
-          className="fixed inset-0 z-50 bg-navy/50 backdrop-blur-sm flex items-center justify-end animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-navy/60 backdrop-blur-sm flex justify-end items-stretch animate-in fade-in duration-200 overscroll-contain"
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-tx-title"
+          onClick={() => setSelectedTx(null)}
         >
-          <div className="w-full max-w-2xl h-full bg-surface sm:rounded-l-3xl border-l border-border shadow-fintech-modal p-6 sm:p-8 overflow-y-auto flex flex-col justify-between">
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-border">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <h3 id="modal-tx-title" className="text-lg font-bold text-navy font-display">
-                      {selectedTx.orderId}
-                    </h3>
-                    <StatusBadge status={selectedTx.status} />
-                  </div>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">ID: {selectedTx.id}</p>
+          <div 
+            className="w-full max-w-2xl h-full max-h-[100dvh] bg-surface sm:rounded-l-3xl border-l border-border shadow-fintech-modal flex flex-col overflow-hidden animate-in slide-in-from-right-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Pinned Sticky Header */}
+            <div className="flex-shrink-0 px-5 py-4 sm:px-8 sm:py-5 border-b border-border bg-surface/95 backdrop-blur-sm flex items-center justify-between z-10">
+              <div className="min-w-0 pr-3">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 id="modal-tx-title" className="text-base sm:text-lg font-bold text-navy font-display truncate">
+                    {selectedTx.orderId}
+                  </h3>
+                  <StatusBadge status={selectedTx.status} />
                 </div>
-                <button
-                  type="button"
-                  aria-label="Close transaction details drawer"
-                  onClick={() => setSelectedTx(null)}
-                  className="p-2 text-slate-400 hover:text-navy rounded-xl hover:bg-slate-100 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <p className="text-[11px] sm:text-xs text-slate-500 font-mono mt-0.5 truncate">ID: {selectedTx.id}</p>
               </div>
+              <button
+                type="button"
+                aria-label="Close transaction details drawer"
+                onClick={() => setSelectedTx(null)}
+                className="p-2 text-slate-400 hover:text-navy rounded-xl hover:bg-slate-100 transition-colors flex-shrink-0 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
+            {/* Scrollable Body Content */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8 space-y-6 [touch-action:pan-y] -webkit-overflow-scrolling-touch min-h-0">
               {/* Financial Snapshot & Distinct Probability Metrics */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-border">
@@ -431,7 +456,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 </div>
               ) : analysis?.diagnosis ? (
                 <div className="p-4 bg-surface border border-border rounded-2xl space-y-2 text-xs shadow-2xs">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="font-bold text-navy uppercase text-[11px] tracking-wider flex items-center gap-1.5">
                       <span>Failure Diagnosis</span>
                       {analysis.diagnosis.human_readable_reason && (
@@ -450,7 +475,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 </div>
               ) : (
                 <div className="p-4 bg-surface border border-border rounded-2xl space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="font-bold text-navy uppercase text-[11px] tracking-wider flex items-center gap-1.5">
                       <span>Failure Diagnosis</span>
                       {selectedTx.failureReason && (
@@ -471,7 +496,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
               {/* Strategy Comparison Table */}
               <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h4 className="font-bold text-navy text-xs flex items-center gap-2 font-display">
                     <Cpu className="w-4 h-4 text-primary" />
                     <span>Strategy Comparison & ERV Ranking</span>
@@ -495,66 +520,132 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     <p className="text-xs text-slate-600 font-medium">Simulating candidate recovery actions...</p>
                   </div>
                 ) : (
-                  <div className="border border-border/80 rounded-2xl overflow-hidden shadow-2xs">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 border-b border-border text-slate-500 font-semibold text-[10px] uppercase">
-                        <tr>
-                          <th className="p-3">Candidate Strategy</th>
-                          <th className="p-3">Likelihood</th>
-                          <th className="p-3">Cost</th>
-                          <th className="p-3">Net ERV</th>
-                          <th className="p-3 text-right">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60 font-mono text-[11px]">
-                        {(analysis?.strategies_comparison || []).map((s) => {
-                          const isSelected = s.action === analysis?.selected_action || s.action_code === analysis?.selected_action
-                          const displayName = s.display_name || s.action.replace(/_/g, ' ')
-                          return (
-                            <tr
-                              key={s.action}
-                              className={`transition-colors ${
-                                isSelected ? 'bg-primary-subtle/80 font-medium' : 'hover:bg-slate-50/60'
-                              } ${!s.allowed ? 'opacity-60 bg-slate-50/40' : ''}`}
-                            >
-                              <td className="p-3 font-sans">
-                                <div className="flex items-center gap-2">
-                                  {isSelected && <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />}
-                                  <span className={isSelected ? 'font-bold text-primary' : 'text-navy font-medium'}>
-                                    {displayName}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="p-3 font-bold">
-                                {(s.probability * 100).toFixed(1)}%
-                              </td>
-                              <td className="p-3 text-slate-500">
-                                ₹{s.cost.toFixed(2)}
-                              </td>
-                              <td className="p-3 font-bold text-emerald-600">
-                                <MoneyValue amount={s.expected_recovery_value} />
-                              </td>
-                              <td className="p-3 text-right">
+                  <>
+                    {/* Mobile Strategy Cards (< sm screens) - 100% visible status with zero horizontal overflow */}
+                    <div className="sm:hidden space-y-2.5">
+                      {(analysis?.strategies_comparison || []).map((s) => {
+                        const isSelected = s.action === analysis?.selected_action || s.action_code === analysis?.selected_action
+                        const displayName = s.display_name || s.action.replace(/_/g, ' ')
+                        return (
+                          <div
+                            key={s.action}
+                            className={`p-3 rounded-xl border transition-all ${
+                              isSelected
+                                ? 'bg-primary-subtle/90 border-primary/40 shadow-xs ring-1 ring-primary/20'
+                                : !s.allowed
+                                ? 'bg-slate-50/60 border-border opacity-70'
+                                : 'bg-surface border-border hover:bg-slate-50/70'
+                            }`}
+                          >
+                            {/* Strategy Name & Always Visible Status Badge */}
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {isSelected && <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                <span className={`text-xs truncate ${isSelected ? 'font-bold text-primary' : 'text-navy font-semibold'}`}>
+                                  {displayName}
+                                </span>
+                              </div>
+                              <div className="shrink-0">
                                 {isSelected ? (
                                   <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-primary text-white font-sans font-bold shadow-2xs">
                                     #1 Pick
                                   </span>
                                 ) : s.allowed ? (
-                                  <span className="text-[10px] text-slate-400 font-sans">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 border border-slate-200 font-sans">
                                     Alternative
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] text-rose-600 font-sans font-medium" title={s.guardrail_reason}>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-50 text-rose-700 border border-rose-200 font-sans font-medium" title={s.guardrail_reason}>
                                     Gated
                                   </span>
                                 )}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </div>
+                            </div>
+
+                            {/* Strategy Metrics Grid */}
+                            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-[11px] font-mono">
+                              <div>
+                                <span className="text-[9px] text-slate-400 block font-sans uppercase">Likelihood</span>
+                                <span className="font-bold text-navy">{(s.probability * 100).toFixed(1)}%</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-slate-400 block font-sans uppercase">Cost</span>
+                                <span className="text-slate-600">₹{s.cost.toFixed(2)}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[9px] text-slate-400 block font-sans uppercase">Net ERV</span>
+                                <span className="font-bold text-emerald-600">
+                                  <MoneyValue amount={s.expected_recovery_value} />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Desktop Strategy Comparison Table (sm: and above) */}
+                    <div className="hidden sm:block border border-border/80 rounded-2xl overflow-x-auto shadow-2xs overscroll-x-contain">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-border text-slate-500 font-semibold text-[10px] uppercase">
+                          <tr>
+                            <th className="p-3 whitespace-nowrap">Candidate Strategy</th>
+                            <th className="p-3 whitespace-nowrap">Likelihood</th>
+                            <th className="p-3 whitespace-nowrap">Cost</th>
+                            <th className="p-3 whitespace-nowrap">Net ERV</th>
+                            <th className="p-3 text-right whitespace-nowrap">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60 font-mono text-[11px]">
+                          {(analysis?.strategies_comparison || []).map((s) => {
+                            const isSelected = s.action === analysis?.selected_action || s.action_code === analysis?.selected_action
+                            const displayName = s.display_name || s.action.replace(/_/g, ' ')
+                            return (
+                              <tr
+                                key={s.action}
+                                className={`transition-colors ${
+                                  isSelected ? 'bg-primary-subtle/80 font-medium' : 'hover:bg-slate-50/60'
+                                } ${!s.allowed ? 'opacity-60 bg-slate-50/40' : ''}`}
+                              >
+                                <td className="p-3 font-sans whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    {isSelected && <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                    <span className={isSelected ? 'font-bold text-primary' : 'text-navy font-medium'}>
+                                      {displayName}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="p-3 font-bold whitespace-nowrap">
+                                  {(s.probability * 100).toFixed(1)}%
+                                </td>
+                                <td className="p-3 text-slate-500 whitespace-nowrap">
+                                  ₹{s.cost.toFixed(2)}
+                                </td>
+                                <td className="p-3 font-bold text-emerald-600 whitespace-nowrap">
+                                  <MoneyValue amount={s.expected_recovery_value} />
+                                </td>
+                                <td className="p-3 text-right whitespace-nowrap">
+                                  {isSelected ? (
+                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-primary text-white font-sans font-bold shadow-2xs">
+                                      #1 Pick
+                                    </span>
+                                  ) : s.allowed ? (
+                                    <span className="text-[10px] text-slate-400 font-sans">
+                                      Alternative
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-rose-600 font-sans font-medium" title={s.guardrail_reason}>
+                                      Gated
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -569,7 +660,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     {analysis.evidence.map((ev, idx) => (
                       <li key={idx} className="flex items-start gap-2 leading-relaxed">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                        <span>{ev}</span>
+                        <span className="break-words">{ev}</span>
                       </li>
                     ))}
                   </ul>
@@ -600,14 +691,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
                 {/* Multi-Lingual Customer Message Preview */}
                 <div className="space-y-2.5 pt-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <span className="text-[11px] font-bold text-navy uppercase tracking-wider flex items-center gap-1.5">
                       <Globe className="w-3.5 h-3.5 text-slate-500" />
                       <span>Customer Message Preview</span>
                     </span>
 
                     {/* Language Selector */}
-                    <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-border text-[11px]">
+                    <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-border text-[11px] overflow-x-auto max-w-full">
                       {[
                         { code: 'EN', label: 'English' },
                         { code: 'HI', label: 'हिन्दी' },
@@ -618,7 +709,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                           key={lang.code}
                           type="button"
                           onClick={() => handleLanguageChange(lang.code)}
-                          className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+                          className={`px-2.5 py-1 rounded-lg font-semibold transition-all whitespace-nowrap ${
                             selectedLang === lang.code
                               ? 'bg-white text-primary shadow-xs font-bold'
                               : 'text-slate-500 hover:text-navy'
@@ -657,7 +748,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         {aiMessage.message_body}
                       </p>
 
-                      <div className="flex items-center justify-between pt-2.5 border-t border-navy-light/60 text-[10px] text-slate-400">
+                      <div className="flex items-center justify-between pt-2.5 border-t border-navy-light/60 text-[10px] text-slate-400 flex-wrap gap-2">
                         <span>Action CTA: <strong className="text-white font-semibold">{aiMessage.call_to_action}</strong></span>
                         <span className="text-primary-light font-medium">Channel: {aiMessage.channel_recommended}</span>
                       </div>
@@ -671,12 +762,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               </div>
             </div>
 
-            {/* Actions Footer */}
-            <div className="pt-5 border-t border-border flex items-center gap-3 justify-end mt-6">
+            {/* Pinned Sticky Actions Footer */}
+            <div className="flex-shrink-0 px-5 py-3.5 sm:px-8 sm:py-4 border-t border-border bg-surface/95 backdrop-blur-sm flex items-center gap-3 justify-end z-10">
               <button
                 type="button"
                 onClick={() => setSelectedTx(null)}
-                className="px-4 py-2.5 border border-border rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="px-4 py-2 sm:py-2.5 border border-border rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Dismiss
               </button>
@@ -686,7 +777,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                   alert(`Autonomous recovery strategy "${selectedStrategyDisplayName}" successfully executed for ${selectedTx.orderId}!`)
                   setSelectedTx(null)
                 }}
-                className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+                className="px-4 sm:px-5 py-2 sm:py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-fintech-purple focus-visible:ring-2 focus-visible:ring-primary cursor-pointer truncate max-w-[240px] sm:max-w-none"
               >
                 Execute {selectedStrategyDisplayName}
               </button>
