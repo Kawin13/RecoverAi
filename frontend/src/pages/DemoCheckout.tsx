@@ -511,6 +511,7 @@ export const DemoCheckout: React.FC = () => {
     setErrorMsg(null)
     try {
       const instrumentDetails = getInstrumentDetails()
+      const targetRecoveryCase = recoveryCaseParam || resolvedRecoveryCaseId || undefined
       const orderData = await api.createPaymentOrder({
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
@@ -521,7 +522,9 @@ export const DemoCheckout: React.FC = () => {
         customer_phone: customerPhone,
         method: selectedMethod,
         payment_instrument_details: instrumentDetails,
-        session_id: activeSessionId || undefined
+        session_id: activeSessionId || undefined,
+        recovery_case_id: targetRecoveryCase,
+        original_order_id: orderIdParam || undefined
       })
 
       const simRes = await api.simulatePayment({
@@ -529,7 +532,8 @@ export const DemoCheckout: React.FC = () => {
         order_id: orderData.order_id,
         action: 'SUCCESS',
         method: selectedMethod,
-        payment_instrument_details: instrumentDetails
+        payment_instrument_details: instrumentDetails,
+        recovery_case_id: targetRecoveryCase
       })
 
       if (activeSessionId) {
@@ -673,6 +677,7 @@ export const DemoCheckout: React.FC = () => {
       }
 
       const instrumentDetails = getInstrumentDetails()
+      const targetRecoveryCase = recoveryCaseParam || resolvedRecoveryCaseId || undefined
 
       const orderData: CreateOrderResponse = await api.createPaymentOrder({
         product_id: selectedProduct.id,
@@ -684,7 +689,9 @@ export const DemoCheckout: React.FC = () => {
         customer_phone: customerPhone,
         method: selectedMethod,
         payment_instrument_details: instrumentDetails,
-        session_id: activeSessionId || undefined
+        session_id: activeSessionId || undefined,
+        recovery_case_id: targetRecoveryCase,
+        original_order_id: orderIdParam || undefined
       })
 
       if (orderData.session_id) {
@@ -794,13 +801,15 @@ export const DemoCheckout: React.FC = () => {
                 order_id: orderData.order_id,
                 error_code: 'CHECKOUT_DISMISSED',
                 error_description: 'Customer closed Razorpay checkout modal before completing transaction.',
-                error_category: 'ABANDONMENT'
+                error_category: 'ABANDONMENT',
+                recovery_case_id: targetRecoveryCase
               }).catch(() => {})
               setFailureResult({
                 transaction_id: orderData.transaction_id,
                 order_id: orderData.order_id,
                 error_code: 'CHECKOUT_DISMISSED',
-                error_description: 'Checkout modal was dismissed by customer. Escalated to RecoverAI for cart recovery.'
+                error_description: 'Checkout modal was dismissed by customer. Escalated to RecoverAI for cart recovery.',
+                recovery_case_id: targetRecoveryCase
               })
               setIsLoading(false)
             }
@@ -833,6 +842,7 @@ export const DemoCheckout: React.FC = () => {
     setErrorMsg(null)
 
     const instrumentDetails = getInstrumentDetails()
+    const targetRecoveryCase = recoveryCaseParam || resolvedRecoveryCaseId || undefined
 
     try {
       if (action === 'SUCCESS') {
@@ -841,7 +851,8 @@ export const DemoCheckout: React.FC = () => {
           order_id: simModalData.orderId,
           action: 'SUCCESS',
           method: simModalData.method,
-          payment_instrument_details: instrumentDetails
+          payment_instrument_details: instrumentDetails,
+          recovery_case_id: targetRecoveryCase
         })
         setShowSimModal(false)
         if (activeSessionId) {
@@ -871,7 +882,8 @@ export const DemoCheckout: React.FC = () => {
           payment_instrument_details: instrumentDetails,
           error_code: reasonObj.code,
           error_description: `${reasonObj.label} encountered on ${simModalData.method} rail.`,
-          error_category: reasonObj.category
+          error_category: reasonObj.category,
+          recovery_case_id: targetRecoveryCase
         })
         setShowSimModal(false)
         if (activeSessionId) {
@@ -900,6 +912,7 @@ export const DemoCheckout: React.FC = () => {
     setFailureResult(null)
 
     try {
+      const targetRecoveryCase = recoveryCaseParam || resolvedRecoveryCaseId || undefined
       const orderData = await api.createPaymentOrder({
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
@@ -909,7 +922,9 @@ export const DemoCheckout: React.FC = () => {
         customer_email: customerEmail,
         customer_phone: customerPhone,
         method: selectedMethod,
-        session_id: activeSessionId || undefined
+        session_id: activeSessionId || undefined,
+        recovery_case_id: targetRecoveryCase,
+        original_order_id: orderIdParam || undefined
       })
 
       const availableReasons = METHOD_FAILURE_REASONS[selectedMethod] || FAILURE_REASONS
@@ -921,7 +936,8 @@ export const DemoCheckout: React.FC = () => {
         payment_id: `pay_sim_failed_${Math.floor(Math.random() * 89999 + 10000)}`,
         error_code: primaryFail.code,
         error_description: `${primaryFail.label} on ${selectedMethod} rail. Transaction aborted.`,
-        error_category: primaryFail.category
+        error_category: primaryFail.category,
+        recovery_case_id: targetRecoveryCase
       })
 
       if (activeSessionId) {

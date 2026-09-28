@@ -61,6 +61,7 @@ class PaymentFailureRequest(BaseModel):
     error_code: Optional[str] = Field(default="PAYMENT_FAILED", description="Gateway or bank error code")
     error_description: Optional[str] = Field(default="Customer aborted or test payment declined", description="User facing description")
     error_category: Optional[str] = Field(default="GATEWAY_ERROR", description="Failure category for RecoverAI categorization")
+    recovery_case_id: Optional[str] = Field(default=None, description="Existing Recovery Case ID if failure occurred during recovery attempt")
 
 class SimulatePaymentRequest(BaseModel):
     transaction_id: str = Field(..., description="RecoverAI Transaction ID to simulate")
@@ -71,3 +72,5 @@ class SimulatePaymentRequest(BaseModel):
     error_code: Optional[str] = Field(default="UPI_TIMEOUT", description="Failure code if action is FAILED")
     error_description: Optional[str] = Field(default="Simulated test decline", description="Failure description")
     error_category: Optional[str] = Field(default="TECHNICAL_TIMEOUT", description="Failure category")
+    recovery_case_id: Optional[str] = Field(default=None, description="Existing Recovery Case ID if simulated during recovery")
+

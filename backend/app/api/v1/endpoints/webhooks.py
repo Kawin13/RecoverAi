@@ -382,7 +382,7 @@ async def process_razorpay_webhook(
             db.add(attempt)
 
             # Provision recovery case in DETECTED state
-            if not tx.recovery_case:
+            if not tx.recovery_case and not case:
                 case = RecoveryCase(
                     id=f"case_{uuid.uuid4().hex[:8]}",
                     workspace_id=workspace_id,
@@ -402,7 +402,7 @@ async def process_razorpay_webhook(
                 )
                 db.add(case)
                 db.flush()
-            else:
+            elif not case:
                 case = tx.recovery_case
 
             # Persistent Internal Event
@@ -422,16 +422,6 @@ async def process_razorpay_webhook(
                 )
             )
 
-            # Enqueue Durable Background Recovery Job
-            background_worker.enqueue_job(
-                db=db,
-                job_type=JobType.PROCESS_RECOVERY_CASE.value,
-                entity_id=case.id,
-                workspace_id=workspace_id,
-                payload={"case_id": case.id, "transaction_id": tx.id, "failure_reason": error_reason},
-                idempotency_key=f"job_rec_{case.id}"
-            )
-
             # Audit trail
             db.add(
                 AuditLog(
@@ -447,33 +437,71 @@ async def process_razorpay_webhook(
                 )
             )
 
-            # Customer payment failure email notification
-            from app.services.notification_service import notification_service
-            try:
-                cust = tx.customer
-                recipient_email = cust.email if cust and cust.email and "@" in cust.email else None
-                if recipient_email:
-                    base_url = settings.get_frontend_url()
-                    checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id}&recovery_case={case.id}&amount={tx.amount}&auto_open=true"
-                    notification_service.send_recovery_notification(
-                        recipient=recipient_email,
-                        channel="EMAIL",
-                        strategy="PAYMENT_FAILED",
-                        template_type="PAYMENT_FAILED",
-                        customer_name=cust.name if cust and cust.name else "Valued Customer",
-                        amount=tx.amount,
-                        action_url=checkout_url,
-                        recovery_case_id=case.id,
-                        transaction_id=tx.id,
-                        workspace_id=str(workspace_id),
-                        customer_id=cust.id if cust else None,
-                        order_id=tx.order_id,
-                        failure_reason=error_description or error_code,
-                        is_demo=True,
-                        db=db
+            is_ongoing_recovery = (case is not None and (case.attempt_count or 0) > 0)
+
+            if is_ongoing_recovery:
+                from app.services.recovery_executor import recovery_state_machine, RecoveryStep
+                max_att = case.max_attempts or 3
+                if case.attempt_count >= max_att:
+                    target = RecoveryStep.ESCALATED.value if case.risk_amount >= 5000.0 else RecoveryStep.STOPPED.value
+                    stop_details = f"Recovery attempt {case.attempt_count} failed via webhook. Max attempts reached ({case.attempt_count}/{max_att}). Halting automated outreach."
+                    case = recovery_state_machine.transition(case, target, stop_details, db, actor="RAZORPAY_WEBHOOK")
+                    db.commit()
+                    logger.info(f"[Webhooks] RecoveryCase {case.id} reached attempt ceiling ({max_att}/{max_att}) -> {target}.")
+                else:
+                    next_details = f"Recovery attempt {case.attempt_count} failed via webhook ({error_code}: {error_description}). Escalating to attempt {case.attempt_count + 1}/{max_att}."
+                    case = recovery_state_machine.transition(case, RecoveryStep.NEXT_STRATEGY.value, next_details, db, actor="RAZORPAY_WEBHOOK")
+                    try:
+                        recovery_state_machine.execute_full_pipeline(case, db, is_live_demo=True)
+                    except Exception as exc:
+                        logger.warning(f"[Webhooks] Notice during recovery pipeline execution: {exc}")
+
+                    background_worker.enqueue_job(
+                        db=db,
+                        job_type=JobType.PROCESS_RECOVERY_CASE.value,
+                        entity_id=case.id,
+                        workspace_id=workspace_id,
+                        payload={"case_id": case.id, "transaction_id": tx.id, "failure_reason": error_reason, "attempt": case.attempt_count},
+                        idempotency_key=f"job_rec_{case.id}_att{case.attempt_count}"
                     )
-            except Exception as exc:
-                logger.warning(f"[Webhooks] Failed to send payment failed notice: {exc}")
+            else:
+                # Enqueue Durable Background Recovery Job for Attempt 1
+                background_worker.enqueue_job(
+                    db=db,
+                    job_type=JobType.PROCESS_RECOVERY_CASE.value,
+                    entity_id=case.id,
+                    workspace_id=workspace_id,
+                    payload={"case_id": case.id, "transaction_id": tx.id, "failure_reason": error_reason, "attempt": 1},
+                    idempotency_key=f"job_rec_{case.id}_att1"
+                )
+
+                # Customer initial payment failure email notification
+                from app.services.notification_service import notification_service
+                try:
+                    cust = tx.customer
+                    recipient_email = cust.email if cust and cust.email and "@" in cust.email else None
+                    if recipient_email:
+                        base_url = settings.get_frontend_url()
+                        checkout_url = f"{base_url}/demo-checkout?order_id={tx.order_id}&recovery_case={case.id}&amount={tx.amount}&auto_open=true"
+                        notification_service.send_recovery_notification(
+                            recipient=recipient_email,
+                            channel="EMAIL",
+                            strategy="PAYMENT_FAILED",
+                            template_type="PAYMENT_FAILED",
+                            customer_name=cust.name if cust and cust.name else "Valued Customer",
+                            amount=tx.amount,
+                            action_url=checkout_url,
+                            recovery_case_id=case.id,
+                            transaction_id=tx.id,
+                            workspace_id=str(workspace_id),
+                            customer_id=cust.id if cust else None,
+                            order_id=tx.order_id,
+                            failure_reason=error_description or error_code,
+                            is_demo=True,
+                            db=db
+                        )
+                except Exception as exc:
+                    logger.warning(f"[Webhooks] Failed to send payment failed notice: {exc}")
 
             # Real-Time SSE Broadcasts (Strictly Scoped)
             event_broadcaster.broadcast_sync("TRANSACTION_UPDATED", {

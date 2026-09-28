@@ -68,6 +68,7 @@ export interface PaymentFailureRequest {
   error_code?: string
   error_description?: string
   error_category?: string
+  recovery_case_id?: string
 }
 
 export const paymentApi = {
@@ -136,6 +137,7 @@ export const paymentApi = {
     error_code?: string
     error_description?: string
     error_category?: string
+    recovery_case_id?: string
   }): Promise<any> {
     const res = await authFetch(`${API_BASE_URL}/api/v1/payments/simulate`, {
       method: 'POST',
@@ -149,3 +151,4 @@ export const paymentApi = {
     return await res.json()
   }
 }
+

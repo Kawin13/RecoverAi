@@ -236,6 +236,7 @@ class RecoveryExecutor:
         elif strategy == "PERSONALIZED_REMINDER":
             # Multi-lingual empathetic copy
             lang = getattr(cust, "preferred_language", "en")
+            action_url = f"{settings.get_frontend_url()}/demo-checkout?order_id={tx.order_id if tx else case.id}&recovery_case={case.id}&amount={amount}&auto_open=true"
             custom_msg = None
             if gemini_agent.is_available() and tx:
                 try:
@@ -244,7 +245,7 @@ class RecoveryExecutor:
                         amount=amount,
                         failure_reason=case.failure_category,
                         preferred_language=lang,
-                        action_url=f"{settings.get_frontend_url()}/demo-checkout?order_id={tx.order_id}&recovery_case={case.id}&amount={amount}&auto_open=true"
+                        action_url=action_url
                     )
                     custom_msg = res.get("message")
                 except Exception as e:
@@ -256,6 +257,12 @@ class RecoveryExecutor:
                 strategy=strategy,
                 customer_name=cust_name,
                 amount=amount,
+                action_url=action_url,
+                attempt_number=case.attempt_count,
+                max_attempts=max_attempts,
+                order_id=tx.order_id if tx else case.id,
+                recovery_action_id=action_id,
+                is_demo=is_live_demo,
                 language=lang,
                 recovery_case_id=case.id,
                 custom_message=custom_msg,
@@ -266,7 +273,10 @@ class RecoveryExecutor:
 
             execution_data.update({
                 "notification_id": receipt.notification_id,
+                "action_url": action_url,
                 "language": lang,
+                "attempt_number": case.attempt_count,
+                "max_attempts": max_attempts,
                 "delivery_label": receipt.delivery_label
             })
 
@@ -475,18 +485,20 @@ class RecoveryStateMachine:
             step_result["next_step"] = current
 
         elif current == RecoveryStep.NEXT_STRATEGY.value:
-            # Rotate to next alternative strategy
+            # Rotate to next alternative strategy while ensuring active payment link capability
             current_strat = case.selected_strategy
             strat_rotation = {
                 "UPI_SWITCH": "PAYMENT_LINK",
-                "PAYMENT_LINK": "PERSONALIZED_REMINDER",
-                "PERSONALIZED_REMINDER": "RETRY_LATER",
-                "RETRY_LATER": "HUMAN_ESCALATION",
+                "PAYMENT_LINK": "PAYMENT_LINK",
+                "SMART_PAYLINK_1CLICK": "PAYMENT_LINK",
+                "1-CLICK PAYLINK": "PAYMENT_LINK",
+                "PERSONALIZED_REMINDER": "PAYMENT_LINK",
+                "RETRY_LATER": "PAYMENT_LINK",
                 "HUMAN_ESCALATION": "STOPPED"
             }
             next_strat = strat_rotation.get(current_strat, "PAYMENT_LINK")
             case.selected_strategy = next_strat
-            details = f"Previous strategy '{current_strat}' did not recover. Rotating to next strategy '{next_strat}' for Attempt {case.attempt_count}/{case.max_attempts}."
+            details = f"Previous attempt {case.attempt_count} did not recover. Rotating to next strategy '{next_strat}' for Attempt {case.attempt_count + 1}/{case.max_attempts}."
             case = self.transition(case, RecoveryStep.STRATEGY_SELECTED.value, details, db)
             step_result["next_step"] = RecoveryStep.STRATEGY_SELECTED.value
 
@@ -538,14 +550,13 @@ class RecoveryStateMachine:
             case = self.transition(case, RecoveryStep.RECOVERED.value, details, db, actor="CUSTOMER_INTERVENTION")
 
         elif norm_outcome == "FAILED":
-            case.attempt_count += 1
-            if case.attempt_count > case.max_attempts:
+            if case.attempt_count >= case.max_attempts:
                 # Bounded limit exceeded
                 details = f"Intervention timeout. Attempt limit reached ({case.attempt_count}/{case.max_attempts}). Autonomous loop halted."
                 target = RecoveryStep.ESCALATED.value if case.risk_amount >= 5000 else RecoveryStep.STOPPED.value
                 case = self.transition(case, target, details, db, actor="RECOVERY_MONITOR")
             else:
-                details = f"Intervention timeout on attempt {case.attempt_count - 1}. Escalating to NEXT_STRATEGY."
+                details = f"Intervention timeout on attempt {case.attempt_count}. Escalating to NEXT_STRATEGY."
                 case = self.transition(case, RecoveryStep.NEXT_STRATEGY.value, details, db, actor="RECOVERY_MONITOR")
 
         return case

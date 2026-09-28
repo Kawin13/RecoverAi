@@ -137,6 +137,8 @@ def create_payment_order(
             checkout_session.dropped_at_step = "ORDER_CREATED"
             checkout_session.cart_value = request.amount
             checkout_session.customer_id = customer.id
+            if getattr(request, "recovery_case_id", None):
+                checkout_session.recovery_case_id = request.recovery_case_id
 
     if not checkout_session:
         session_id = f"cs_{uuid.uuid4().hex[:10]}"
@@ -150,6 +152,7 @@ def create_payment_order(
             selected_method=selected_method,
             dropped_at_step="ORDER_CREATED",
             is_recovered=False,
+            recovery_case_id=getattr(request, "recovery_case_id", None),
             created_at=datetime.now(timezone.utc)
         )
         db.add(checkout_session)
@@ -535,8 +538,105 @@ def record_payment_failure(
     )
     db.add(attempt)
 
-    # 3. Create or update RecoveryCase for RecoverAI Autonomous Agent
-    recovery_case = db.query(RecoveryCase).filter(RecoveryCase.transaction_id == tx.id).first()
+    # 3. Resolve associated RecoveryCase (if this payment attempt was for an ongoing recovery case)
+    recovery_case = None
+    if getattr(request, "recovery_case_id", None):
+        recovery_case = db.query(RecoveryCase).filter(
+            RecoveryCase.id == request.recovery_case_id,
+            RecoveryCase.workspace_id == tx.workspace_id
+        ).first()
+        if not recovery_case:
+            recovery_case = db.query(RecoveryCase).filter(RecoveryCase.id == request.recovery_case_id).first()
+
+    if not recovery_case:
+        recovery_case = tx.recovery_case or db.query(RecoveryCase).filter(RecoveryCase.transaction_id == tx.id).first()
+
+    if not recovery_case:
+        cs = db.query(CheckoutSession).filter(CheckoutSession.order_id == tx.order_id).first()
+        if cs and cs.recovery_case_id:
+            recovery_case = db.query(RecoveryCase).filter(RecoveryCase.id == cs.recovery_case_id).first()
+
+    from app.services.recovery_executor import recovery_state_machine, RecoveryStep
+    from app.services.background_worker import background_worker
+    from app.models.recovery_jobs import JobType
+    from app.services.notification_service import notification_service
+
+    # Is this a subsequent failure on an existing recovery attempt?
+    is_ongoing_recovery = (recovery_case is not None and (recovery_case.attempt_count or 0) > 0)
+
+    if is_ongoing_recovery:
+        max_att = recovery_case.max_attempts or 3
+        # Audit log for failed recovery payment attempt
+        db.add(
+            AuditLog(
+                id=f"aud_{uuid.uuid4().hex[:10]}",
+                workspace_id=tx.workspace_id,
+                transaction_id=tx.id,
+                recovery_case_id=recovery_case.id,
+                actor="GATEWAY_EVENT_LISTENER",
+                action_type="RECOVERY_ATTEMPT_FAILED",
+                target_resource=recovery_case.id,
+                details=f"Payment for Recovery Attempt {recovery_case.attempt_count}/{max_att} failed: {request.error_code} - {request.error_description}.",
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+        db.commit()
+
+        if recovery_case.attempt_count >= max_att:
+            # Ceiling reached: halt automated retries and protect customer experience
+            target = RecoveryStep.ESCALATED.value if recovery_case.risk_amount >= 5000.0 else RecoveryStep.STOPPED.value
+            stop_details = f"Recovery attempt {recovery_case.attempt_count} failed. Bounded ceiling reached ({recovery_case.attempt_count}/{max_att}). Halting automated outreach."
+            recovery_case = recovery_state_machine.transition(recovery_case, target, stop_details, db, actor="GATEWAY_EVENT_LISTENER")
+            db.commit()
+            logger.info(f"RecoveryCase {recovery_case.id} reached attempt ceiling ({max_att}/{max_att}) and transitioned to {target}.")
+            return {
+                "status": "stopped",
+                "transaction_id": tx.id,
+                "recovery_case_id": recovery_case.id,
+                "attempt_count": recovery_case.attempt_count,
+                "max_attempts": max_att,
+                "error_code": request.error_code,
+                "error_description": request.error_description,
+                "escalated_to_agent": False,
+                "steps_taken": 0,
+                "message": stop_details
+            }
+        else:
+            # Advance to NEXT_STRATEGY / next attempt
+            next_details = f"Recovery attempt {recovery_case.attempt_count} failed ({request.error_code}). Escalating to Attempt {recovery_case.attempt_count + 1}/{max_att}."
+            recovery_case = recovery_state_machine.transition(recovery_case, RecoveryStep.NEXT_STRATEGY.value, next_details, db, actor="GATEWAY_EVENT_LISTENER")
+            pipeline_steps = []
+            try:
+                pipeline_steps = recovery_state_machine.execute_full_pipeline(recovery_case, db, is_live_demo=True)
+            except Exception as exc:
+                logger.warning(f"Notice during recovery attempt escalation: {exc}")
+
+            try:
+                background_worker.enqueue_job(
+                    db=db,
+                    job_type=JobType.PROCESS_RECOVERY_CASE.value,
+                    entity_id=recovery_case.id,
+                    workspace_id=str(tx.workspace_id),
+                    payload={"case_id": recovery_case.id, "transaction_id": tx.id, "failure_reason": request.error_category or "GATEWAY_ERROR", "attempt": recovery_case.attempt_count},
+                    idempotency_key=f"job_rec_{recovery_case.id}_att{recovery_case.attempt_count}"
+                )
+            except Exception as exc:
+                logger.debug(f"Job enqueue notice: {exc}")
+
+            logger.info(f"RecoveryCase {recovery_case.id} escalated to Attempt {recovery_case.attempt_count}/{max_att}. Steps taken: {len(pipeline_steps)}")
+            return {
+                "status": "recorded",
+                "transaction_id": tx.id,
+                "recovery_case_id": recovery_case.id,
+                "attempt_count": recovery_case.attempt_count,
+                "max_attempts": max_att,
+                "error_code": request.error_code,
+                "error_description": request.error_description,
+                "escalated_to_agent": True,
+                "steps_taken": len(pipeline_steps)
+            }
+
+    # Initial payment failure: Provision RecoveryCase in DETECTED state
     if not recovery_case:
         recovery_case = RecoveryCase(
             id=f"case_{uuid.uuid4().hex[:8]}",
@@ -558,7 +658,7 @@ def record_payment_failure(
         db.add(recovery_case)
         db.flush()
 
-    # 4. Audit Log
+    # Audit Log
     db.add(
         AuditLog(
             id=f"aud_{uuid.uuid4().hex[:10]}",
@@ -574,8 +674,7 @@ def record_payment_failure(
     )
     db.commit()
 
-    # 4b. Dispatch immediate Payment Failed customer notification
-    from app.services.notification_service import notification_service
+    # Dispatch immediate Payment Failed customer notification
     try:
         cust = tx.customer
         recipient_email = cust.email if cust and cust.email and "@" in cust.email else None
@@ -602,8 +701,7 @@ def record_payment_failure(
     except Exception as exc:
         logger.warning(f"[Payments] Payment failed email dispatch notice: {exc}")
 
-    # 5. Automatically execute Autonomous Recovery Pipeline (Diagnostics -> ERV -> Guardrails -> Dispatch)
-    from app.services.recovery_executor import recovery_state_machine
+    # Automatically execute Autonomous Recovery Pipeline for Attempt 1
     pipeline_steps = []
     try:
         pipeline_steps = recovery_state_machine.execute_full_pipeline(recovery_case, db, is_live_demo=True)
@@ -611,16 +709,14 @@ def record_payment_failure(
         logger.warning(f"Notice during automatic recovery pipeline execution: {exc}")
 
     # Enqueue background job for persistent worker guarantees
-    from app.services.background_worker import background_worker
-    from app.models.recovery_jobs import JobType
     try:
         background_worker.enqueue_job(
             db=db,
             job_type=JobType.PROCESS_RECOVERY_CASE.value,
             entity_id=recovery_case.id,
             workspace_id=str(tx.workspace_id),
-            payload={"case_id": recovery_case.id, "transaction_id": tx.id, "failure_reason": request.error_category or "GATEWAY_ERROR"},
-            idempotency_key=f"job_rec_{recovery_case.id}"
+            payload={"case_id": recovery_case.id, "transaction_id": tx.id, "failure_reason": request.error_category or "GATEWAY_ERROR", "attempt": recovery_case.attempt_count},
+            idempotency_key=f"job_rec_{recovery_case.id}_att1"
         )
     except Exception as exc:
         logger.debug(f"Job enqueue notice: {exc}")
@@ -631,6 +727,8 @@ def record_payment_failure(
         "status": "recorded",
         "transaction_id": tx.id,
         "recovery_case_id": recovery_case.id,
+        "attempt_count": recovery_case.attempt_count,
+        "max_attempts": recovery_case.max_attempts or 3,
         "error_code": request.error_code,
         "error_description": request.error_description,
         "escalated_to_agent": True,
@@ -728,7 +826,9 @@ def simulate_payment_outcome(
             payment_id=f"pay_test_sim_fail_{uuid.uuid4().hex[:8]}",
             error_code=request.error_code or "PAYMENT_FAILED",
             error_description=f"{request.error_description or 'Simulated test gateway decline'}{details_suffix}",
-            error_category=request.error_category or "GATEWAY_ERROR"
+            error_category=request.error_category or "GATEWAY_ERROR",
+            recovery_case_id=request.recovery_case_id
         )
         return record_payment_failure(fail_req, db)
+
 
