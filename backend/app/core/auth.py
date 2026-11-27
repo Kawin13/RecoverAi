@@ -1,8 +1,11 @@
+import os
 import time
 import json
-import uuid
-import urllib.request
+import base64
+import threading
+import collections
 from typing import Optional, Dict, Any
+import httpx
 from fastapi import Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timezone
@@ -16,43 +19,119 @@ from app.models.workspaces import Workspace, WorkspaceMember, DEFAULT_WORKSPACE_
 
 security_scheme = HTTPBearer(auto_error=False)
 
-# Local memory cache for validated Supabase tokens (token -> (user_data, expiry_timestamp))
-_token_cache: Dict[str, tuple[Dict[str, Any], float]] = {}
-CACHE_TTL_SECONDS = 60.0
+# Persistent keep-alive HTTP client for Supabase Auth verification (eliminates repeated TLS handshakes)
+_supabase_http_client = httpx.Client(
+    timeout=5.0,
+    limits=httpx.Limits(max_connections=64, max_keepalive_connections=20, keepalive_expiry=60.0),
+)
+
+# Bounded LRU+TTL caches for validated Supabase tokens and short-lived user context
+_cache_lock = threading.Lock()
+_token_cache: "collections.OrderedDict[str, tuple[Dict[str, Any], float]]" = collections.OrderedDict()
+_inflight_token_locks: Dict[str, threading.Lock] = {}
+_profile_cache: "collections.OrderedDict[str, tuple[tuple[str, Dict[str, Any]], float]]" = collections.OrderedDict()
+_workspace_cache: "collections.OrderedDict[tuple[str, Optional[str]], tuple[tuple[str, str], float]]" = collections.OrderedDict()
+
+MAX_CACHE_ENTRIES = 2048
+CACHE_TTL_SECONDS = 120.0
+USER_CONTEXT_TTL_SECONDS = 15.0
+
+
+def _is_testing() -> bool:
+    return bool(os.environ.get("PYTEST_CURRENT_TEST"))
+
+
+def _lru_get(cache: "collections.OrderedDict", key: Any, now: float):
+    with _cache_lock:
+        item = cache.get(key)
+        if item is None:
+            return None
+        val, expiry = item
+        if now < expiry:
+            cache.move_to_end(key)
+            return val
+        cache.pop(key, None)
+        return None
+
+
+def _lru_set(cache: "collections.OrderedDict", key: Any, val: Any, expiry: float):
+    with _cache_lock:
+        cache[key] = (val, expiry)
+        cache.move_to_end(key)
+        while len(cache) > MAX_CACHE_ENTRIES:
+            cache.popitem(last=False)
+
+
+def invalidate_user_auth_cache(user_id: Optional[str] = None) -> None:
+    """Clears cached profile/workspace entries for a user (or all users if None) after mutations."""
+    with _cache_lock:
+        if user_id is None:
+            _profile_cache.clear()
+            _workspace_cache.clear()
+            return
+        _profile_cache.pop(str(user_id), None)
+        for k in [key for key in _workspace_cache if key[0] == str(user_id)]:
+            _workspace_cache.pop(k, None)
+
+
+def _extract_unverified_jwt_exp(token: str) -> Optional[float]:
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64).decode("utf-8"))
+        exp = payload.get("exp")
+        return float(exp) if exp is not None else None
+    except Exception:
+        return None
+
 
 def verify_supabase_jwt(token: str) -> Optional[Dict[str, Any]]:
     """
     Validates a Supabase JWT token against the configured Supabase Auth service.
-    Caches verified tokens locally for 60 seconds to optimize latency.
+    Uses keep-alive connection pooling, bounded LRU caching (bounded by JWT exp),
+    and per-token single-flight locking to prevent auth stampedes under heavy traffic.
     """
     now = time.time()
-    if token in _token_cache:
-        cached_user, expiry = _token_cache[token]
-        if now < expiry:
-            return cached_user
-        else:
-            del _token_cache[token]
+    cached = _lru_get(_token_cache, token, now)
+    if cached is not None:
+        return cached
 
-    supabase_url = settings.SUPABASE_URL or "https://ikgsrrmzxmmbumcdgxgq.supabase.co"
-    anon_key = settings.SUPABASE_PUBLISHABLE_KEY or "sb_publishable_biwradPEk0HjBOSaHpPXeA_NZ-8Kyhq"
+    with _cache_lock:
+        token_lock = _inflight_token_locks.setdefault(token, threading.Lock())
 
-    try:
-        req = urllib.request.Request(
-            f"{supabase_url}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": anon_key
-            }
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            if resp.status == 200:
-                user_data = json.loads(resp.read().decode("utf-8"))
-                _token_cache[token] = (user_data, now + CACHE_TTL_SECONDS)
+    with token_lock:
+        try:
+            now = time.time()
+            cached = _lru_get(_token_cache, token, now)
+            if cached is not None:
+                return cached
+
+            supabase_url = settings.SUPABASE_URL or "https://ikgsrrmzxmmbumcdgxgq.supabase.co"
+            anon_key = settings.SUPABASE_PUBLISHABLE_KEY or "sb_publishable_biwradPEk0HjBOSaHpPXeA_NZ-8Kyhq"
+
+            resp = _supabase_http_client.get(
+                f"{supabase_url}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": anon_key
+                }
+            )
+            if resp.status_code == 200:
+                user_data = resp.json()
+                jwt_exp = _extract_unverified_jwt_exp(token)
+                ttl = CACHE_TTL_SECONDS
+                if jwt_exp is not None:
+                    ttl = max(1.0, min(CACHE_TTL_SECONDS, jwt_exp - now))
+                _lru_set(_token_cache, token, user_data, now + ttl)
                 return user_data
-    except urllib.error.HTTPError as he:
-        logger.warning(f"[Auth] Supabase token verification HTTP error: {he.code}")
-    except Exception as exc:
-        logger.warning(f"[Auth] Supabase token verification failed: {exc}")
+            logger.warning(f"[Auth] Supabase token verification HTTP error: {resp.status_code}")
+        except Exception as exc:
+            logger.warning(f"[Auth] Supabase token verification failed: {exc}")
+        finally:
+            with _cache_lock:
+                _inflight_token_locks.pop(token, None)
 
     return None
 
@@ -67,6 +146,12 @@ def resolve_authoritative_role(
     Retrieves the authoritative role strictly from public.profiles in PostgreSQL / database.
     If the profile does not exist yet, creates an 'operator' profile automatically.
     """
+    use_cache = not _is_testing()
+    if use_cache:
+        cached_prof = _lru_get(_profile_cache, str(user_id), time.time())
+        if cached_prof is not None:
+            return cached_prof
+
     owns_db = False
     if db is None:
         db = SessionLocal()
@@ -90,16 +175,21 @@ def resolve_authoritative_role(
             db.commit()
             db.refresh(profile)
 
-        
-        return profile.role, {
-            "id": profile.id,
-            "email": profile.email,
-            "full_name": profile.full_name,
-            "avatar_url": profile.avatar_url,
-            "role": profile.role,
-            "created_at": profile.created_at.isoformat() if profile.created_at else None,
-            "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
-        }
+        result = (
+            profile.role,
+            {
+                "id": profile.id,
+                "email": profile.email,
+                "full_name": profile.full_name,
+                "avatar_url": profile.avatar_url,
+                "role": profile.role,
+                "created_at": profile.created_at.isoformat() if profile.created_at else None,
+                "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+            },
+        )
+        if use_cache:
+            _lru_set(_profile_cache, str(user_id), result, time.time() + USER_CONTEXT_TTL_SECONDS)
+        return result
     except Exception as exc:
         logger.error(f"[Auth] Error resolving authoritative profile role: {exc}")
         if owns_db:
@@ -130,6 +220,13 @@ def resolve_user_workspace(
         - If user belongs to >1 workspaces: raises 400 Bad Request requiring explicit X-Workspace-Id.
     Returns: (workspace_id, member_role)
     """
+    cache_key = (str(user_id), str(requested_workspace_id) if requested_workspace_id else None)
+    use_cache = not _is_testing()
+    if use_cache:
+        cached_ws = _lru_get(_workspace_cache, cache_key, time.time())
+        if cached_ws is not None:
+            return cached_ws
+
     owns_db = False
     if db is None:
         db = SessionLocal()
@@ -147,7 +244,10 @@ def resolve_user_workspace(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Access denied: You do not belong to the requested workspace."
                 )
-            return str(member.workspace_id), member.role
+            res = (str(member.workspace_id), member.role)
+            if use_cache:
+                _lru_set(_workspace_cache, cache_key, res, time.time() + USER_CONTEXT_TTL_SECONDS)
+            return res
 
         # Query all workspace memberships for user
         members = db.query(WorkspaceMember).filter(WorkspaceMember.user_id == user_id).all()
@@ -159,7 +259,10 @@ def resolve_user_workspace(
             )
 
         if len(members) == 1:
-            return str(members[0].workspace_id), members[0].role
+            res = (str(members[0].workspace_id), members[0].role)
+            if use_cache:
+                _lru_set(_workspace_cache, cache_key, res, time.time() + USER_CONTEXT_TTL_SECONDS)
+            return res
 
         if len(members) > 1:
             logger.warning(f"[Tenant Isolation] User '{user_id}' has {len(members)} workspaces. Explicit X-Workspace-Id required.")

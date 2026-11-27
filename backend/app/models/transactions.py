@@ -1,6 +1,6 @@
 from app.core.datetime_utils import utcnow
 from datetime import datetime
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Uuid
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Uuid, Index
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 from app.models.workspaces import DEFAULT_WORKSPACE_ID
@@ -27,3 +27,8 @@ class Transaction(Base):
     payment_attempts = relationship("PaymentAttempt", back_populates="transaction", cascade="all, delete-orphan")
     recovery_case = relationship("RecoveryCase", back_populates="transaction", uselist=False, cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="transaction")
+
+    __table_args__ = (
+        Index("ix_transactions_ws_created_at", "workspace_id", "created_at"),
+        Index("ix_transactions_ws_status", "workspace_id", "status"),
+    )

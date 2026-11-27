@@ -1,5 +1,5 @@
 from typing import Optional, List, Tuple
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import or_, desc, asc
 from app.models.transactions import Transaction
 from app.models.customers import Customer
@@ -15,7 +15,7 @@ class TransactionRepository:
             .options(
                 joinedload(Transaction.customer),
                 joinedload(Transaction.recovery_case),
-                joinedload(Transaction.payment_attempts)
+                selectinload(Transaction.payment_attempts)
             )
             .filter(Transaction.id == transaction_id)
         )
@@ -41,7 +41,7 @@ class TransactionRepository:
             .options(
                 joinedload(Transaction.customer),
                 joinedload(Transaction.recovery_case),
-                joinedload(Transaction.payment_attempts)
+                selectinload(Transaction.payment_attempts)
             )
         )
 

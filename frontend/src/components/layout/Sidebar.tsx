@@ -81,10 +81,11 @@ const NavItemRow: React.FC<{ item: NavItem; onClose?: () => void }> = ({ item, o
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
   const { role } = useAuth()
-  const { subscribe } = useRealtime()
+  const { subscribe, status: realtimeStatus } = useRealtime()
   const [atRiskCount, setAtRiskCount] = useState<number | null>(null)
 
   const loadAtRiskCount = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return
     try {
       const count = await api.getAtRiskCount()
       setAtRiskCount(count)
@@ -94,19 +95,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
   }, [])
 
   useEffect(() => {
-    loadAtRiskCount()
-    const unsubTx = subscribe('TRANSACTION_UPDATED', () => loadAtRiskCount())
-    const unsubQueue = subscribe('RECOVERY_QUEUE_UPDATED', () => loadAtRiskCount())
-    const unsubCase = subscribe('RECOVERY_CASE_UPDATED', () => loadAtRiskCount())
-    const unsubPay = subscribe('PAYMENT_RECEIVED', () => loadAtRiskCount())
-    const unsubRecovered = subscribe('transaction_recovered', () => loadAtRiskCount())
-    const unsubResync = subscribe('RECONNECT_RESYNC', () => loadAtRiskCount())
-    const interval = setInterval(loadAtRiskCount, 30000)
+    void loadAtRiskCount()
+    const unsubTx = subscribe('TRANSACTION_UPDATED', () => void loadAtRiskCount())
+    const unsubQueue = subscribe('RECOVERY_QUEUE_UPDATED', () => void loadAtRiskCount())
+    const unsubCase = subscribe('RECOVERY_CASE_UPDATED', () => void loadAtRiskCount())
+    const unsubPay = subscribe('PAYMENT_RECEIVED', () => void loadAtRiskCount())
+    const unsubRecovered = subscribe('transaction_recovered', () => void loadAtRiskCount())
+    const unsubResync = subscribe('RECONNECT_RESYNC', () => void loadAtRiskCount())
+    // When live SSE is connected, rely on push updates with a slower 120s safety poll
+    const pollMs = realtimeStatus === 'LIVE' ? 120000 : 30000
+    const interval = setInterval(() => void loadAtRiskCount(), pollMs)
     return () => {
       unsubTx(); unsubQueue(); unsubCase(); unsubPay(); unsubRecovered(); unsubResync()
       clearInterval(interval)
     }
-  }, [loadAtRiskCount, subscribe])
+  }, [loadAtRiskCount, subscribe, realtimeStatus])
 
   // Lock body scroll only when mobile sidebar drawer is open
   useEffect(() => {

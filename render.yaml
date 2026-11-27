@@ -5,7 +5,7 @@ services:
     runtime: python
     buildCommand: "pip install -r backend/requirements.txt"
     preDeployCommand: "cd backend && alembic upgrade head"
-    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT --timeout-keep-alive 30 --backlog 2048"
     envVars:
       - key: ENVIRONMENT
         value: production

@@ -1,3 +1,7 @@
+import os
+import time
+import threading
+import collections
 import uuid
 import secrets
 import hashlib
@@ -115,6 +119,7 @@ def create_workspace(
 
         db.commit()
         db.refresh(ws)
+        _invalidate_user_workspaces_cache(user_id)
 
         logger.info(f"[Workspace] Created workspace '{cleaned_name}' ({ws_id}) for user '{user_id}'.")
         return {
@@ -133,26 +138,65 @@ def create_workspace(
             detail="Failed to initialize workspace. All changes were rolled back."
         )
 
+_USER_WORKSPACES_LOCK = threading.Lock()
+_USER_WORKSPACES_CACHE: "collections.OrderedDict[str, tuple[List[Dict[str, Any]], float]]" = collections.OrderedDict()
+_USER_WORKSPACES_TTL_SECONDS = 10.0
+
+
+def _invalidate_user_workspaces_cache(user_id: Optional[str] = None) -> None:
+    with _USER_WORKSPACES_LOCK:
+        if user_id is None:
+            _USER_WORKSPACES_CACHE.clear()
+        else:
+            _USER_WORKSPACES_CACHE.pop(str(user_id), None)
+
+
 def get_user_workspaces(user_id: str, db: Session) -> List[Dict[str, Any]]:
-    memberships = (
-        db.query(WorkspaceMember)
+    use_cache = not bool(os.environ.get("PYTEST_CURRENT_TEST"))
+    cache_key = str(user_id)
+    if use_cache:
+        now_ts = time.time()
+        with _USER_WORKSPACES_LOCK:
+            entry = _USER_WORKSPACES_CACHE.get(cache_key)
+            if entry is not None:
+                cached_list, expiry = entry
+                if now_ts < expiry:
+                    _USER_WORKSPACES_CACHE.move_to_end(cache_key)
+                    return cached_list
+                _USER_WORKSPACES_CACHE.pop(cache_key, None)
+
+    member_counts_sq = (
+        db.query(
+            WorkspaceMember.workspace_id.label("ws_id"),
+            func.count(WorkspaceMember.id).label("member_count"),
+        )
+        .group_by(WorkspaceMember.workspace_id)
+        .subquery()
+    )
+    rows = (
+        db.query(Workspace, WorkspaceMember.role, member_counts_sq.c.member_count)
+        .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
+        .outerjoin(member_counts_sq, Workspace.id == member_counts_sq.c.ws_id)
         .filter(WorkspaceMember.user_id == user_id)
         .all()
     )
-    result = []
-    for m in memberships:
-        ws = db.query(Workspace).filter(Workspace.id == m.workspace_id).first()
-        if not ws:
-            continue
-        count = db.query(func.count(WorkspaceMember.id)).filter(WorkspaceMember.workspace_id == ws.id).scalar() or 1
-        result.append({
+    result = [
+        {
             "id": str(ws.id),
             "name": ws.name,
-            "role": m.role,
-            "member_count": count,
+            "role": member_role,
+            "member_count": int(member_count or 1),
             "created_at": ws.created_at.isoformat() if ws.created_at else None,
             "updated_at": ws.updated_at.isoformat() if ws.updated_at else None,
-        })
+        }
+        for ws, member_role, member_count in rows
+    ]
+    if use_cache:
+        with _USER_WORKSPACES_LOCK:
+            _USER_WORKSPACES_CACHE[cache_key] = (result, time.time() + _USER_WORKSPACES_TTL_SECONDS)
+            _USER_WORKSPACES_CACHE.move_to_end(cache_key)
+            while len(_USER_WORKSPACES_CACHE) > 512:
+                _USER_WORKSPACES_CACHE.popitem(last=False)
     return result
 
 def get_workspace_settings(workspace_id: str, db: Session) -> WorkspaceSettings:

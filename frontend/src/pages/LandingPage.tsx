@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { ENV } from '../config/env'
 import {
   Shield,
   ArrowRight,
@@ -28,6 +29,12 @@ export const LandingPage: React.FC = () => {
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | 'security' | null>(null)
   const { session } = useAuth()
   const isAuthenticated = !!session
+
+  useEffect(() => {
+    if (ENV.API_BASE_URL) {
+      void fetch(`${ENV.API_BASE_URL}/api/health`).catch(() => {})
+    }
+  }, [])
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false)
@@ -1299,7 +1306,7 @@ export const LandingPage: React.FC = () => {
                 Security & Compliance
               </button>
               <a
-                href="http://localhost:8000/health"
+                href={`${ENV.API_BASE_URL || ''}/health`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-navy transition-colors inline-flex items-center gap-1"

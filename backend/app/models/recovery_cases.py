@@ -1,6 +1,6 @@
 from app.core.datetime_utils import utcnow
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, Uuid
+from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, Uuid, Index
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 from app.models.workspaces import DEFAULT_WORKSPACE_ID
@@ -37,3 +37,8 @@ class RecoveryCase(Base):
     audit_logs = relationship("AuditLog", back_populates="recovery_case")
     guardrail_events = relationship("GuardrailEvent", back_populates="recovery_case")
     recovery_outcome = relationship("RecoveryOutcome", back_populates="recovery_case", uselist=False, cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_recovery_cases_ws_created_at", "workspace_id", "created_at"),
+        Index("ix_recovery_cases_ws_status", "workspace_id", "status"),
+    )

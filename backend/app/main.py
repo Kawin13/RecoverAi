@@ -3,6 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
@@ -109,6 +110,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class SelectiveGZipMiddleware:
+    """Applies GZip compression to normal JSON/API payloads while bypassing SSE streams."""
+
+    def __init__(self, app, minimum_size: int = 500):
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size)
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http" and scope.get("path", "").endswith("/events/stream"):
+            await self.app(scope, receive, send)
+            return
+        await self.gzip(scope, receive, send)
+
+
+app.add_middleware(SelectiveGZipMiddleware, minimum_size=500)
 
 # OWASP Enterprise Security Headers Middleware
 @app.middleware("http")

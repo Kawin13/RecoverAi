@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Shield, ArrowRight, Mail, ArrowLeft, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { ENV } from '../../config/env'
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -14,6 +15,12 @@ export const Login: React.FC = () => {
   const { signIn, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    if (ENV.API_BASE_URL) {
+      void fetch(`${ENV.API_BASE_URL}/api/health`).catch(() => {})
+    }
+  }, [])
 
   const from = (location.state as any)?.from?.pathname || '/overview'
 

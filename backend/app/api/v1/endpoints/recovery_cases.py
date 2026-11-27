@@ -11,6 +11,7 @@ router = APIRouter()
 
 @router.get("/recovery-cases/queue-counts", response_model=QueueCounts, tags=["Recovery Cases"])
 @router.get("/queue-counts", response_model=QueueCounts, tags=["Recovery Cases"])
+@router.get("/queue/counts", response_model=QueueCounts, tags=["Recovery Cases"])
 def get_queue_counts(
     db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user)

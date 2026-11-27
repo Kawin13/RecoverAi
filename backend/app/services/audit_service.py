@@ -7,7 +7,7 @@ Guarantees zero secret exposure, strict credential redaction, and compliance exp
 import json
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, or_, and_
 
 from app.models.audit_logs import AuditLog
@@ -67,7 +67,12 @@ class AuditService:
         limit: int = 50,
         workspace_id: Optional[str] = None
     ) -> CaseAuditListResponse:
-        query = self.db.query(RecoveryCase).join(Transaction, RecoveryCase.transaction_id == Transaction.id).join(Customer, Transaction.customer_id == Customer.id)
+        query = (
+            self.db.query(RecoveryCase)
+            .join(Transaction, RecoveryCase.transaction_id == Transaction.id)
+            .join(Customer, Transaction.customer_id == Customer.id)
+            .options(joinedload(RecoveryCase.transaction).joinedload(Transaction.customer))
+        )
         
         if workspace_id is not None:
             query = query.filter(RecoveryCase.workspace_id == workspace_id)
@@ -116,8 +121,10 @@ class AuditService:
         Guarantees that no raw cards, CVVs, or gateway secret keys are exposed.
         """
         # Lookup case by case_id or transaction_id
-        case_query = self.db.query(RecoveryCase).filter(
-            or_(RecoveryCase.id == case_or_tx_id, RecoveryCase.transaction_id == case_or_tx_id)
+        case_query = (
+            self.db.query(RecoveryCase)
+            .options(joinedload(RecoveryCase.transaction).joinedload(Transaction.customer))
+            .filter(or_(RecoveryCase.id == case_or_tx_id, RecoveryCase.transaction_id == case_or_tx_id))
         )
         if workspace_id is not None:
             case_query = case_query.filter(RecoveryCase.workspace_id == workspace_id)

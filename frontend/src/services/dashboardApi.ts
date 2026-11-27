@@ -23,6 +23,17 @@ export interface DashboardData {
   workspaceId?: string
 }
 
+type QueueCounts = {
+  all_at_risk: number
+  high_value_urgent: number
+  vip_enterprise: number
+  gateway_bank_outages: number
+  batch_dispatch_eligible: number
+}
+
+let inflightQueueCountsPromise: Promise<QueueCounts> | null = null
+let cachedQueueCounts: { data: QueueCounts; expiresAt: number } | null = null
+
 export const dashboardApi = {
   async getHealth(): Promise<{ status: string; service: string }> {
     const res = await authFetch(`${API_BASE_URL}/health`)
@@ -32,44 +43,50 @@ export const dashboardApi = {
     return await res.json()
   },
 
-  async getQueueCounts(): Promise<{
-    all_at_risk: number
-    high_value_urgent: number
-    vip_enterprise: number
-    gateway_bank_outages: number
-    batch_dispatch_eligible: number
-  }> {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/api/v1/queue/counts`)
-      if (res.ok) {
-        return await res.json()
-      }
-      const fallbackRes = await authFetch(`${API_BASE_URL}/api/recovery-cases/queue-counts`)
-      if (fallbackRes.ok) {
-        return await fallbackRes.json()
-      }
-    } catch (e) {
-      console.warn('API getQueueCounts unreachable:', e)
+  async getQueueCounts(): Promise<QueueCounts> {
+    const now = Date.now()
+    if (cachedQueueCounts && now < cachedQueueCounts.expiresAt) {
+      return cachedQueueCounts.data
+    }
+    if (inflightQueueCountsPromise) {
+      return inflightQueueCountsPromise
     }
 
-    if (ENV.DEMO_MODE) {
-      const activeMock = mockTransactions.filter(t => !isTerminalState(t.status))
+    inflightQueueCountsPromise = (async (): Promise<QueueCounts> => {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/api/v1/recovery-cases/queue-counts`)
+        if (res.ok) {
+          const data = await res.json()
+          cachedQueueCounts = { data, expiresAt: Date.now() + 5000 }
+          return data
+        }
+      } catch (e) {
+        console.warn('API getQueueCounts unreachable:', e)
+      }
+
+      if (ENV.DEMO_MODE) {
+        const activeMock = mockTransactions.filter(t => !isTerminalState(t.status))
+        return {
+          all_at_risk: activeMock.length,
+          high_value_urgent: activeMock.filter(t => t.riskLevel === 'HIGH' || (t.amount || 0) >= 25000).length,
+          vip_enterprise: activeMock.filter(t => t.customer?.tier === 'VIP' || t.customer?.tier === 'ENTERPRISE').length,
+          gateway_bank_outages: activeMock.filter(t => t.failureCategory === 'BANK_TIMEOUT').length,
+          batch_dispatch_eligible: activeMock.length
+        }
+      }
+
       return {
-        all_at_risk: activeMock.length,
-        high_value_urgent: activeMock.filter(t => t.riskLevel === 'HIGH' || (t.amount || 0) >= 25000).length,
-        vip_enterprise: activeMock.filter(t => t.customer?.tier === 'VIP' || t.customer?.tier === 'ENTERPRISE').length,
-        gateway_bank_outages: activeMock.filter(t => t.failureCategory === 'BANK_TIMEOUT').length,
-        batch_dispatch_eligible: activeMock.length
+        all_at_risk: 0,
+        high_value_urgent: 0,
+        vip_enterprise: 0,
+        gateway_bank_outages: 0,
+        batch_dispatch_eligible: 0
       }
-    }
+    })().finally(() => {
+      inflightQueueCountsPromise = null
+    })
 
-    return {
-      all_at_risk: 0,
-      high_value_urgent: 0,
-      vip_enterprise: 0,
-      gateway_bank_outages: 0,
-      batch_dispatch_eligible: 0
-    }
+    return inflightQueueCountsPromise
   },
 
   async getAtRiskCount(): Promise<number> {

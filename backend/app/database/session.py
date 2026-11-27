@@ -15,11 +15,17 @@ engine_kwargs = {
 if db_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 else:
-    # PostgreSQL timeout prevents indefinite network hangs on cloud cold boots
+    # PostgreSQL pool & timeout safeguards:
+    # - Transaction pooler (:6543) supports high concurrent connections.
+    # - Session pooler (:5432) on Supabase Nano caps total sessions at 15, so keep per-process pool <= 10
+    #   with pool_timeout=15 so bursts queue cleanly instead of triggering FATAL EMAXCONNSESSION.
+    is_tx_pooler = ":6543/" in db_url
     connect_args = {"connect_timeout": 5}
     engine_kwargs.update({
-        "pool_timeout": 5,
-        "pool_recycle": 300
+        "pool_size": 15 if is_tx_pooler else 6,
+        "max_overflow": 15 if is_tx_pooler else 4,
+        "pool_timeout": 15,
+        "pool_recycle": 300,
     })
 
 try:

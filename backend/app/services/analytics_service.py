@@ -8,7 +8,7 @@ Strictly truthful: No hidden hardcoded KPI additions or artificial record scalin
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, or_, and_
 from app.core.datetime_utils import to_utc
 
@@ -76,6 +76,10 @@ class AnalyticsService:
             .join(Transaction, RecoveryCase.transaction_id == Transaction.id)
             .join(Customer, Transaction.customer_id == Customer.id)
             .outerjoin(RecoveryOutcome, RecoveryCase.id == RecoveryOutcome.recovery_case_id)
+            .options(
+                joinedload(RecoveryCase.transaction).joinedload(Transaction.customer),
+                joinedload(RecoveryCase.recovery_outcome),
+            )
             .filter(
                 RecoveryCase.created_at >= start_time,
                 RecoveryCase.created_at <= end_time

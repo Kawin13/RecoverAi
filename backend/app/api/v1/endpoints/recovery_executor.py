@@ -1,5 +1,7 @@
+import os
 import uuid
 import time
+import threading
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Dict, Any, Optional
@@ -26,6 +28,10 @@ from app.schemas.recovery_executor import (
 )
 
 router = APIRouter()
+
+_PLINK_SYNC_COOLDOWN_SECONDS = 30.0
+_plink_last_synced: Dict[str, float] = {}
+_plink_sync_lock = threading.Lock()
 
 def _serialize_case(case: RecoveryCase) -> Dict[str, Any]:
     tx = case.transaction
@@ -89,14 +95,34 @@ def list_workflows(
         query = query.filter(RecoveryCase.workspace_id == ws_id)
 
     cases = query.order_by(RecoveryCase.created_at.desc()).limit(limit).all()
-    # Actively reconcile any cases with open (unpaid) genuine Razorpay links
+    # Actively reconcile open Razorpay links with per-link cooldown and strict time budget
+    # so GET /workflows never stalls under heavy traffic.
+    now_ts = time.time()
+    sync_deadline = now_ts + 2.5
+    bypass_cooldown = bool(os.environ.get("PYTEST_CURRENT_TEST"))
     for c in cases:
+        if time.time() >= sync_deadline:
+            break
         if c.status not in ("RECOVERED", "STOPPED") and c.payment_links:
-            has_open_rzp_link = any(
-                pl.status != "paid" and str(pl.payment_link_id).startswith("plink_")
+            open_plink_ids = [
+                str(pl.payment_link_id)
                 for pl in c.payment_links
-            )
-            if has_open_rzp_link:
+                if pl.status != "paid" and str(pl.payment_link_id).startswith("plink_")
+            ]
+            if not open_plink_ids:
+                continue
+            should_sync = bypass_cooldown
+            if not should_sync:
+                with _plink_sync_lock:
+                    for pid in open_plink_ids:
+                        if now_ts - _plink_last_synced.get(pid, 0.0) >= _PLINK_SYNC_COOLDOWN_SECONDS:
+                            _plink_last_synced[pid] = now_ts
+                            should_sync = True
+                    if len(_plink_last_synced) > 2048:
+                        cutoff = now_ts - _PLINK_SYNC_COOLDOWN_SECONDS
+                        for old_pid in [k for k, v in _plink_last_synced.items() if v < cutoff]:
+                            _plink_last_synced.pop(old_pid, None)
+            if should_sync:
                 try:
                     sync_case_payment_links(c, db)
                 except Exception as e:

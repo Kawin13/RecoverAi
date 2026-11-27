@@ -13,7 +13,7 @@ from app.core.events import event_broadcaster
 from app.core.config import settings
 from app.core import auth
 from app.core.auth import get_current_user, security_scheme
-from app.database.session import get_db
+from app.database import session as db_session_module
 
 router = APIRouter()
 
@@ -137,7 +137,6 @@ async def sse_stream(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
     ticket: Optional[str] = Query(None, description="Short-lived single-use cryptographic stream ticket"),
     max_events: Optional[int] = Query(None, description="Optional cap on events count"),
-    db: Session = Depends(get_db)
 ):
     """
     Subscribes the client to the workspace real-time event pipeline via SSE.
@@ -149,30 +148,41 @@ async def sse_stream(
     authenticated = False
     resolved_workspace_id = None
 
-    # 1. Verify cryptographic short-lived ticket
-    if ticket:
-        verified = verify_cryptographic_ticket(ticket, consume=True, db=db)
-        if verified:
-            _, ws_id = verified
-            authenticated = True
-            resolved_workspace_id = ws_id
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid, expired, or previously consumed stream ticket."
-            )
+    # Use a short-lived DB session solely for handshake verification and close it
+    # BEFORE returning StreamingResponse so long-lived SSE connections never hold DB pool slots.
+    db_provider = request.app.dependency_overrides.get(db_session_module.get_db, db_session_module.get_db)
+    db_gen = db_provider()
+    db = next(db_gen)
+    try:
+        # 1. Verify cryptographic short-lived ticket
+        if ticket:
+            verified = verify_cryptographic_ticket(ticket, consume=True, db=db)
+            if verified:
+                _, ws_id = verified
+                authenticated = True
+                resolved_workspace_id = ws_id
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid, expired, or previously consumed stream ticket."
+                )
 
-    # 2. Verify Authorization Bearer header
-    if not authenticated and credentials and credentials.credentials:
-        user = auth.verify_supabase_jwt(credentials.credentials)
-        if user:
-            authenticated = True
-            requested_ws = request.headers.get("x-workspace-id") or request.query_params.get("workspace_id")
-            resolved_workspace_id, _ = auth.resolve_user_workspace(
-                user_id=user["id"],
-                requested_workspace_id=requested_ws,
-                db=db
-            )
+        # 2. Verify Authorization Bearer header
+        if not authenticated and credentials and credentials.credentials:
+            user = auth.verify_supabase_jwt(credentials.credentials)
+            if user:
+                authenticated = True
+                requested_ws = request.headers.get("x-workspace-id") or request.query_params.get("workspace_id")
+                resolved_workspace_id, _ = auth.resolve_user_workspace(
+                    user_id=user["id"],
+                    requested_workspace_id=requested_ws,
+                    db=db
+                )
+    finally:
+        try:
+            db_gen.close()
+        except Exception:
+            db.close()
 
     if not authenticated:
         raise HTTPException(

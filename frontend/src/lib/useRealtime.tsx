@@ -33,12 +33,30 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [lastEvent, setLastEvent] = useState<RealtimeEvent | null>(null)
   const listenersRef = useRef<Map<string, Set<(event: RealtimeEvent) => void>>>(new Map())
   const eventSourceRef = useRef<EventSource | null>(null)
-  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const connectingRef = useRef(false)
+  const retryAttemptRef = useRef(0)
 
   const connect = useCallback(async () => {
+    if (connectingRef.current) return
+    if (typeof document !== 'undefined' && document.hidden) return
+
+    connectingRef.current = true
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
       eventSourceRef.current = null
+    }
+
+    const scheduleReconnect = () => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
+      const attempt = Math.min(retryAttemptRef.current, 4)
+      retryAttemptRef.current += 1
+      const baseDelay = 3000 * Math.pow(2, attempt) // 3s -> 6s -> 12s -> 24s -> 48s
+      const jitter = Math.floor(Math.random() * 1000)
+      reconnectTimerRef.current = setTimeout(() => {
+        void connect()
+      }, Math.min(baseDelay + jitter, 30000))
     }
 
     try {
@@ -65,6 +83,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       eventSourceRef.current = es
 
       es.onopen = () => {
+        retryAttemptRef.current = 0
         setStatus((prev) => {
           if (prev === 'OFFLINE' || prev === 'RECONNECTING') {
             const resyncEvt: RealtimeEvent = {
@@ -105,28 +124,38 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       es.onerror = () => {
         setStatus('RECONNECTING')
         es.close()
-        // Exponential backoff or 3s retry with fresh ticket
-        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
-        reconnectTimerRef.current = setTimeout(() => {
-          connect()
-        }, 3000)
+        if (eventSourceRef.current === es) {
+          eventSourceRef.current = null
+        }
+        scheduleReconnect()
       }
     } catch (err) {
       console.warn('[Realtime] SSE Connection error:', err)
       setStatus('OFFLINE')
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
-      reconnectTimerRef.current = setTimeout(() => {
-        connect()
-      }, 5000)
+      scheduleReconnect()
+    } finally {
+      connectingRef.current = false
     }
   }, [])
 
   useEffect(() => {
-    connect()
+    void connect()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const handleVisibility = () => {
+      if (!document.hidden && !eventSourceRef.current) {
+        retryAttemptRef.current = 0
+        void connect()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
       if (session) {
-        connect()
+        if (!eventSourceRef.current) {
+          retryAttemptRef.current = 0
+          void connect()
+        }
       } else {
         if (eventSourceRef.current) {
           eventSourceRef.current.close()
@@ -137,6 +166,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     })
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
       subscription.unsubscribe()
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
       if (eventSourceRef.current) eventSourceRef.current.close()

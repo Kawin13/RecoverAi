@@ -550,13 +550,15 @@ class RecoveryStateMachine:
             case = self.transition(case, RecoveryStep.RECOVERED.value, details, db, actor="CUSTOMER_INTERVENTION")
 
         elif norm_outcome == "FAILED":
-            if case.attempt_count >= case.max_attempts:
+            case.attempt_count = (case.attempt_count or 0) + 1
+            max_att = case.max_attempts or 3
+            if case.attempt_count > max_att:
                 # Bounded limit exceeded
-                details = f"Intervention timeout. Attempt limit reached ({case.attempt_count}/{case.max_attempts}). Autonomous loop halted."
+                details = f"Intervention timeout. Attempt limit reached ({case.attempt_count - 1}/{max_att}). Autonomous loop halted."
                 target = RecoveryStep.ESCALATED.value if case.risk_amount >= 5000 else RecoveryStep.STOPPED.value
                 case = self.transition(case, target, details, db, actor="RECOVERY_MONITOR")
             else:
-                details = f"Intervention timeout on attempt {case.attempt_count}. Escalating to NEXT_STRATEGY."
+                details = f"Intervention timeout on attempt {case.attempt_count - 1}. Escalating to NEXT_STRATEGY."
                 case = self.transition(case, RecoveryStep.NEXT_STRATEGY.value, details, db, actor="RECOVERY_MONITOR")
 
         return case

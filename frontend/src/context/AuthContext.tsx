@@ -1,7 +1,34 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { profileApi } from '../services/api'
+
+const PROFILE_CACHE_PREFIX = 'recoverai_profile_cache_'
+
+function buildOptimisticProfile(userId: string, userEmail?: string, metadata?: any): UserProfile {
+  try {
+    const raw = localStorage.getItem(`${PROFILE_CACHE_PREFIX}${userId}`)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && parsed.id === userId) {
+        return {
+          ...parsed,
+          email: parsed.email || userEmail || '',
+          role: parsed.role === 'admin' ? 'admin' : 'operator'
+        }
+      }
+    }
+  } catch {
+    // Ignore cache read failures
+  }
+  return {
+    id: userId,
+    email: userEmail || '',
+    full_name: metadata?.full_name || metadata?.name || userEmail?.split('@')[0] || 'User',
+    avatar_url: metadata?.avatar_url || metadata?.picture || '',
+    role: 'operator'
+  }
+}
 
 export interface UserProfile {
   id: string
@@ -36,102 +63,124 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [role, setRole] = useState<'admin' | 'operator'>('operator')
   const [loading, setLoading] = useState(true)
+  const inflightProfileRef = useRef<{ userId: string; promise: Promise<UserProfile | null> } | null>(null)
+  const lastProfileFetchAtRef = useRef<Record<string, number>>({})
 
-  const fetchProfile = useCallback(async (userId: string, userEmail?: string, metadata?: any): Promise<UserProfile | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle()
-
-      if (error) {
-        console.warn('[RecoverAI Auth] Profiles query notice:', error.message)
-      }
-
-      if (data) {
-        const userProf: UserProfile = {
-          id: data.id,
-          email: data.email || userEmail || '',
-          full_name: data.full_name || metadata?.full_name || metadata?.name || '',
-          avatar_url: data.avatar_url || metadata?.avatar_url || metadata?.picture || '',
-          role: (data.role === 'admin' ? 'admin' : 'operator'),
-          created_at: data.created_at,
-          updated_at: data.updated_at
-        }
-        setProfile(userProf)
-        setRole(userProf.role)
-        return userProf
-      } else {
-        // Fallback default operator profile
-        const fallbackProf: UserProfile = {
-          id: userId,
-          email: userEmail || '',
-          full_name: metadata?.full_name || metadata?.name || userEmail?.split('@')[0] || 'User',
-          avatar_url: metadata?.avatar_url || metadata?.picture || '',
-          role: 'operator'
-        }
-        setProfile(fallbackProf)
-        setRole('operator')
-        return fallbackProf
-      }
-    } catch (err: any) {
-      console.warn('[RecoverAI Auth] Error retrieving profile:', err)
-      const fallbackProf: UserProfile = {
-        id: userId,
-        email: userEmail || '',
-        full_name: metadata?.full_name || metadata?.name || userEmail?.split('@')[0] || 'User',
-        role: 'operator'
-      }
-      setProfile(fallbackProf)
-      setRole('operator')
-      return fallbackProf
+  const fetchProfile = useCallback(async (userId: string, userEmail?: string, metadata?: any, force = false): Promise<UserProfile | null> => {
+    const now = Date.now()
+    if (!force && inflightProfileRef.current?.userId === userId) {
+      return inflightProfileRef.current.promise
     }
+    if (!force && lastProfileFetchAtRef.current[userId] && now - lastProfileFetchAtRef.current[userId] < 15000) {
+      return buildOptimisticProfile(userId, userEmail, metadata)
+    }
+
+    const promise = (async (): Promise<UserProfile | null> => {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 4000)
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id,email,full_name,avatar_url,role,created_at,updated_at')
+          .eq('id', userId)
+          .abortSignal(controller.signal)
+          .maybeSingle()
+
+        if (error) {
+          console.warn('[RecoverAI Auth] Profiles query notice:', error.message)
+        }
+
+        lastProfileFetchAtRef.current[userId] = Date.now()
+
+        if (data) {
+          const userProf: UserProfile = {
+            id: data.id,
+            email: data.email || userEmail || '',
+            full_name: data.full_name || metadata?.full_name || metadata?.name || '',
+            avatar_url: data.avatar_url || metadata?.avatar_url || metadata?.picture || '',
+            role: (data.role === 'admin' ? 'admin' : 'operator'),
+            created_at: data.created_at,
+            updated_at: data.updated_at
+          }
+          try {
+            localStorage.setItem(`${PROFILE_CACHE_PREFIX}${userId}`, JSON.stringify(userProf))
+          } catch {
+            // Ignore storage quota issues
+          }
+          setProfile(userProf)
+          setRole(userProf.role)
+          return userProf
+        } else {
+          const fallbackProf = buildOptimisticProfile(userId, userEmail, metadata)
+          setProfile(fallbackProf)
+          setRole(fallbackProf.role)
+          return fallbackProf
+        }
+      } catch (err: any) {
+        console.warn('[RecoverAI Auth] Error retrieving profile:', err)
+        const fallbackProf = buildOptimisticProfile(userId, userEmail, metadata)
+        setProfile(fallbackProf)
+        setRole(fallbackProf.role)
+        return fallbackProf
+      } finally {
+        clearTimeout(timeoutId)
+        if (inflightProfileRef.current?.userId === userId) {
+          inflightProfileRef.current = null
+        }
+      }
+    })()
+
+    inflightProfileRef.current = { userId, promise }
+    return promise
   }, [])
 
   const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
     if (!user) return null
-    return fetchProfile(user.id, user.email, user.user_metadata)
+    return fetchProfile(user.id, user.email, user.user_metadata, true)
   }, [user, fetchProfile])
 
   useEffect(() => {
     let isMounted = true
 
-    // Initialize session from client local storage
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (isMounted) {
-        if (error) {
-          console.error('[RecoverAI Auth] Error fetching active session:', error.message)
-        }
-        setSession(session)
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          localStorage.setItem('recoverai_authenticated', 'true')
-          await fetchProfile(session.user.id, session.user.email, session.user.user_metadata)
-        } else {
-          localStorage.removeItem('recoverai_authenticated')
-          setProfile(null)
-          setRole('operator')
-        }
+    const applySessionImmediate = (activeSession: Session | null) => {
+      if (!isMounted) return
+      setSession(activeSession)
+      setUser(activeSession?.user ?? null)
+      if (activeSession?.user) {
+        localStorage.setItem('recoverai_authenticated', 'true')
+        const optimistic = buildOptimisticProfile(
+          activeSession.user.id,
+          activeSession.user.email,
+          activeSession.user.user_metadata
+        )
+        setProfile(optimistic)
+        setRole(optimistic.role)
+        setLoading(false)
+        // Hydrate authoritative profile asynchronously without blocking initial UI render
+        void fetchProfile(
+          activeSession.user.id,
+          activeSession.user.email,
+          activeSession.user.user_metadata
+        )
+      } else {
+        localStorage.removeItem('recoverai_authenticated')
+        setProfile(null)
+        setRole('operator')
         setLoading(false)
       }
+    }
+
+    // Initialize session from client local storage without blocking on network profile fetch
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('[RecoverAI Auth] Error fetching active session:', error.message)
+      }
+      applySessionImmediate(session)
     })
 
     // Listen for auth state changes (sign in, token refresh, sign out)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      if (isMounted) {
-        setSession(currentSession)
-        setUser(currentSession?.user ?? null)
-        if (currentSession?.user) {
-          localStorage.setItem('recoverai_authenticated', 'true')
-          await fetchProfile(currentSession.user.id, currentSession.user.email, currentSession.user.user_metadata)
-        } else {
-          localStorage.removeItem('recoverai_authenticated')
-          setProfile(null)
-          setRole('operator')
-        }
-        setLoading(false)
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      applySessionImmediate(currentSession)
     })
 
     return () => {
@@ -152,7 +201,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(data.user)
         localStorage.setItem('recoverai_authenticated', 'true')
         if (data.user) {
-          await fetchProfile(data.user.id, data.user.email, data.user.user_metadata)
+          const optimistic = buildOptimisticProfile(data.user.id, data.user.email, data.user.user_metadata)
+          setProfile(optimistic)
+          setRole(optimistic.role)
+          void fetchProfile(data.user.id, data.user.email, data.user.user_metadata, true)
         }
       }
 
@@ -209,20 +261,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signOut = async () => {
+    const uid = user?.id
+    const clearClientCaches = () => {
+      localStorage.removeItem('recoverai_authenticated')
+      if (uid) {
+        localStorage.removeItem(`${PROFILE_CACHE_PREFIX}${uid}`)
+        localStorage.removeItem(`recoverai_workspaces_cache_${uid}`)
+      }
+    }
     try {
       const { error } = await supabase.auth.signOut()
       setSession(null)
       setUser(null)
       setProfile(null)
       setRole('operator')
-      localStorage.removeItem('recoverai_authenticated')
+      clearClientCaches()
       return { error }
     } catch (err: any) {
       setSession(null)
       setUser(null)
       setProfile(null)
       setRole('operator')
-      localStorage.removeItem('recoverai_authenticated')
+      clearClientCaches()
       return { error: err as AuthError }
     }
   }
